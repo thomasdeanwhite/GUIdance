@@ -1,0 +1,189 @@
+<?xml version="1.0"?>
+<project
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+        xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.sheffield</groupId>
+        <artifactId>leapmotion-tester</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+    <groupId>com.sheffield</groupId>
+    <artifactId>leap</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>NuiMimic</name>
+    <url>http://maven.apache.org</url>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <nd4j.backend>nd4j-native-platform</nd4j.backend>
+        <!-- <nd4j.backend>nd4j-cuda-8.0-platform</nd4j.backend> -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <shadedClassifier>bin</shadedClassifier>
+        <java.version>1.8</java.version>
+        <nd4j.version>0.8.0</nd4j.version>
+        <dl4j.version>0.8.0</dl4j.version>
+        <datavec.version>0.8.0</datavec.version>
+        <arbiter.version>0.8.0</arbiter.version>
+        <rl4j.version>0.8.0</rl4j.version>
+        <!-- For Spark examples: change the _1 to _2 to switch between Spark 1 and Spark 2 -->
+        <dl4j.spark.version>0.8.0_spark_1</dl4j.spark.version>
+        <datavec.spark.version>0.8.0_spark_1</datavec.spark.version>
+        <!-- Scala binary version: DL4J's Spark and UI functionality are released with both Scala 2.10 and 2.11 support -->
+        <scala.binary.version>2.11</scala.binary.version>
+        <guava.version>19.0</guava.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <url>http://central.maven.org/maven2/</url>
+        </repository>
+    </repositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.nd4j</groupId>
+                <artifactId>nd4j-native-platform</artifactId>
+                <version>${nd4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.nd4j</groupId>
+                <artifactId>nd4j-cuda-7.5-platform</artifactId>
+                <version>${nd4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.nd4j</groupId>
+                <artifactId>nd4j-cuda-8.0-platform</artifactId>
+                <version>${nd4j.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+
+    <dependencies>
+        <dependency>
+            <groupId>com.1stleg</groupId>
+            <artifactId>jnativehook</artifactId>
+            <version>2.0.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.sheffield</groupId>
+            <artifactId>instrumentation</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>3.4.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.3.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>commons-cli</groupId>
+            <artifactId>commons-cli</artifactId>
+            <version>1.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>nz.ac.waikato.cms.weka</groupId>
+            <artifactId>weka-dev</artifactId>
+            <version>3.9.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>1.10</version>
+        </dependency>
+
+
+        <!-- Deep Learning -->
+        <dependency>
+            <groupId>org.nd4j</groupId>
+            <artifactId>${nd4j.backend}</artifactId>
+        </dependency>
+
+        <!-- Core DL4J functionality -->
+        <dependency>
+            <groupId>org.deeplearning4j</groupId>
+            <artifactId>deeplearning4j-core</artifactId>
+            <version>${dl4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.deeplearning4j</groupId>
+            <artifactId>deeplearning4j-nlp</artifactId>
+            <version>${dl4j.version}</version>
+        </dependency>
+
+        <!-- deeplearning4j-ui is used for HistogramIterationListener + visualization: see http://deeplearning4j.org/visualization -->
+        <dependency>
+            <groupId>org.deeplearning4j</groupId>
+            <artifactId>deeplearning4j-ui_${scala.binary.version}</artifactId>
+            <version>${dl4j.version}</version>
+        </dependency>
+
+        <!-- Force guava versions for using UI/HistogramIterationListener -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.15</version>
+                <configuration>
+                    <forkCount>1</forkCount>
+                    <reuseForks>true</reuseForks>
+                    <systemPropertyVariables>
+                        <propertyName>java.library.path</propertyName>
+                        <buildDirectory>${project.basedir}/lib</buildDirectory>
+                    </systemPropertyVariables>
+                    <threadCount>1</threadCount>
+                </configuration>
+            </plugin>
+
+
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.7.6.201602180812</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.eluder.coveralls</groupId>
+                <artifactId>coveralls-maven-plugin</artifactId>
+                <version>4.3.0</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
