@@ -22,7 +22,7 @@ public class ApplicationTestingRunType implements RunType {
     @Override
     public int run() {
 
-        Interaction interaction = new DeepQNetworkInteraction();
+        Interaction interaction = new UserInteraction();
 
         ApplicationThread appThread = new ApplicationThread();
 

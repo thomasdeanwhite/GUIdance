@@ -2,6 +2,7 @@ package com.sheffield.leapmotion.runtypes.interaction;
 
 import com.google.gson.Gson;
 import com.sheffield.leapmotion.Properties;
+import com.sheffield.leapmotion.output.StateComparator;
 import com.sheffield.leapmotion.util.FileHandler;
 
 import java.io.File;
@@ -17,10 +18,23 @@ public class UserInteraction implements Interaction {
 
     protected ArrayList<Event> rawEvents;
     protected long minTime = Long.MAX_VALUE;
+    protected State lastState = State.ORIGIN;
+    protected HashMap<Integer, State> states;
+    protected File trainingDataInputFile;
+    protected File trainingDataOutputFile;
 
     @Override
     public void load() throws IOException {
         File userData = new File(Properties.TESTING_OUTPUT + "/" + Properties.INPUT[0] + "/user_interactions.csv");
+
+        trainingDataInputFile = new File(Properties.TESTING_OUTPUT + "/" + Properties.INPUT[0] + "/training_inputs.csv");
+
+        trainingDataOutputFile = new File(Properties.TESTING_OUTPUT + "/" + Properties.INPUT[0] + "/training_outputs.csv");
+
+        FileHandler.createFile(trainingDataOutputFile);
+        FileHandler.createFile(trainingDataInputFile);
+
+        states = new HashMap<>();
 
         String[] contents = FileHandler.readFile(userData).split("\n");
 
@@ -65,7 +79,8 @@ public class UserInteraction implements Interaction {
             return Event.NONE;
         }
 
-        while(rawEvents.size() > 0 && rawEvents.get(0).getTimestamp() < timePassed){
+        if (rawEvents.size() > 0 && rawEvents.get(0).getTimestamp() <
+                timePassed){
             e = rawEvents.remove(0);
         }
 
@@ -78,11 +93,68 @@ public class UserInteraction implements Interaction {
             return Event.NONE;
         }
 
+        lastState = captureState(e);
+
         return e;
     }
 
     @Override
     public void postInteraction(Event e) {
 
+        if (e.equals(Event.NONE)){
+            return;
+        }
+
+        String trainingInputRow = "";
+        //String
+
+        for (double d : lastState.getImage()){
+            trainingInputRow += d + ",";
+        }
+
+        trainingInputRow = trainingInputRow + e.toCsv() + "\n";
+
+        try {
+            FileHandler.appendToFile(trainingDataInputFile, trainingInputRow);
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
+
+        try {
+            FileHandler.appendToFile(trainingDataOutputFile, rawEvents.get
+                    (0).toCsv() + "\n");
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
+
     }
+
+
+    public State captureState(Event e) {
+        double[] newImage = StateComparator.screenshotState();
+
+        int stateNumber = states.size();
+
+        boolean found = false;
+
+        State state = State.ORIGIN;
+
+        for (State s : states.values()) {
+            if (s.screenshotIdentical(newImage)) {
+                state = s;
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            state = new State(stateNumber, newImage, lastState.getStateNumber());
+            states.put(states.size(), state);
+//            StateComparator.captureState(state.getImage(), state.getStateNumber());
+        }
+
+        return state;
+    }
+
+
 }

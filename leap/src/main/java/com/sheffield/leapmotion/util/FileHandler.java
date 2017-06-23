@@ -10,6 +10,20 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
 public class FileHandler {
+
+    public static void createFile(File file){
+        if (!file.exists()){
+            if (!file.getParentFile().exists()){
+                file.getParentFile().mkdirs();
+            }
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     public static void writeToFile(File file, String data) throws IOException {
         if (file.getParentFile() != null) {
             file.getParentFile().mkdirs();

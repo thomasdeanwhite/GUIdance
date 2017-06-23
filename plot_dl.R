@@ -2,7 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(tidyr)
 
-setwd('D:/work/NuiMimic/NuiMimic/')
+setwd('C:/work/NuiMimic/NuiMimic/')
 
 data <- read.csv("debug.csv", header = TRUE)
 

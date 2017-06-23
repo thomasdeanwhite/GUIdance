@@ -25,7 +25,7 @@ public class SamplerApp implements NativeKeyListener, NativeMouseInputListener, 
     private MouseEvent mouseEvent = MouseEvent.NONE;
     private Gson gson = new Gson();
 
-    public static final int MOVEMENT_DELAY = 100;
+    public static final int MOVEMENT_DELAY = 50;
     private int delay = 0;
     private long startMove = 0;
 
@@ -107,7 +107,7 @@ public class SamplerApp implements NativeKeyListener, NativeMouseInputListener, 
         mouseEvent = MouseEvent.MOVE;
 
         if (!lastEvent.equals(MouseEvent.MOVE)){
-            startMove = System.currentTimeMillis();
+            startMove = System.currentTimeMillis() - MOVEMENT_DELAY;
         }
         delay = (int)(System.currentTimeMillis() - startMove);
 

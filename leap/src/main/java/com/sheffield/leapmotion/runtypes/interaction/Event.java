@@ -52,4 +52,26 @@ public class Event implements Serializable {
     public void setEventIndex(int eventIndex) {
         this.eventIndex = eventIndex;
     }
+
+    public String toCsv(){
+        return mouseX + "," + mouseY + "," + leftClickToFloat() + "," +
+                rightClickToFloat();
+    }
+
+    private float leftClickToFloat(){
+        return (1 + eventToFloat(MouseEvent.LEFT_DOWN) -
+                eventToFloat(MouseEvent.LEFT_UP))/2f;
+    }
+
+    private float rightClickToFloat(){
+        return (1 + eventToFloat(MouseEvent.RIGHT_DOWN) -
+                eventToFloat(MouseEvent.RIGHT_UP)) / 2f;
+    }
+
+    private float eventToFloat(MouseEvent event){
+        if (event.equals(this.event)){
+            return 1;
+        }
+        return 0;
+    }
 }
