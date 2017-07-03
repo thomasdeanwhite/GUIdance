@@ -15,6 +15,7 @@ import org.jnativehook.mouse.NativeMouseInputListener;
 import org.jnativehook.mouse.NativeMouseWheelEvent;
 import org.jnativehook.mouse.NativeMouseWheelListener;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 
@@ -33,8 +34,9 @@ public class SamplerApp implements NativeKeyListener, NativeMouseInputListener, 
     private int lastX = 0;
     private int lastY = 0;
 
-    public SamplerApp () {
+    private Rectangle bounds;
 
+    public SamplerApp () {
         try {
             GlobalScreen.registerNativeHook();
         } catch (NativeHookException e) {
@@ -140,7 +142,30 @@ public class SamplerApp implements NativeKeyListener, NativeMouseInputListener, 
             return;
         }
 
-        Event me = new Event(mouseEvent, x, y, System.currentTimeMillis(), 0);
+        if (bounds == null){
+            Window activeWindow = javax.swing.FocusManager.getCurrentManager().getActiveWindow();
+
+
+            Robot robot = null;
+            try {
+                robot = new Robot();
+            } catch (AWTException e) {
+                e.printStackTrace();
+            }
+
+            bounds = new Rectangle(Toolkit.getDefaultToolkit()
+                    .getScreenSize());
+
+            if (activeWindow != null) {
+                bounds = new Rectangle(
+                        (int) activeWindow.getBounds().getX(),
+                        (int) activeWindow.getBounds().getY(),
+                        (int) activeWindow.getBounds().getWidth(),
+                        (int) activeWindow.getBounds().getHeight());
+            }
+        }
+
+        Event me = new Event(mouseEvent, (int)(x - bounds.getX()), (int)(y - bounds.getY()), System.currentTimeMillis(), 0);
 
         if (output == null) {
             output = new File(Properties.TESTING_OUTPUT + "/" + Properties.INPUT[0] + "/user_interactions.csv");

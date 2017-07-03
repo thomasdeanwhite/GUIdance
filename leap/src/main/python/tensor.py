@@ -1,298 +1,162 @@
 # These are all the modules we'll be using later. Make sure you can import them
 # before proceeding further.
 from __future__ import print_function
-import matplotlib.pyplot as plt
 import numpy as np
-import os
-import sys
-import tarfile
+import tensorflow as tf
 import random
-from IPython.display import display, Image
-from scipy import ndimage
-from sklearn.linear_model import LogisticRegression
-from six.moves.urllib.request import urlretrieve
+import csv
+import os
 from six.moves import cPickle as pickle
-from PIL import Image
-
-# Config the matplotlib backend as plotting inline in IPython
-#%matplotlib inline
-
-url = 'https://commondatastorage.googleapis.com/books1000/'
-last_percent_reported = None
-data_root = '.' # Change me to store data elsewhere
-
-def download_progress_hook(count, blockSize, totalSize):
-    """A hook to report the progress of a download. This is mostly intended for users with
-    slow internet connections. Reports every 5% change in download progress.
-    """
-    global last_percent_reported
-    percent = int(count * blockSize * 100 / totalSize)
-
-    if last_percent_reported != percent:
-        if percent % 5 == 0:
-            sys.stdout.write("%s%%" % percent)
-            sys.stdout.flush()
-        else:
-            sys.stdout.write(".")
-            sys.stdout.flush()
-
-        last_percent_reported = percent
-
-def maybe_download(filename, expected_bytes, force=False):
-    """Download a file if not present, and make sure it's the right size."""
-    dest_filename = os.path.join(data_root, filename)
-    if force or not os.path.exists(dest_filename):
-        print('Attempting to download:', filename)
-        filename, _ = urlretrieve(url + filename, dest_filename, reporthook=download_progress_hook)
-        print('\nDownload Complete!')
-    statinfo = os.stat(dest_filename)
-    if statinfo.st_size == expected_bytes:
-        print('Found and verified', dest_filename)
-    else:
-        raise Exception(
-            'Failed to verify ' + dest_filename + '. Can you get to it with a browser?')
-    return dest_filename
-
-train_filename = maybe_download('notMNIST_large.tar.gz', 247336696)
-test_filename = maybe_download('notMNIST_small.tar.gz', 8458043)
 
 
+learning_rate = 0.0001
+epochs = 30
+batch_size = 50
+percent_training = 0.7
+percent_testing = 1
+percent_validation = 0.5
 
-num_classes = 10
-np.random.seed(133)
+data = []
+output = []
 
-def maybe_extract(filename, force=False):
-    root = os.path.splitext(os.path.splitext(filename)[0])[0]  # remove .tar.gz
-    if os.path.isdir(root) and not force:
-        # You may override by setting force=True.
-        print('%s already present - Skipping extraction of %s.' % (root, filename))
-    else:
-        print('Extracting data for %s. This may take a while. Please wait.' % root)
-        tar = tarfile.open(filename)
-        sys.stdout.flush()
-        tar.extractall(data_root)
-        tar.close()
-    data_folders = [
-        os.path.join(root, d) for d in sorted(os.listdir(root))
-        if os.path.isdir(os.path.join(root, d))]
-    if len(data_folders) != num_classes:
-        raise Exception(
-            'Expected %d folders, one per class. Found %d instead.' % (
-                num_classes, len(data_folders)))
-    print(data_folders)
-    return data_folders
+with open('training_inputs.csv', 'rt') as csvfile:
+    reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+    counter = 0
+    for row in reader:
+        data.append([])
+        for e in row:
+            data[counter].append(float(e))
+        counter += 1
 
-train_folders = maybe_extract(train_filename)
-test_folders = maybe_extract(test_filename)
+with open('training_outputs.csv', 'rt') as csvfile:
+    reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+    counter = 0
+    for row in reader:
+        output.append([])
+        for e in row:
+            output[counter].append(float(e))
+        counter += 1
 
+data = np.array(data)
+output = np.array(output)
 
-image_size = 28  # Pixel width and height.
-pixel_depth = 255.0  # Number of levels per pixel.
+print("Records:", data.shape[0])
 
-def load_letter(folder, min_num_images):
-    """Load the data for a single letter label."""
-    image_files = os.listdir(folder)
-    dataset = np.ndarray(shape=(len(image_files), image_size, image_size),
-                         dtype=np.float32)
-    print(folder)
-    num_images = 0
-    for image in image_files:
-        image_file = os.path.join(folder, image)
-        try:
-            image_data = (ndimage.imread(image_file).astype(float) -
-                          pixel_depth / 2) / pixel_depth
-            if image_data.shape != (image_size, image_size):
-                raise Exception('Unexpected image shape: %s' % str(image_data.shape))
-            dataset[num_images, :, :] = image_data
-            num_images = num_images + 1
-        except IOError as e:
-            print('Could not read:', image_file, ':', e, '- it\'s ok, skipping.')
-
-    dataset = dataset[0:num_images, :, :]
-    if num_images < min_num_images:
-        raise Exception('Many fewer images than expected: %d < %d' %
-                        (num_images, min_num_images))
-
-    print('Full dataset tensor:', dataset.shape)
-    print('Mean:', np.mean(dataset))
-    print('Standard deviation:', np.std(dataset))
-    return dataset
-
-def maybe_pickle(data_folders, min_num_images_per_class, force=False):
-    dataset_names = []
-    for folder in data_folders:
-        set_filename = folder + '.pickle'
-        dataset_names.append(set_filename)
-        if os.path.exists(set_filename) and not force:
-            # You may override by setting force=True.
-            print('%s already present - Skipping pickling.' % set_filename)
-        else:
-            print('Pickling %s.' % set_filename)
-            dataset = load_letter(folder, min_num_images_per_class)
-            try:
-                with open(set_filename, 'wb') as f:
-                    pickle.dump(dataset, f, pickle.HIGHEST_PROTOCOL)
-            except Exception as e:
-                print('Unable to save data to', set_filename, ':', e)
-
-    return dataset_names
-
-train_datasets = maybe_pickle(train_folders, 45000)
-test_datasets = maybe_pickle(test_folders, 1800)
+output = np.array(output)
 
 
+def get_sample(data, output, n):
+    samples = random.sample(range(data.shape[0]), n)
+    return data[samples], output[samples], samples
+
+train_dataset, train_labels, samples = get_sample(data, output, int(percent_training * data.shape[0]))
+data = np.delete(data, samples, axis=0)
+
+valid_dataset, valid_labels, samples = get_sample(data, output, int(percent_validation * data.shape[0]))
+data = np.delete(data, samples, axis=0)
+
+test_dataset, test_labels, _ = get_sample(data, output, int(percent_testing * data.shape[0]))
 
 
-def make_arrays(nb_rows, img_size):
-    if nb_rows:
-        dataset = np.ndarray((nb_rows, img_size, img_size), dtype=np.float32)
-        labels = np.ndarray(nb_rows, dtype=np.int32)
-    else:
-        dataset, labels = None, None
-    return dataset, labels
+print('Training set', train_dataset.shape, train_labels.shape)
+print('Validation set', valid_dataset.shape, valid_labels.shape)
+print('Test set', test_dataset.shape, test_labels.shape)
 
-def merge_datasets(pickle_files, train_size, valid_size=0):
-    num_classes = len(pickle_files)
-    valid_dataset, valid_labels = make_arrays(valid_size, image_size)
-    train_dataset, train_labels = make_arrays(train_size, image_size)
-    vsize_per_class = valid_size // num_classes
-    tsize_per_class = train_size // num_classes
+x = tf.placeholder(tf.float32, [None, train_dataset.shape[1]])
+y = tf.placeholder(tf.float32, [None, train_labels.shape[1]])
 
-    start_v, start_t = 0, 0
-    end_v, end_t = vsize_per_class, tsize_per_class
-    end_l = vsize_per_class+tsize_per_class
-    for label, pickle_file in enumerate(pickle_files):
-        try:
-            with open(pickle_file, 'rb') as f:
-                letter_set = pickle.load(f)
-                # let's shuffle the letters to have random validation and training set
-                np.random.shuffle(letter_set)
-                if valid_dataset is not None:
-                    valid_letter = letter_set[:vsize_per_class, :, :]
-                    valid_dataset[start_v:end_v, :, :] = valid_letter
-                    valid_labels[start_v:end_v] = label
-                    start_v += vsize_per_class
-                    end_v += vsize_per_class
+# now declare the weights connecting the input to the hidden layer
+W1 = tf.Variable(tf.random_normal([train_dataset.shape[1], 1024], stddev=0.05), name='W1')
+b1 = tf.Variable(tf.random_normal([1024]), name='b1')
 
-                train_letter = letter_set[vsize_per_class:end_l, :, :]
-                train_dataset[start_t:end_t, :, :] = train_letter
-                train_labels[start_t:end_t] = label
-                start_t += tsize_per_class
-                end_t += tsize_per_class
-        except Exception as e:
-            print('Unable to process data from', pickle_file, ':', e)
-            raise
+# and the weights connecting the hidden layer to the output layer
+W2 = tf.Variable(tf.random_normal([1024, 128], stddev=0.05), name='W2')
+b2 = tf.Variable(tf.random_normal([128]), name='b2')
 
-    return valid_dataset, valid_labels, train_dataset, train_labels
+# and the weights connecting the hidden layer to the output layer
+W3 = tf.Variable(tf.random_normal([128, 64], stddev=0.05), name='W3')
+b3 = tf.Variable(tf.random_normal([64]), name='b3')
 
+# and the weights connecting the hidden layer to the output layer
+W4 = tf.Variable(tf.random_normal([64, train_labels.shape[1]], stddev=0.05), name='W4')
+b4 = tf.Variable(tf.random_normal([train_labels.shape[1]]), name='b4')
 
-train_size = 200000
-valid_size = 10000
-test_size = 10000
+# calculate the output of the hidden layer
+hidden_out = tf.add(tf.matmul(x, W1), b1)
+#hidden_out = tf.nn.tanh(hidden_out)
 
-valid_dataset, valid_labels, train_dataset, train_labels = merge_datasets(
-    train_datasets, train_size, valid_size)
-_, _, test_dataset, test_labels = merge_datasets(test_datasets, test_size)
+# calculate the output of the hidden layer
+hidden_out2 = tf.add(tf.matmul(hidden_out, W2), b2)
+#hidden_out2 = tf.nn.tanh(hidden_out2)
 
-print('Training:', train_dataset.shape, train_labels.shape)
-print('Validation:', valid_dataset.shape, valid_labels.shape)
-print('Testing:', test_dataset.shape, test_labels.shape)
+# calculate the output of the hidden layer
+hidden_out3 = tf.add(tf.matmul(hidden_out2, W3), b3)
+#hidden_out3 = tf.nn.tanh(hidden_out3)
+
+# now calculate the hidden layer output - in this case, let's use a softmax activated
+# output layer
+#y_ = tf.nn.softmax(tf.add(tf.matmul(hidden_out3, W4), b4))
+y_ = tf.add(tf.matmul(hidden_out3, W4), b4)
+
+# now let's define the cost function which we are going to train the model on
+y_clipped = tf.clip_by_value(y_, 1e-10, 0.9999999)
+# cross_entropy = -tf.reduce_mean(tf.reduce_sum(y * tf.log(y_clipped)
+#                                               + (1 - y) * tf.log(1 - y_clipped), axis=1))
 
 
+loss = tf.contrib.losses.absolute_difference(y, y_)
+# add an optimiser
+# optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
 
-def randomize(dataset, labels):
-    permutation = np.random.permutation(labels.shape[0])
-    shuffled_dataset = dataset[permutation,:,:]
-    shuffled_labels = labels[permutation]
-    return shuffled_dataset, shuffled_labels
-train_dataset, train_labels = randomize(train_dataset, train_labels)
-test_dataset, test_labels = randomize(test_dataset, test_labels)
-valid_dataset, valid_labels = randomize(valid_dataset, valid_labels)
-
-print(train_dataset.shape)
+optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(loss)
 
 
-def show_letter(dataset, letter):
-    bw_data = [[y.item() for y in x] for x in dataset[letter]]
-    float_data = [[[x, x, x] for x in d] for d in bw_data]
-    plt.imshow(float_data)
-    plt.show()
+# finally setup the initialisation operator
+init_op = tf.global_variables_initializer()
 
-#show_letter(train_dataset, 1)
+# define an accuracy assessment operation
+correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-def count_freq(dataset, max_index):
-    unique, counts = np.unique(dataset, return_counts=True)
-    return dict(zip(unique, counts))
+# add a summary to store the accuracy
+tf.summary.scalar('accuracy', accuracy)
 
-# freqs = count_freq(train_labels, max(train_labels))
-#
-# print(freqs)
+merged = tf.summary.merge_all()
+writer = tf.summary.FileWriter('tf')
 
-pickle_file = os.path.join(data_root, 'notMNIST.pickle')
+saver = tf.train.Saver()
 
-try:
-    f = open(pickle_file, 'wb')
-    save = {
-        'train_dataset': train_dataset,
-        'train_labels': train_labels,
-        'valid_dataset': valid_dataset,
-        'valid_labels': valid_labels,
-        'test_dataset': test_dataset,
-        'test_labels': test_labels,
-    }
-    pickle.dump(save, f, pickle.HIGHEST_PROTOCOL)
-    f.close()
-except Exception as e:
-    print('Unable to save data to', pickle_file, ':', e)
-    raise
+# start the session
+with tf.Session() as sess:
+    # initialise the variables
+    sess.run(init_op)
 
-statinfo = os.stat(pickle_file)
-print('Compressed pickle size:', statinfo.st_size)
-#
-# validation_overlap = 0
-# testing_overlap = 0
-# counter = 0
-# for row in valid_dataset:
-#     print("\r" + str(counter) + " " + str(validation_overlap) + " " + str(testing_overlap))
-#     if any((train_dataset[:, :] == row[:]).all(1)):
-#         validation_overlap += 1
-#     counter += 1
-#
-# validation_overlap = 100 * validation_overlap / float(len(valid_dataset))
-#
-# testing_overlap = 100 * testing_overlap / float(len(test_dataset))
-#
-# print("Overlap:")
-# print("Validation set: " + str(validation_overlap))
-# print("Testing Set: " + str(testing_overlap))
+    # Restore variables from disk.
+    model_file = "model/model.ckpt"
+    if os.path.isfile("model/checkpoint"):
+        saver.restore(sess, model_file)
+        print("Model restored.")
 
 
-new_train_dataset = []
+    total_len = train_labels.shape[0]
+    total_batch = int(total_len / batch_size)
+    for epoch in range(epochs):
+        avg_cost = 0
+        for i in range(total_batch):
+            samples = random.sample(range(total_len), batch_size)
+            batch_x = train_dataset[samples]
+            batch_y = train_labels[samples]
+            _, c = sess.run([optimiser, loss], feed_dict={x: batch_x, y: batch_y})
+            avg_cost += c / total_batch
+        print("Valid Accuracy: ", sess.run(accuracy, feed_dict={x: valid_dataset, y: valid_labels}), "cost:", avg_cost)
+        summary = sess.run(merged, feed_dict={x: valid_dataset, y: valid_labels})
+        writer.add_summary(summary, epoch)
 
-for i in range(0, len(train_dataset)):
-    new_train_dataset.append(train_dataset[i].flatten())
+    print("\nTraining complete!")
+    writer.add_graph(sess.graph)
+    print(sess.run(accuracy, feed_dict={x: test_dataset, y: test_labels}))
 
-new_train_dataset = np.array(new_train_dataset)
+    save_path = saver.save(sess, model_file)
+    print("Model saved in file: %s" % save_path)
 
-new_test_dataset = []
-
-for i in range(0, len(test_dataset)):
-    new_test_dataset.append(test_dataset[i].flatten())
-
-new_test_dataset = np.array(new_test_dataset)
-
-def calc_correctness(samples):
-
-    model = LogisticRegression()
-
-    samples = random.sample(range(0, len(train_dataset)), samples)
-
-    training = new_train_dataset[samples]
-
-    model.fit(training, train_labels[samples])
-
-    return model.score(new_test_dataset, test_labels)
-
-# for samples in [50, 100, 1000, 5000, 200000]:
-#     print("Correctness (" + str(samples) + "): " + str(calc_correctness(samples)))
 

@@ -19,10 +19,13 @@ import java.io.IOException;
  * Created by thoma on 20/06/2017.
  */
 public class ApplicationTestingRunType implements RunType {
+
+    private Rectangle bounds;
+
     @Override
     public int run() {
 
-        Interaction interaction = new UserInteraction();
+        Interaction interaction = new DeepQNetworkInteraction();
 
         ApplicationThread appThread = new ApplicationThread();
 
@@ -64,8 +67,30 @@ public class ApplicationTestingRunType implements RunType {
 
             Event e = interaction.interact(timePassed);
 
+            if (bounds == null){
+                Window activeWindow = javax.swing.FocusManager.getCurrentManager().getActiveWindow();
 
-            r.mouseMove(e.getMouseX(), e.getMouseY());
+
+                Robot robot = null;
+                try {
+                    robot = new Robot();
+                } catch (AWTException ex) {
+                    ex.printStackTrace();
+                }
+
+                bounds = new Rectangle(Toolkit.getDefaultToolkit()
+                        .getScreenSize());
+
+                if (activeWindow != null) {
+                    bounds = new Rectangle(
+                            (int) activeWindow.getBounds().getX(),
+                            (int) activeWindow.getBounds().getY(),
+                            (int) activeWindow.getBounds().getWidth(),
+                            (int) activeWindow.getBounds().getHeight());
+                }
+            }
+
+            r.mouseMove((int)(bounds.getX() + e.getMouseX()), (int)(bounds.getY() + e.getMouseY()));
 
             if (e.getEvent().equals(MouseEvent.LEFT_CLICK)) {
                 click(r, InputEvent.BUTTON1_MASK);
@@ -75,7 +100,7 @@ public class ApplicationTestingRunType implements RunType {
                 //mouseDown(r, InputEvent.BUTTON1_MASK);
                 click(r, InputEvent.BUTTON1_MASK);
             } else if (e.getEvent().equals(MouseEvent.RIGHT_DOWN)) {
-                mouseDown(r, InputEvent.BUTTON2_MASK);
+//                mouseDown(r, InputEvent.BUTTON2_MASK);
                 click(r, InputEvent.BUTTON2_MASK);
             } else if (e.getEvent().equals(MouseEvent.LEFT_UP)) {
                 mouseUp(r, InputEvent.BUTTON1_MASK);
@@ -100,7 +125,6 @@ public class ApplicationTestingRunType implements RunType {
             Thread.sleep(10);
         } catch (InterruptedException exc) {
         }
-        ;
 
         r.mouseRelease(button);
     }

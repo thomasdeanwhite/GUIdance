@@ -40,7 +40,7 @@ public class ApplicationThread {
                 String exec = Properties.EXEC;
 
                 try {
-                    process = Runtime.getRuntime().exec(exec);
+                    process = new ProcessBuilder(exec).start();// Runtime.getRuntime().exec(exec);
 
                     output();
                 } catch (IOException e) {
