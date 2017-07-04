@@ -58,10 +58,12 @@ import java.util.List;
 public class DeepQNetworkInteraction extends UserInteraction {
     private long minTime = Long.MAX_VALUE;
 
+    private static final float CLICK_THRESHOLD = 0.5f;
 
     private static final float RANDOM_PROBABILITY = 0.05f;
 
     private Event lastEvent = Event.NONE;
+    private Event secondLastEvent = lastEvent;
 
     private int iteration = 0;
 
@@ -94,7 +96,7 @@ public class DeepQNetworkInteraction extends UserInteraction {
             return Event.NONE;
         }
 
-        if (Math.random() <= RANDOM_PROBABILITY) {
+        if (Math.random() <= RANDOM_PROBABILITY || lastEvent.equals(Event.NONE)) {
             e = rawEvents.get((int) (Math.random() * rawEvents.size()));
         } else {
             double[] img = lastState.getImage();
@@ -104,10 +106,10 @@ public class DeepQNetworkInteraction extends UserInteraction {
             for (double d : img)
                 input += d + " ";
 
-            input += lastEvent.toCsv().replace(",", " ");
+            input += lastEvent.toCsv(secondLastEvent.getMouseX(), secondLastEvent.getMouseY()).replace(",", " ");
 
             try {
-                String pythonCommand = "python tensor_play.py " + input;
+                String pythonCommand = "python3 tensor_play.py " + input;
                 Process process = Runtime.getRuntime().exec(pythonCommand);
                 BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 BufferedReader be = new BufferedReader(new InputStreamReader(process.getErrorStream()));
@@ -116,10 +118,18 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
                 e = Event.NONE;
 
-                while ((line = br.readLine()) != null && line.trim().length() > 0) {
-                    //output: [[ x y lmm rmm]]
-                    line = line.replace("[[", "");
-                    line = line.replace("]]", "");
+                br.lines().map(s -> {
+                    App.out.println(s);
+                    return s;
+                });
+
+
+                while ((line = br.readLine()) != null && line.trim().length() > 0){
+
+                    if (Properties.SHOW_OUTPUT) {
+                        App.out.print("\rlem: " + lastEvent.toString() + " disp: " + line);
+                    }
+                    //output: x y lmm rmm
                     //x y lmm rmm
                     String[] eles = line.split(" ");
                     float lmm = Float.parseFloat(eles[2]);
@@ -127,26 +137,33 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
                     MouseEvent me = MouseEvent.MOVE;
 
+                    if (lastEvent.getEvent().equals(MouseEvent.LEFT_DOWN) || lastEvent.getEvent().equals(MouseEvent.DRAGGED)){
+                        me = MouseEvent.DRAGGED;
+                    }
 
-                    if (lmm > rmm && lmm > 0.5) {
+
+                    if (lmm > rmm && lmm > CLICK_THRESHOLD) {
                         me = MouseEvent.LEFT_DOWN;
-                    } else if (rmm > lmm && rmm > 0.5) {
-                        me = MouseEvent.RIGHT_DOWN;
-                    } else if (lmm < rmm && lmm < -0.5) {
+                    } else if (rmm > lmm && rmm > CLICK_THRESHOLD) {
+                        me = MouseEvent.RIGHT_CLICK;
+                    } else if (lmm < rmm && lmm < -CLICK_THRESHOLD) {
                         me = MouseEvent.LEFT_UP;
-                    } else if (rmm < lmm && rmm < -0.5) {
+                    } else if (rmm < lmm && rmm < -CLICK_THRESHOLD) {
                         me = MouseEvent.RIGHT_UP;
                     }
 
+                    int diffx = (int) (Float.parseFloat(eles[0]) * Event.bounds.getWidth());
+                    int diffy = (int) (Float.parseFloat(eles[1]) * Event.bounds.getHeight());
+
                     e = new Event(me,
-                            (int) (Float.parseFloat(eles[0]) * Event.bounds.getWidth()),
-                            (int) (Float.parseFloat(eles[1]) * Event.bounds.getHeight()),
+                            lastEvent.getMouseX() + diffx,
+                            lastEvent.getMouseY() + diffy,
                             System.currentTimeMillis(),
                             iteration);
                 }
 
                 while ((line = be.readLine()) != null){
-                    App.out.println(line);
+                    //App.out.println(line);
                 }
 
             } catch (IOException e1) {
@@ -168,16 +185,22 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
         lastState = state;
 
+        secondLastEvent = lastEvent;
+
+        lastEvent = e;
+
         iteration++;
 
     }
 
     public State captureState(Event e) {
-        double[] newImage = StateComparator.screenshotState();
+        double[] newImage = StateComparator.screenshotState(e.getMouseX(), e.getMouseY());
 
         int stateNumber = states.size();
 
         State state = new State(stateNumber, newImage, lastState.getStateNumber());
+
+        states.put(stateNumber, state);
         StateComparator.captureState(state.getImage(), state.getStateNumber());
 
         return state;

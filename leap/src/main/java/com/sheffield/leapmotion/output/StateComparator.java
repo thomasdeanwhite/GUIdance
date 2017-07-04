@@ -32,9 +32,9 @@ public class StateComparator {
 
     public static HashMap<Integer, Integer> statesVisits;
 
-    public static final int X_SIZE = 32;
+    public static final int X_SIZE = 64;
 
-    public static final int Y_SIZE = 32;
+    public static final int Y_SIZE = 64;
 
 
     private static ArrayList<Integer> statesVisitedThisRun;
@@ -192,14 +192,6 @@ public class StateComparator {
     public static BufferedImage screenshot() {
         Window activeWindow = javax.swing.FocusManager.getCurrentManager().getActiveWindow();
 
-
-        Robot robot = null;
-        try {
-            robot = new Robot();
-        } catch (AWTException e) {
-            e.printStackTrace();
-        }
-
         Rectangle bounds = new Rectangle(Toolkit.getDefaultToolkit()
                 .getScreenSize());
 
@@ -209,6 +201,18 @@ public class StateComparator {
                     (int) activeWindow.getBounds().getY(),
                     (int) activeWindow.getBounds().getWidth(),
                     (int) activeWindow.getBounds().getHeight());
+        }
+
+        return screenshot(bounds);
+    }
+
+    public static BufferedImage screenshot(Rectangle bounds) {
+
+        Robot robot = null;
+        try {
+            robot = new Robot();
+        } catch (AWTException e) {
+            e.printStackTrace();
         }
 
         return robot.createScreenCapture(bounds);
@@ -379,6 +383,69 @@ public class StateComparator {
                         0.333 * (blackAndWhite & 0x0FF)));
 
                 dImage[(j * X_LIM) + i] = blackAndWhite / (float) 255;
+            }
+
+        }
+
+        return dImage;
+    }
+
+
+    public static double[] screenshotState(int mouseX, int mouseY) {
+
+
+        final int HALF_WIDTH = X_SIZE/2;
+        final int HALF_HEIGHT = Y_SIZE/2;
+
+        int startX = mouseX - HALF_WIDTH;
+        int startY = mouseY - HALF_HEIGHT;
+
+        int endX = mouseX + HALF_WIDTH;
+        int endY = mouseY + HALF_HEIGHT;
+
+        BufferedImage newState = screenshot(new Rectangle(startX, startY,
+                X_SIZE, Y_SIZE));
+
+        int[] data = ((DataBufferInt) newState.getRaster().getDataBuffer()).getData();
+
+        int width = newState.getWidth();
+        int height = newState.getHeight();
+
+        newState.flush();
+
+        newState = null;
+
+        double[] dImage = new double[X_SIZE * Y_SIZE];
+
+        int xOffset = 0;
+        int yOffset = 0;
+
+        if (startX < 0){
+            xOffset = -startX;
+        }
+
+        if (startY < 0){
+            yOffset = -startY;
+        }
+
+        for (int i = 0; i + xOffset< width; i++) {
+            for (int j = 0; j + yOffset < height; j++) {
+
+                int index = (j * width) + i;
+
+                assert index < width * height;
+
+                int blackAndWhite = data[index];
+                blackAndWhite = (int) ((0.333 * ((blackAndWhite >> 16) &
+                        0x0FF) +
+                        0.333 * ((blackAndWhite >> 8) & 0x0FF) +
+                        0.333 * (blackAndWhite & 0x0FF)));
+
+                index = ((j + yOffset) * X_SIZE) + (i + xOffset);
+
+                assert index < X_SIZE * Y_SIZE;
+
+                dImage[index] = blackAndWhite / (float) 255;
             }
 
         }

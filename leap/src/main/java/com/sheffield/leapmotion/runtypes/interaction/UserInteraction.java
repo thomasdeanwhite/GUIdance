@@ -3,6 +3,7 @@ package com.sheffield.leapmotion.runtypes.interaction;
 import com.google.gson.Gson;
 import com.sheffield.leapmotion.Properties;
 import com.sheffield.leapmotion.output.StateComparator;
+import com.sheffield.leapmotion.sampler.MouseEvent;
 import com.sheffield.leapmotion.util.FileHandler;
 
 import java.io.File;
@@ -17,6 +18,7 @@ import java.util.HashMap;
 public class UserInteraction implements Interaction {
 
     protected ArrayList<Event> rawEvents;
+    protected Event lastEvent = Event.NONE;
     protected long minTime = Long.MAX_VALUE;
     protected State lastState = State.ORIGIN;
     protected HashMap<Integer, State> states;
@@ -44,6 +46,8 @@ public class UserInteraction implements Interaction {
 
         for (String line : contents){
             Event e = gson.fromJson(line, Event.class);
+
+            e.moveMouse((int)e.bounds.getX() + 1280, (int)e.bounds.getY());
 
             if (e.getTimestamp() < minTime){
                 minTime = e.getTimestamp();
@@ -112,7 +116,7 @@ public class UserInteraction implements Interaction {
             trainingInputRow += d + ",";
         }
 
-        trainingInputRow = trainingInputRow + e.toCsv() + "\n";
+        trainingInputRow = trainingInputRow + e.toCsv(lastEvent.getMouseX(), lastEvent.getMouseY()) + "\n";
 
         try {
             FileHandler.appendToFile(trainingDataInputFile, trainingInputRow);
@@ -122,16 +126,18 @@ public class UserInteraction implements Interaction {
 
         try {
             FileHandler.appendToFile(trainingDataOutputFile, rawEvents.get
-                    (0).toCsv() + "\n");
+                    (0).toCsv(e.getMouseX(), e.getMouseY()) + "\n");
         } catch (IOException e1) {
             e1.printStackTrace();
         }
+
+        lastEvent = e;
 
     }
 
 
     public State captureState(Event e) {
-        double[] newImage = StateComparator.screenshotState();
+        double[] newImage = StateComparator.screenshotState(e.getMouseX(), e.getMouseY());
 
         int stateNumber = states.size();
 
@@ -139,19 +145,19 @@ public class UserInteraction implements Interaction {
 
         State state = State.ORIGIN;
 
-        for (State s : states.values()) {
-            if (s.screenshotIdentical(newImage)) {
-                state = s;
-                found = true;
-                break;
-            }
-        }
-
-        if (!found) {
+//        for (State s : states.values()) {
+//            if (s.screenshotIdentical(newImage)) {
+//                state = s;
+//                found = true;
+//                break;
+//            }
+//        }
+//
+//        if (!found) {
             state = new State(stateNumber, newImage, lastState.getStateNumber());
             states.put(states.size(), state);
-//            StateComparator.captureState(state.getImage(), state.getStateNumber());
-        }
+            StateComparator.captureState(state.getImage(), state.getStateNumber());
+//        }
 
         return state;
     }

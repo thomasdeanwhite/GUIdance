@@ -35,6 +35,11 @@ public class Event implements Serializable {
     private int mouseY;
     private int eventIndex = 0;
 
+    public void moveMouse(int x, int y){
+        mouseX += x;
+        mouseY += y;
+    }
+
     public Event(MouseEvent me, int x, int y, long time, int index) {
         event = me;
         mouseX = x;
@@ -71,19 +76,24 @@ public class Event implements Serializable {
         this.eventIndex = eventIndex;
     }
 
-    public String toCsv() {
-        return (mouseX/bounds.getWidth()) + "," + (mouseY/bounds.getHeight()) + "," + leftClickToFloat() + "," +
+    public String toCsv(float lastMouseX, float lastMouseY) {
+        return ((mouseX - lastMouseX)/bounds.getWidth()) + "," + ((mouseY - lastMouseY)/bounds.getHeight()) + "," + leftClickToFloat() + "," +
                 rightClickToFloat();
     }
 
+    public String toString() {
+        return "(" + mouseX + " " + mouseY + " " + leftClickToFloat() + " " +
+                rightClickToFloat() + ")";
+    }
+
     private float leftClickToFloat() {
-        return eventToFloat(MouseEvent.LEFT_DOWN) -
-                eventToFloat(MouseEvent.LEFT_UP);
+        return (1 + eventToFloat(MouseEvent.LEFT_DOWN) -
+                eventToFloat(MouseEvent.LEFT_UP))/2;
     }
 
     private float rightClickToFloat() {
-        return eventToFloat(MouseEvent.RIGHT_DOWN) -
-                eventToFloat(MouseEvent.RIGHT_UP);
+        return (1 + eventToFloat(MouseEvent.RIGHT_DOWN) -
+                eventToFloat(MouseEvent.RIGHT_UP))/2;
     }
 
     private float eventToFloat(MouseEvent event) {

@@ -24,8 +24,18 @@ public class ApplicationTestingRunType implements RunType {
 
     @Override
     public int run() {
+        Interaction interaction;
 
-        Interaction interaction = new DeepQNetworkInteraction();
+        switch (Properties.INTERACTION){
+            case DEEP_LEARNING:
+                interaction = new DeepQNetworkInteraction();
+                break;
+            case USER:
+            default:
+                interaction = new UserInteraction();
+        }
+
+
 
         ApplicationThread appThread = new ApplicationThread();
 
@@ -69,14 +79,6 @@ public class ApplicationTestingRunType implements RunType {
 
             if (bounds == null){
                 Window activeWindow = javax.swing.FocusManager.getCurrentManager().getActiveWindow();
-
-
-                Robot robot = null;
-                try {
-                    robot = new Robot();
-                } catch (AWTException ex) {
-                    ex.printStackTrace();
-                }
 
                 bounds = new Rectangle(Toolkit.getDefaultToolkit()
                         .getScreenSize());

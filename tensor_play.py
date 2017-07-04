@@ -9,7 +9,7 @@ import csv
 import os
 from six.moves import cPickle as pickle
 
-input_length = 1028
+input_length = 4100
 output_length = 4
 
 
@@ -21,15 +21,15 @@ W1 = tf.Variable(tf.random_normal([input_length, 1024], stddev=0.05), name='W1')
 b1 = tf.Variable(tf.random_normal([1024]), name='b1')
 
 # and the weights connecting the hidden layer to the output layer
-W2 = tf.Variable(tf.random_normal([1024, 128], stddev=0.05), name='W2')
-b2 = tf.Variable(tf.random_normal([128]), name='b2')
+W2 = tf.Variable(tf.random_normal([1024, 4096], stddev=0.05), name='W2')
+b2 = tf.Variable(tf.random_normal([4096]), name='b2')
 
 # and the weights connecting the hidden layer to the output layer
-W3 = tf.Variable(tf.random_normal([128, 64], stddev=0.05), name='W3')
-b3 = tf.Variable(tf.random_normal([64]), name='b3')
+W3 = tf.Variable(tf.random_normal([4096, 512], stddev=0.05), name='W3')
+b3 = tf.Variable(tf.random_normal([512]), name='b3')
 
 # and the weights connecting the hidden layer to the output layer
-W4 = tf.Variable(tf.random_normal([64, output_length], stddev=0.05), name='W4')
+W4 = tf.Variable(tf.random_normal([512, output_length], stddev=0.05), name='W4')
 b4 = tf.Variable(tf.random_normal([output_length]), name='b4')
 
 # calculate the output of the hidden layer
@@ -44,10 +44,8 @@ hidden_out2 = tf.add(tf.matmul(hidden_out, W2), b2)
 hidden_out3 = tf.add(tf.matmul(hidden_out2, W3), b3)
 #hidden_out3 = tf.nn.tanh(hidden_out3)
 
-# now calculate the hidden layer output - in this case, let's use a softmax activated
-# output layer
-#y_ = tf.nn.softmax(tf.add(tf.matmul(hidden_out3, W4), b4))
-y_ = tf.add(tf.matmul(hidden_out3, W4), b4)
+y_ = tf.nn.relu(tf.add(tf.matmul(hidden_out3, W4), b4))
+#y_ = tf.add(tf.matmul(hidden_out3, W4), b4)
 
 # now let's define the cost function which we are going to train the model on
 y_clipped = tf.clip_by_value(y_, 1e-10, 0.9999999)
@@ -82,6 +80,6 @@ with tf.Session() as sess:
     #model is loaded! Use model:
     r = get_output(sess, input)
 
-    print(r)
+    print(r[0][0], r[0][1], r[0][2], r[0][3])
 
 

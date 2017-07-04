@@ -37,6 +37,14 @@ public class Properties extends InstrumentationProperties {
 
     @Parameter(key = "clusters", description = "Amount of clusters to use for data processing", category = "Data Processing")
     public static int CLUSTERS = 400;
+
+    public enum Interaction {
+        USER, DEEP_LEARNING
+    }
+
+    @Parameter(key = "interaction", description = "Technique for application interaction", hasArgs = true, category = "GUI Testing")
+    public static Interaction INTERACTION = Interaction.USER;
+
     /*
                     Properties for Leap Motion Testing
              */
@@ -624,4 +632,6 @@ public class Properties extends InstrumentationProperties {
         }
         return instance;
     }
+
+
 }

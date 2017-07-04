@@ -10,11 +10,11 @@ from six.moves import cPickle as pickle
 
 
 learning_rate = 0.0001
-epochs = 30
-batch_size = 50
-percent_training = 0.7
+epochs = 10
+batch_size = 100
+percent_training = 0.9
 percent_testing = 1
-percent_validation = 0.5
+percent_validation = 0.7
 
 data = []
 output = []
@@ -70,15 +70,15 @@ W1 = tf.Variable(tf.random_normal([train_dataset.shape[1], 1024], stddev=0.05), 
 b1 = tf.Variable(tf.random_normal([1024]), name='b1')
 
 # and the weights connecting the hidden layer to the output layer
-W2 = tf.Variable(tf.random_normal([1024, 128], stddev=0.05), name='W2')
-b2 = tf.Variable(tf.random_normal([128]), name='b2')
+W2 = tf.Variable(tf.random_normal([1024, 4096], stddev=0.05), name='W2')
+b2 = tf.Variable(tf.random_normal([4096]), name='b2')
 
 # and the weights connecting the hidden layer to the output layer
-W3 = tf.Variable(tf.random_normal([128, 64], stddev=0.05), name='W3')
-b3 = tf.Variable(tf.random_normal([64]), name='b3')
+W3 = tf.Variable(tf.random_normal([4096, 512], stddev=0.05), name='W3')
+b3 = tf.Variable(tf.random_normal([512]), name='b3')
 
 # and the weights connecting the hidden layer to the output layer
-W4 = tf.Variable(tf.random_normal([64, train_labels.shape[1]], stddev=0.05), name='W4')
+W4 = tf.Variable(tf.random_normal([512, train_labels.shape[1]], stddev=0.05), name='W4')
 b4 = tf.Variable(tf.random_normal([train_labels.shape[1]]), name='b4')
 
 # calculate the output of the hidden layer
@@ -95,16 +95,26 @@ hidden_out3 = tf.add(tf.matmul(hidden_out2, W3), b3)
 
 # now calculate the hidden layer output - in this case, let's use a softmax activated
 # output layer
-#y_ = tf.nn.softmax(tf.add(tf.matmul(hidden_out3, W4), b4))
-y_ = tf.add(tf.matmul(hidden_out3, W4), b4)
+y_ = tf.nn.relu(tf.add(tf.matmul(hidden_out3, W4), b4))
+#y_ = tf.add(tf.matmul(hidden_out3, W4), b4)
 
 # now let's define the cost function which we are going to train the model on
 y_clipped = tf.clip_by_value(y_, 1e-10, 0.9999999)
 # cross_entropy = -tf.reduce_mean(tf.reduce_sum(y * tf.log(y_clipped)
 #                                               + (1 - y) * tf.log(1 - y_clipped), axis=1))
+#
+# numerator = tf.reduce_sum(tf.multiply(y, y_))
+#
+# den = tf.multiply(
+#     tf.sqrt(tf.reduce_sum(tf.multiply(y, y))),
+#     tf.sqrt(tf.reduce_sum(tf.multiply(y_, y_)))
+# )
+# accuracy = tf.div(numerator, den)
 
+accuracy = tf.negative(tf.contrib.losses.absolute_difference(y, y_))
 
 loss = tf.contrib.losses.absolute_difference(y, y_)
+#loss = tf.div(tf.add(tf.constant(1.0), tf.negative(accuracy)), 2)
 # add an optimiser
 # optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
 
@@ -115,8 +125,9 @@ optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minim
 init_op = tf.global_variables_initializer()
 
 # define an accuracy assessment operation
-correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+#correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
+#accuracy = tf.reduce_mean(tf.contrib.losses.absolute_difference(y, y_))
+
 
 # add a summary to store the accuracy
 tf.summary.scalar('accuracy', accuracy)
@@ -148,7 +159,7 @@ with tf.Session() as sess:
             batch_y = train_labels[samples]
             _, c = sess.run([optimiser, loss], feed_dict={x: batch_x, y: batch_y})
             avg_cost += c / total_batch
-        print("Valid Accuracy: ", sess.run(accuracy, feed_dict={x: valid_dataset, y: valid_labels}), "cost:", avg_cost)
+        print(epoch, ") Valid Accuracy: ", (sess.run(accuracy, feed_dict={x: valid_dataset, y: valid_labels})), "Loss:", avg_cost)
         summary = sess.run(merged, feed_dict={x: valid_dataset, y: valid_labels})
         writer.add_summary(summary, epoch)
 

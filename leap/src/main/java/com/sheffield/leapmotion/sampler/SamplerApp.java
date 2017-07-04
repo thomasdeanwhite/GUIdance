@@ -166,6 +166,7 @@ public class SamplerApp implements NativeKeyListener, NativeMouseInputListener, 
         }
 
         Event me = new Event(mouseEvent, (int)(x - bounds.getX()), (int)(y - bounds.getY()), System.currentTimeMillis(), 0);
+        //Event me = new Event(mouseEvent, x , y, System.currentTimeMillis(), 0);
 
         if (output == null) {
             output = new File(Properties.TESTING_OUTPUT + "/" + Properties.INPUT[0] + "/user_interactions.csv");
