@@ -62,6 +62,8 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
     private static final float RANDOM_PROBABILITY = 0.05f;
 
+    private static final float JITTER = 0.0000001f;
+
     private Event lastEvent = Event.NONE;
     private Event secondLastEvent = lastEvent;
 
@@ -80,8 +82,6 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
         lastState = captureState(Event.NONE);
 
-        lastState = captureState(Event.NONE);
-
         //TODO: Load any database info from previous runs
     }
 
@@ -97,7 +97,10 @@ public class DeepQNetworkInteraction extends UserInteraction {
         }
 
         if (Math.random() <= RANDOM_PROBABILITY || lastEvent.equals(Event.NONE)) {
-            e = rawEvents.get((int) (Math.random() * rawEvents.size()));
+            int eventIndex = 1 + (int) Math.round(Math.random() * (rawEvents.size()-2));
+            e = rawEvents.get(eventIndex);
+            lastEvent = e;
+            secondLastEvent = rawEvents.get(eventIndex-1);
         } else {
             double[] img = lastState.getImage();
 
@@ -106,10 +109,15 @@ public class DeepQNetworkInteraction extends UserInteraction {
             for (double d : img)
                 input += d + " ";
 
-            input += lastEvent.toCsv(secondLastEvent.getMouseX(), secondLastEvent.getMouseY()).replace(",", " ");
+
+            String mouseInfo = lastEvent.toCsv(secondLastEvent.getMouseX() + (float)(JITTER - Math.random() * JITTER * 2f),
+                    secondLastEvent.getMouseY() + (float)(JITTER - Math.random() * JITTER * 2f))
+                    .replace(",", " ");
+
+            input += mouseInfo;
 
             try {
-                String pythonCommand = "python3 tensor_play.py " + input;
+                String pythonCommand = "python3 leap/target/classes/tensor_play.py " + input;
                 Process process = Runtime.getRuntime().exec(pythonCommand);
                 BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 BufferedReader be = new BufferedReader(new InputStreamReader(process.getErrorStream()));
@@ -123,11 +131,10 @@ public class DeepQNetworkInteraction extends UserInteraction {
                     return s;
                 });
 
-
                 while ((line = br.readLine()) != null && line.trim().length() > 0){
 
                     if (Properties.SHOW_OUTPUT) {
-                        App.out.print("\rlem: " + lastEvent.toString() + " disp: " + line);
+                        App.out.println("\rlem: " + lastEvent.toString() + " disp: " + line);
                     }
                     //output: x y lmm rmm
                     //x y lmm rmm
@@ -155,9 +162,12 @@ public class DeepQNetworkInteraction extends UserInteraction {
                     int diffx = (int) (Float.parseFloat(eles[0]) * Event.bounds.getWidth());
                     int diffy = (int) (Float.parseFloat(eles[1]) * Event.bounds.getHeight());
 
+                    int mx = (int)Math.max(Math.min(e.bounds.getWidth(), lastEvent.getMouseX() + diffx), 0);
+                    int my = (int)Math.max(Math.min(e.bounds.getHeight(), lastEvent.getMouseY() + diffy), 0);
+
                     e = new Event(me,
-                            lastEvent.getMouseX() + diffx,
-                            lastEvent.getMouseY() + diffy,
+                            mx,
+                            my,
                             System.currentTimeMillis(),
                             iteration);
                 }
@@ -179,7 +189,7 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
     @Override
     public void postInteraction(Event e) {
-        super.postInteraction(e);
+        //super.postInteraction(e);
 
         State state = captureState(e);
 

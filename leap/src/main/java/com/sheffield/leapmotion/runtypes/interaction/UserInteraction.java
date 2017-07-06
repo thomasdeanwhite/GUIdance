@@ -116,13 +116,15 @@ public class UserInteraction implements Interaction {
             trainingInputRow += d + ",";
         }
 
-        trainingInputRow = trainingInputRow + e.toCsv(lastEvent.getMouseX(), lastEvent.getMouseY()) + "\n";
+        trainingInputRow = trainingInputRow + e.toCsv(lastEvent.getMouseX(), lastEvent.getMouseY());
 
         try {
-            FileHandler.appendToFile(trainingDataInputFile, trainingInputRow);
+            FileHandler.appendToFile(trainingDataInputFile, trainingInputRow + "\n");
         } catch (IOException e1) {
             e1.printStackTrace();
         }
+
+
 
         try {
             FileHandler.appendToFile(trainingDataOutputFile, rawEvents.get
@@ -156,7 +158,7 @@ public class UserInteraction implements Interaction {
 //        if (!found) {
             state = new State(stateNumber, newImage, lastState.getStateNumber());
             states.put(states.size(), state);
-            StateComparator.captureState(state.getImage(), state.getStateNumber());
+            //StateComparator.captureState(state.getImage(), state.getStateNumber());
 //        }
 
         return state;

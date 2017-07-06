@@ -7,14 +7,17 @@ import random
 import csv
 import os
 from six.moves import cPickle as pickle
+import matplotlib.pyplot as plt
 
 
-learning_rate = 0.0001
-epochs = 10
+learning_rate = 0.000001
+epochs = 1000
 batch_size = 100
-percent_training = 0.9
+percent_training = 0.7
 percent_testing = 1
-percent_validation = 0.7
+percent_validation = 0.5
+hidden_layers = [4096, 2048, 1024]
+sd = 0.05
 
 data = []
 output = []
@@ -40,9 +43,8 @@ with open('training_outputs.csv', 'rt') as csvfile:
 data = np.array(data)
 output = np.array(output)
 
-print("Records:", data.shape[0])
-
-output = np.array(output)
+print("Data Shape:", data.shape)
+print("Output Shape:", output.shape)
 
 
 def get_sample(data, output, n):
@@ -66,19 +68,19 @@ x = tf.placeholder(tf.float32, [None, train_dataset.shape[1]])
 y = tf.placeholder(tf.float32, [None, train_labels.shape[1]])
 
 # now declare the weights connecting the input to the hidden layer
-W1 = tf.Variable(tf.random_normal([train_dataset.shape[1], 1024], stddev=0.05), name='W1')
-b1 = tf.Variable(tf.random_normal([1024]), name='b1')
+W1 = tf.Variable(tf.random_normal([train_dataset.shape[1], hidden_layers[0]], stddev=sd), name='W1')
+b1 = tf.Variable(tf.random_normal([hidden_layers[0]]), name='b1')
 
 # and the weights connecting the hidden layer to the output layer
-W2 = tf.Variable(tf.random_normal([1024, 4096], stddev=0.05), name='W2')
-b2 = tf.Variable(tf.random_normal([4096]), name='b2')
+W2 = tf.Variable(tf.random_normal([hidden_layers[0], hidden_layers[1]], stddev=sd), name='W2')
+b2 = tf.Variable(tf.random_normal([hidden_layers[1]]), name='b2')
 
 # and the weights connecting the hidden layer to the output layer
-W3 = tf.Variable(tf.random_normal([4096, 512], stddev=0.05), name='W3')
-b3 = tf.Variable(tf.random_normal([512]), name='b3')
+W3 = tf.Variable(tf.random_normal([hidden_layers[1], hidden_layers[2]], stddev=sd), name='W3')
+b3 = tf.Variable(tf.random_normal([hidden_layers[2]]), name='b3')
 
 # and the weights connecting the hidden layer to the output layer
-W4 = tf.Variable(tf.random_normal([512, train_labels.shape[1]], stddev=0.05), name='W4')
+W4 = tf.Variable(tf.random_normal([hidden_layers[2], train_labels.shape[1]], stddev=sd), name='W4')
 b4 = tf.Variable(tf.random_normal([train_labels.shape[1]]), name='b4')
 
 # calculate the output of the hidden layer
@@ -95,8 +97,8 @@ hidden_out3 = tf.add(tf.matmul(hidden_out2, W3), b3)
 
 # now calculate the hidden layer output - in this case, let's use a softmax activated
 # output layer
-y_ = tf.nn.relu(tf.add(tf.matmul(hidden_out3, W4), b4))
-#y_ = tf.add(tf.matmul(hidden_out3, W4), b4)
+#y_ = tf.nn.relu(tf.add(tf.matmul(hidden_out3, W4), b4))
+y_ = tf.add(tf.matmul(hidden_out3, W4), b4)
 
 # now let's define the cost function which we are going to train the model on
 y_clipped = tf.clip_by_value(y_, 1e-10, 0.9999999)
@@ -111,9 +113,17 @@ y_clipped = tf.clip_by_value(y_, 1e-10, 0.9999999)
 # )
 # accuracy = tf.div(numerator, den)
 
-accuracy = tf.negative(tf.contrib.losses.absolute_difference(y, y_))
+#accuracy = tf.div(tf.add(8.0, tf.negative(tf.losses.absolute_difference(y, y_))), 8.0)
 
-loss = tf.contrib.losses.absolute_difference(y, y_)
+#accuracy = tf.reduce_mean(tf.losses.mean_pairwise_squared_error(y, y_))
+
+accuracy = tf.add(1.0, tf.div(-tf.div(tf.losses.mean_squared_error(y, y_), valid_labels.shape[0]), 4.0))
+
+
+#loss = tf.div(tf.losses.absolute_difference(y, y_), 8)
+#loss = tf.losses.huber_loss(y, y_)
+loss = tf.losses.huber_loss(y, y_)
+
 #loss = tf.div(tf.add(tf.constant(1.0), tf.negative(accuracy)), 2)
 # add an optimiser
 # optimiser = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
@@ -137,6 +147,17 @@ writer = tf.summary.FileWriter('tf')
 
 saver = tf.train.Saver()
 
+
+def plotNNFilter(units):
+    plt.figure(1, figsize=(64,64))
+    plt.subplot(64, 64, 1)
+    plt.title('Filter ' + str(1))
+    plt.imshow(units[0], interpolation="nearest", cmap="gray")
+
+def getActivations(layer,stimuli):
+    units = sess.run(layer,feed_dict={x:[stimuli]})[0][0:64*64]
+    plotNNFilter(np.reshape(units, [64*64]))
+
 # start the session
 with tf.Session() as sess:
     # initialise the variables
@@ -159,9 +180,20 @@ with tf.Session() as sess:
             batch_y = train_labels[samples]
             _, c = sess.run([optimiser, loss], feed_dict={x: batch_x, y: batch_y})
             avg_cost += c / total_batch
-        print(epoch, ") Valid Accuracy: ", (sess.run(accuracy, feed_dict={x: valid_dataset, y: valid_labels})), "Loss:", avg_cost)
+        print(epoch, ") Vacc: ", (sess.run(accuracy, feed_dict={x: valid_dataset, y: valid_labels})), "Tloss:", avg_cost)
         summary = sess.run(merged, feed_dict={x: valid_dataset, y: valid_labels})
         writer.add_summary(summary, epoch)
+
+        if epoch % 50 == 0:
+            save_path = saver.save(sess, model_file)
+            print("Model saved in file: %s" % save_path)
+            print(W1, b1, W2, b2, W3, b3, W4, b4)
+
+            image_to_show = valid_dataset[0][0:64*64]
+
+            plt.imshow(np.reshape(image_to_show,[64,64]), cmap="gray")
+
+            getActivations(hidden_out,valid_dataset[0])
 
     print("\nTraining complete!")
     writer.add_graph(sess.graph)

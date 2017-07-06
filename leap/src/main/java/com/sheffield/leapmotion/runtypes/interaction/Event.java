@@ -77,7 +77,13 @@ public class Event implements Serializable {
     }
 
     public String toCsv(float lastMouseX, float lastMouseY) {
-        return ((mouseX - lastMouseX)/bounds.getWidth()) + "," + ((mouseY - lastMouseY)/bounds.getHeight()) + "," + leftClickToFloat() + "," +
+        float mx = (float) ((mouseX - lastMouseX)/bounds.getWidth());
+        float my = (float) ((mouseY - lastMouseY)/bounds.getHeight());
+
+        assert(mx <= 1 && mx >= -1);
+        assert(my <= 1 && my >= -1);
+
+        return mx + "," + my + "," + leftClickToFloat() + "," +
                 rightClickToFloat();
     }
 

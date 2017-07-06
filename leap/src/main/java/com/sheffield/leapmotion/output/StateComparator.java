@@ -391,6 +391,9 @@ public class StateComparator {
     }
 
 
+    private static Rectangle bounds = new Rectangle(Toolkit.getDefaultToolkit()
+            .getScreenSize());;
+
     public static double[] screenshotState(int mouseX, int mouseY) {
 
 
@@ -402,6 +405,28 @@ public class StateComparator {
 
         int endX = mouseX + HALF_WIDTH;
         int endY = mouseY + HALF_HEIGHT;
+
+        if (startX < bounds.getX()){
+            startX = (int) bounds.getX();
+            endX = X_SIZE;
+        }
+
+        if (startY < bounds.getY()){
+            startY = (int) bounds.getY();
+            endY = Y_SIZE;
+        }
+
+        if (endX > bounds.getWidth()){
+            endX = (int) bounds.getWidth();
+            startX = endX - X_SIZE;
+        }
+
+        if (endY > bounds.getHeight()){
+            endY = (int) bounds.getHeight();
+            startY = endY - Y_SIZE;
+        }
+
+
 
         BufferedImage newState = screenshot(new Rectangle(startX, startY,
                 X_SIZE, Y_SIZE));
@@ -417,19 +442,19 @@ public class StateComparator {
 
         double[] dImage = new double[X_SIZE * Y_SIZE];
 
-        int xOffset = 0;
-        int yOffset = 0;
+        for (int i = 0; i < dImage.length; i++) {
+                int blackAndWhite = 0;
+                blackAndWhite = (int) ((0.333 * ((blackAndWhite >> 16) &
+                        0x0FF) +
+                        0.333 * ((blackAndWhite >> 8) & 0x0FF) +
+                        0.333 * (blackAndWhite & 0x0FF)));
 
-        if (startX < 0){
-            xOffset = -startX;
+                dImage[i] = blackAndWhite / (float) 255;
+
         }
 
-        if (startY < 0){
-            yOffset = -startY;
-        }
-
-        for (int i = 0; i + xOffset< width; i++) {
-            for (int j = 0; j + yOffset < height; j++) {
+        for (int i = 0; i < X_SIZE; i++) {
+            for (int j = 0; j < Y_SIZE; j++) {
 
                 int index = (j * width) + i;
 
@@ -441,7 +466,7 @@ public class StateComparator {
                         0.333 * ((blackAndWhite >> 8) & 0x0FF) +
                         0.333 * (blackAndWhite & 0x0FF)));
 
-                index = ((j + yOffset) * X_SIZE) + (i + xOffset);
+                index = (j * X_SIZE) + i;
 
                 assert index < X_SIZE * Y_SIZE;
 
