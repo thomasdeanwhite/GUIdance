@@ -45,7 +45,14 @@ with open('training_outputs.csv', 'rt') as csvfile:
         counter += 1
 
 data = np.array(data)
-data = data[:, 0:image_height*image_height]
+
+rem = data.shape[1] % image_height
+
+data = np.pad(data, rem, mode='constant')
+
+print(data.shape)
+
+#data = data[:, 0:image_height*image_height]
 output = np.array(output)
 
 print("Data Shape:", data.shape)
