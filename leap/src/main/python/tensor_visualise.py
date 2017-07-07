@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import math
 
 
-learning_rate = 0.0000001
+learning_rate = 0.0001
 epochs = 1000
 batch_size = 5
 percent_training = 0.7
@@ -153,11 +153,6 @@ plt.figure(1)
 
 plots = 1
 
-def get_image(sess, ds, width, height, fn):
-    res = sess.run(fn, feed_dict={x:[ds]})
-    #res = tf.reduce_sum(tf.transpose(res), keep_dims=True)
-    return res
-
 def getActivations(sess, layer,stimuli, count, plot_orig):
     units = sess.run(layer,feed_dict={x:[stimuli]})
     plotNNFilter(units, stimuli, count, plot_orig)
@@ -174,14 +169,6 @@ def plotNNFilter(units, stimuli, count, plot_orig):
         plt.subplot(n_rows, n_columns, i+2+count)
         plt.title('F ' + str(i))
         plt.imshow(units[0,:,:,i], cmap="gray")
-
-def show_image(ds, width, height):
-    global plots
-    ds = ds[0:width*height]
-    ds = np.reshape(ds, [width, height])
-    plt.subplot(5, 4, plots)
-    plots += 1
-    plt.imshow(ds, cmap="gray")
 
 # start the session
 with tf.Session() as sess:
@@ -200,37 +187,16 @@ with tf.Session() as sess:
 
     count = 0
 
-    for epoch in range(epochs):
-        samples = random.sample(range(total_len), batch_size)
-        batch_x = train_dataset[samples]
-        batch_y = train_labels[samples]
-        sess.run(train_step, feed_dict={x: batch_x, y: batch_y})
+    for i in range(data.shape[0]):
+        plt.figure(1, figsize=(20,20))
 
-        print(epoch, ") Vacc: ", (sess.run(accuracy, feed_dict={x: valid_dataset, y: valid_labels})))
+        getActivations(sess, h_pool1, data[i], count, True)
+        count += 4
 
-        if epoch % 100 == 0:
-            save_path = saver.save(sess, model_file)
-            print("Model saved in file: %s" % save_path)
-            if show_output_image:
-                #show_image(train_dataset[0], 64, 64)
-                plt.figure(1, figsize=(20,20))
-                image = get_image(sess, train_dataset[0], 64, 64, h_pool1)
+        getActivations(sess, h_pool2, data[i], count, False)
+        count += 9
 
-                getActivations(sess, h_pool1, train_dataset[0], count, True)
-                count += 4
-
-                getActivations(sess, h_pool2, train_dataset[0], count, False)
-                count += 9
-
-                if count > 64:
-                    plt.show()
-                    count = 0
-
-    print("\nTraining complete!")
-    writer.add_graph(sess.graph)
-    print(sess.run(accuracy, feed_dict={x: test_dataset, y: test_labels}))
-
-    save_path = saver.save(sess, model_file)
-    print("Model saved in file: %s" % save_path)
-
+        if count > 64:
+            plt.show()
+            count = 0
 
