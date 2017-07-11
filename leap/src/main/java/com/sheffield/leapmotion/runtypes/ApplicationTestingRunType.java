@@ -99,11 +99,11 @@ public class ApplicationTestingRunType implements RunType {
             } else if (e.getEvent().equals(MouseEvent.RIGHT_CLICK)) {
                 click(r, InputEvent.BUTTON2_MASK);
             } else if (e.getEvent().equals(MouseEvent.LEFT_DOWN)) {
-                //mouseDown(r, InputEvent.BUTTON1_MASK);
-                click(r, InputEvent.BUTTON1_MASK);
+                mouseDown(r, InputEvent.BUTTON1_MASK);
+                //click(r, InputEvent.BUTTON1_MASK);
             } else if (e.getEvent().equals(MouseEvent.RIGHT_DOWN)) {
-//                mouseDown(r, InputEvent.BUTTON2_MASK);
-                click(r, InputEvent.BUTTON2_MASK);
+                mouseDown(r, InputEvent.BUTTON2_MASK);
+                //click(r, InputEvent.BUTTON2_MASK);
             } else if (e.getEvent().equals(MouseEvent.LEFT_UP)) {
                 mouseUp(r, InputEvent.BUTTON1_MASK);
             } else if (e.getEvent().equals(MouseEvent.RIGHT_UP)) {

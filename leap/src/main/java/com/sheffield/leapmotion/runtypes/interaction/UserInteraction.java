@@ -1,6 +1,7 @@
 package com.sheffield.leapmotion.runtypes.interaction;
 
 import com.google.gson.Gson;
+import com.sheffield.leapmotion.App;
 import com.sheffield.leapmotion.Properties;
 import com.sheffield.leapmotion.output.StateComparator;
 import com.sheffield.leapmotion.sampler.MouseEvent;
@@ -27,11 +28,14 @@ public class UserInteraction implements Interaction {
 
     @Override
     public void load() throws IOException {
-        File userData = new File(Properties.TESTING_OUTPUT + "/" + Properties.INPUT[0] + "/user_interactions.csv");
 
-        trainingDataInputFile = new File(Properties.TESTING_OUTPUT + "/" + Properties.INPUT[0] + "/training_inputs.csv");
+        App.out.print("Loaded data for user: " + Properties.INPUT[0]);
 
-        trainingDataOutputFile = new File(Properties.TESTING_OUTPUT + "/" + Properties.INPUT[0] + "/training_outputs.csv");
+        File userData = new File(Properties.TESTING_OUTPUT + "/data/" + Properties.INPUT[0] + "/user_interactions.csv");
+
+        trainingDataInputFile = new File(Properties.TESTING_OUTPUT + "/data/" + Properties.INPUT[0] + "/training_inputs.csv");
+
+        trainingDataOutputFile = new File(Properties.TESTING_OUTPUT + "/data/" + Properties.INPUT[0] + "/training_outputs.csv");
 
         FileHandler.createFile(trainingDataOutputFile);
         FileHandler.createFile(trainingDataInputFile);
@@ -47,7 +51,7 @@ public class UserInteraction implements Interaction {
         for (String line : contents){
             Event e = gson.fromJson(line, Event.class);
 
-            e.moveMouse((int)e.bounds.getX() + 1280, (int)e.bounds.getY());
+            e.moveMouse((int)e.bounds.getX(), (int)e.bounds.getY());
 
             if (e.getTimestamp() < minTime){
                 minTime = e.getTimestamp();

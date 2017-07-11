@@ -117,8 +117,13 @@ public class DeepQNetworkInteraction extends UserInteraction {
             input += mouseInfo;
 
             try {
-                String pythonCommand = "python3 leap/target/classes/tensor_play.py " + input;
-                Process process = Runtime.getRuntime().exec(pythonCommand);
+                String pythonCommand = "%s leap/target/classes/tensor_play.py " + input;
+                Process process;
+                try {
+                    process = Runtime.getRuntime().exec(String.format(pythonCommand, "python3"));
+                } catch (IOException e2){
+                    process = Runtime.getRuntime().exec(String.format(pythonCommand, "python"));
+                }
                 BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 BufferedReader be = new BufferedReader(new InputStreamReader(process.getErrorStream()));
 
