@@ -35,6 +35,8 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
     private Event nextEvent;
 
+    private Process pythonProcess;
+
     Gson gson;
 
     @Override
@@ -65,8 +67,8 @@ public class DeepQNetworkInteraction extends UserInteraction {
         if (Math.random() <= RANDOM_PROBABILITY || lastEvent.equals(Event.NONE)) {
             int eventIndex = 1 + (int) Math.round(Math.random() * (rawEvents.size()-2));
             e = rawEvents.get(eventIndex);
-            lastEvent = e;
-            secondLastEvent = rawEvents.get(eventIndex-1);
+            nextEvent = e;
+            lastEvent = rawEvents.get(eventIndex-1);
         } else {
             double[] img = lastState.getImage();
 
@@ -83,24 +85,18 @@ public class DeepQNetworkInteraction extends UserInteraction {
             input += mouseInfo;
 
             try {
-                String pythonCommand = "python3 leap/target/classes/tensor_play.py " + input;
-                final Process process = Runtime.getRuntime().exec(pythonCommand);
-
-                String line;
-
-                e = Event.NONE;
-
-//                br.lines().map(s -> {
-//                    App.out.println(s);
-//                    return s;
-//                });
+                if (pythonProcess == null) {
+                    String pythonCommand = "python3 leap/target/classes/tensor_play.py";// + input;
+                    ProcessBuilder builder = new ProcessBuilder(pythonCommand);
+                    builder.redirectErrorStream(true);
+                    pythonProcess = builder.start();
 
 
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                            BufferedReader be = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+                            BufferedReader br = new BufferedReader(new InputStreamReader(pythonProcess.getInputStream()));
+                            BufferedReader be = new BufferedReader(new InputStreamReader(pythonProcess.getErrorStream()));
 
                             String line;
 
@@ -109,19 +105,30 @@ public class DeepQNetworkInteraction extends UserInteraction {
                                     DeepQNetworkInteraction.this.processLine(line);
                                 }
 
-                                while ((line = be.readLine()) != null){
-                                    //App.out.println(line);
+                                while ((line = be.readLine()) != null) {
+                                    App.out.println(line);
                                 }
                             } catch (IOException e1) {
                                 e1.printStackTrace();
                             }
+
+                            try {
+                                pythonProcess.waitFor();
+                            } catch (InterruptedException e1) {
+                                e1.printStackTrace();
+                            }
+                            pythonProcess.destroy();
+                            pythonProcess = null;
                         }
                     }).start();
+                }
+
+                pythonProcess.getOutputStream().write((input + "\n").getBytes());
+                pythonProcess.getOutputStream().flush();
 
             } catch (IOException e1) {
                 e1.printStackTrace();
-
-                e = Event.NONE;
+                nextEvent = Event.NONE;
             }
 
         }

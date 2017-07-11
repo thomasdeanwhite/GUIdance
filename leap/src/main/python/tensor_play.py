@@ -65,18 +65,18 @@ with tf.Session() as sess:
 
     inpt = []
 
-    app_inpt = []
+    while true:
 
-    app_inpt = sys.argv[1:len(sys.argv)]
+        app_inpt = input()
 
-    for i in range(len(app_inpt)):
-        inpt.append(float(app_inpt[i]))
+        for i in range(len(app_inpt)):
+            inpt.append(float(app_inpt[i]))
 
-    inpt = np.array([inpt])
+        inpt = np.array([inpt])
 
-    #model is loaded! Use model:
-    r = get_output(sess, inpt)
+        #model is loaded! Use model:
+        r = get_output(sess, inpt)
 
-    print(r[0][0], r[0][1], r[0][2], r[0][3])
+        print(r[0][0], r[0][1], r[0][2], r[0][3])
 
 
