@@ -13,8 +13,5 @@ before_install:
   - pushd instrumentation
   - mvn clean install
   - popd
-  - pushd lib
-  - mvn install:install-file -Dfile=LeapJava.jar -DgroupId=com.leapmotion -DartifactId=leapmotion.sdk -Dversion=1.0 -Dpackaging=jar
-  - popd
 script:
   - mvn clean test jacoco:report coveralls:report

@@ -33,6 +33,8 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
     private int iteration = 0;
 
+    private Event nextEvent;
+
     Gson gson;
 
     @Override
@@ -82,63 +84,39 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
             try {
                 String pythonCommand = "python3 leap/target/classes/tensor_play.py " + input;
-                Process process = Runtime.getRuntime().exec(pythonCommand);
-                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                BufferedReader be = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+                final Process process = Runtime.getRuntime().exec(pythonCommand);
 
                 String line;
 
                 e = Event.NONE;
 
-                br.lines().map(s -> {
-                    App.out.println(s);
-                    return s;
-                });
-
-                while ((line = br.readLine()) != null && line.trim().length() > 0){
-
-                    if (Properties.SHOW_OUTPUT) {
-                        App.out.println("\rlem: " + lastEvent.toString() + " disp: " + line);
-                    }
-                    //output: x y lmm rmm
-                    //x y lmm rmm
-                    String[] eles = line.split(" ");
-                    float lmm = Float.parseFloat(eles[2]);
-                    float rmm = Float.parseFloat(eles[3]);
-
-                    MouseEvent me = MouseEvent.MOVE;
-
-                    if (lastEvent.getEvent().equals(MouseEvent.LEFT_DOWN) || lastEvent.getEvent().equals(MouseEvent.DRAGGED)){
-                        me = MouseEvent.DRAGGED;
-                    }
+//                br.lines().map(s -> {
+//                    App.out.println(s);
+//                    return s;
+//                });
 
 
-                    if (lmm > rmm && lmm > CLICK_THRESHOLD) {
-                        me = MouseEvent.LEFT_DOWN;
-                    } else if (rmm > lmm && rmm > CLICK_THRESHOLD) {
-                        me = MouseEvent.RIGHT_CLICK;
-                    } else if (lmm < rmm && lmm < -CLICK_THRESHOLD) {
-                        me = MouseEvent.LEFT_UP;
-                    } else if (rmm < lmm && rmm < -CLICK_THRESHOLD) {
-                        me = MouseEvent.RIGHT_UP;
-                    }
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                            BufferedReader be = new BufferedReader(new InputStreamReader(process.getErrorStream()));
 
-                    int diffx = (int) (Float.parseFloat(eles[0]) * Event.bounds.getWidth());
-                    int diffy = (int) (Float.parseFloat(eles[1]) * Event.bounds.getHeight());
+                            String line;
 
-                    int mx = (int)Math.max(Math.min(e.bounds.getWidth(), lastEvent.getMouseX() + diffx), 0);
-                    int my = (int)Math.max(Math.min(e.bounds.getHeight(), lastEvent.getMouseY() + diffy), 0);
+                            try {
+                                while ((line = br.readLine()) != null && line.trim().length() > 0) {
+                                    DeepQNetworkInteraction.this.processLine(line);
+                                }
 
-                    e = new Event(me,
-                            mx,
-                            my,
-                            System.currentTimeMillis(),
-                            iteration);
-                }
-
-                while ((line = be.readLine()) != null){
-                    //App.out.println(line);
-                }
+                                while ((line = be.readLine()) != null){
+                                    //App.out.println(line);
+                                }
+                            } catch (IOException e1) {
+                                e1.printStackTrace();
+                            }
+                        }
+                    }).start();
 
             } catch (IOException e1) {
                 e1.printStackTrace();
@@ -148,7 +126,47 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
         }
 
-        return e;
+        return nextEvent == null ? Event.NONE : nextEvent;
+    }
+
+    public void processLine (String line){
+        if (Properties.SHOW_OUTPUT) {
+            App.out.println("\rlem: " + lastEvent.toString() + " disp: " + line);
+        }
+        //output: x y lmm rmm
+        //x y lmm rmm
+        String[] eles = line.split(" ");
+        float lmm = Float.parseFloat(eles[2]);
+        float rmm = Float.parseFloat(eles[3]);
+
+        MouseEvent me = MouseEvent.MOVE;
+
+        if (lastEvent.getEvent().equals(MouseEvent.LEFT_DOWN) || lastEvent.getEvent().equals(MouseEvent.DRAGGED)){
+            me = MouseEvent.DRAGGED;
+        }
+
+
+        if (lmm > rmm && lmm > CLICK_THRESHOLD) {
+            me = MouseEvent.LEFT_DOWN;
+        } else if (rmm > lmm && rmm > CLICK_THRESHOLD) {
+            me = MouseEvent.RIGHT_CLICK;
+        } else if (lmm < rmm && lmm < -CLICK_THRESHOLD) {
+            me = MouseEvent.LEFT_UP;
+        } else if (rmm < lmm && rmm < -CLICK_THRESHOLD) {
+            me = MouseEvent.RIGHT_UP;
+        }
+
+        int diffx = (int) (Float.parseFloat(eles[0]) * Event.bounds.getWidth());
+        int diffy = (int) (Float.parseFloat(eles[1]) * Event.bounds.getHeight());
+
+        int mx = (int)Math.max(Math.min(Event.bounds.getWidth(), lastEvent.getMouseX() + diffx), 0);
+        int my = (int)Math.max(Math.min(Event.bounds.getHeight(), lastEvent.getMouseY() + diffy), 0);
+
+        nextEvent = new Event(me,
+                mx,
+                my,
+                System.currentTimeMillis(),
+                iteration);
     }
 
     @Override
