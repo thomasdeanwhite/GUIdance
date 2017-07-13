@@ -13,14 +13,14 @@ import sys
 
 
 learning_rate = 0.000001
-epochs = 3000
+epochs = 30000
 batch_size = 30
 percent_training = 0.7
 percent_testing = 1
 percent_validation = 0.5
 hidden_layers = [4900, 4096, 256]
-sd = 0.005
-sdw = 0.005
+sd = 0.05
+sdw = 0.05
 show_output_image = True
 image_height = 64
 
@@ -107,14 +107,14 @@ b_conv1 = bias_variable([4])
 x_image = tf.reshape(x_img, [-1, image_height, image_height, 1])
 
 h_conv1 = conv2d(x_image, W_conv1) + b_conv1
-h_pool1 = max_pool_2x2(h_conv1)
+h_pool1 = tf.nn.relu(max_pool_2x2(h_conv1))
 
 
 W_conv2 = weight_variable([8, 8, 4, 8])
 b_conv2 = bias_variable([8])
 
 h_conv2 = conv2d(h_pool1, W_conv2) + b_conv2
-h_pool2 = max_pool_2x2(h_conv2)
+h_pool2 = tf.nn.relu(max_pool_2x2(h_conv2))
 
 
 W_fc1 = weight_variable([16*16*8, 1024])
@@ -131,19 +131,19 @@ h_fc1_drop = tf.nn.dropout(h_fcl_joined, keep_prob)
 W_fc2 = weight_variable([1024+rem_features, 256])
 b_fc2 = bias_variable([256])
 
-h_fcl2 = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
+h_fcl2 = tf.tanh(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
 W_fc3 = weight_variable([256, 4])
 b_fc3 = bias_variable([4])
 
-y_ = tf.matmul(h_fcl2, W_fc3) + b_fc3
+y_ = tf.tanh(tf.matmul(h_fcl2, W_fc3) + b_fc3)
 
 print("model created successfully")
 
-loss = tf.losses.huber_loss(y, y_)
+loss = tf.losses.mean_squared_error(y, y_)
 train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
 
-accuracy = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(y, y_)), 6.0))
+accuracy = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(y, y_)), 8.0))
 
 tf.summary.scalar('accuracy', accuracy)
 

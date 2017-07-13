@@ -18,7 +18,7 @@ rem_features = 4
 
 hidden_layers = [1024, 256, 64]
 
-x = tf.placeholder(tf.float32, [None, input_length])
+x = tf.placeholder(tf.float32, [None, image_features + rem_features])
 
 x_img = tf.slice(x, [0, 0], [-1, image_features])
 
@@ -48,14 +48,14 @@ b_conv1 = bias_variable([4])
 x_image = tf.reshape(x_img, [-1, image_height, image_height, 1])
 
 h_conv1 = conv2d(x_image, W_conv1) + b_conv1
-h_pool1 = max_pool_2x2(h_conv1)
+h_pool1 = tf.nn.relu(max_pool_2x2(h_conv1))
 
 
 W_conv2 = weight_variable([8, 8, 4, 8])
 b_conv2 = bias_variable([8])
 
 h_conv2 = conv2d(h_pool1, W_conv2) + b_conv2
-h_pool2 = max_pool_2x2(h_conv2)
+h_pool2 = tf.nn.relu(max_pool_2x2(h_conv2))
 
 
 W_fc1 = weight_variable([16*16*8, 1024])
@@ -72,12 +72,12 @@ h_fc1_drop = tf.nn.dropout(h_fcl_joined, keep_prob)
 W_fc2 = weight_variable([1024+rem_features, 256])
 b_fc2 = bias_variable([256])
 
-h_fcl2 = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
+h_fcl2 = tf.tanh(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
 W_fc3 = weight_variable([256, output_length])
 b_fc3 = bias_variable([output_length])
 
-y_ = tf.matmul(h_fcl2, W_fc3) + b_fc3
+y_ = tf.tanh(tf.matmul(h_fcl2, W_fc3) + b_fc3)
 
 # now let's define the cost function which we are going to train the model on
 y_clipped = tf.clip_by_value(y_, 1e-10, 0.9999999)
