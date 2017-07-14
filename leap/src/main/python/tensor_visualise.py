@@ -162,7 +162,7 @@ plt.figure(1)
 
 plots = 1
 
-image_size = [20, 13]
+image_size = [10, 13]
 
 def get_image(sess, ds, width, height, fn):
     res = sess.run(fn, feed_dict={x:[ds]})
@@ -215,16 +215,22 @@ with tf.Session() as sess:
 
     count = 0
 
-    for i in range(data.shape[0]):
+    for j in range(data.shape[0]):
+
+        i = random.choice(range(data.shape[0]))
+
         plt.figure(1, figsize=(20,20))
 
-        getActivations(sess, h_pool1, data[i], count, True)
-        count += 4
+        res = sess.run(y_, feed_dict={x:[data[i]], keep_prob:1.0})
 
-        getActivations(sess, h_pool2, data[i], count, False)
-        count += 9
+        if (res[0][2] < 0.25):
+            getActivations(sess, h_pool1, data[i], count, True)
+            count += 4
 
-        if count >= 260:
-            plt.show()
-            count = 0
+            getActivations(sess, h_pool2, data[i], count, False)
+            count += 9
+
+            if count >= image_size[0] * image_size[1]:
+                plt.show()
+                count = 0
 
