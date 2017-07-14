@@ -22,6 +22,8 @@ import java.util.List;
 public class DeepQNetworkInteraction extends UserInteraction {
     private long minTime = Long.MAX_VALUE;
 
+    private float mouseSpeed = 5f;
+
     private static final float CLICK_THRESHOLD = 0.5f;
 
     private static final float RANDOM_PROBABILITY = 0.05f;
@@ -113,6 +115,9 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
                             try {
                                 while ((line = br.readLine()) != null && line.trim().length() > 0) {
+                                    if (line.toLowerCase().contains("tensorflow")){
+                                        continue;
+                                    }
                                     DeepQNetworkInteraction.this.processLine(line);
                                 }
 
@@ -176,6 +181,11 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
         int diffx = (int) (Float.parseFloat(eles[0]) * Event.bounds.getWidth());
         int diffy = (int) (Float.parseFloat(eles[1]) * Event.bounds.getHeight());
+
+        float mag = (float) Math.sqrt(diffx * diffx + diffy * diffy);
+
+        diffx = (int)(mouseSpeed * diffx / mag);
+        diffy = (int)(mouseSpeed * diffy / mag);
 
         int mx = (int)Math.max(Math.min(Event.bounds.getWidth(), lastEvent.getMouseX() + diffx), 0);
         int my = (int)Math.max(Math.min(Event.bounds.getHeight(), lastEvent.getMouseY() + diffy), 0);
