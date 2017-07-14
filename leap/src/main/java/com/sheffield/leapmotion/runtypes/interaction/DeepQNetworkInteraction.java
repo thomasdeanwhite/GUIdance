@@ -26,7 +26,7 @@ public class DeepQNetworkInteraction extends UserInteraction {
 
     private static final float CLICK_THRESHOLD = 0.5f;
 
-    private static final float RANDOM_PROBABILITY = 0.05f;
+    private static final float RANDOM_PROBABILITY = 0.005f;
 
     private static final float JITTER = 0.0000001f;
 
@@ -169,13 +169,13 @@ public class DeepQNetworkInteraction extends UserInteraction {
         }
 
 
-        if (lmm > rmm && lmm > CLICK_THRESHOLD) {
+        if (lmm > rmm && lmm > 0.5+CLICK_THRESHOLD) {
             me = MouseEvent.LEFT_DOWN;
-        } else if (rmm > lmm && rmm > CLICK_THRESHOLD) {
+        } else if (rmm > lmm && rmm > 0.5+CLICK_THRESHOLD) {
             me = MouseEvent.RIGHT_CLICK;
-        } else if (lmm < rmm && lmm < -CLICK_THRESHOLD) {
+        } else if (lmm < rmm && lmm < 0.5-CLICK_THRESHOLD) {
             me = MouseEvent.LEFT_UP;
-        } else if (rmm < lmm && rmm < -CLICK_THRESHOLD) {
+        } else if (rmm < lmm && rmm < 0.5-CLICK_THRESHOLD) {
             me = MouseEvent.RIGHT_UP;
         }
 
