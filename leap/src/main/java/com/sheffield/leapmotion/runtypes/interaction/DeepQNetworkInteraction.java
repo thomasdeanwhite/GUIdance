@@ -92,6 +92,7 @@ public class DeepQNetworkInteraction extends UserInteraction {
                         ProcessBuilder builder = new ProcessBuilder(String.format(pythonCommand, "python3"), "leap/target/classes/tensor_play.py");
                         builder.redirectErrorStream(true);
                         builder.directory(new File(System.getProperty("user.dir")));
+                        App.out.println(System.getProperty("user.dir"));
                         process = builder.start();
                     } catch (IOException e2){
                         ProcessBuilder builder = new ProcessBuilder(String.format(pythonCommand, "python"), "leap/target/classes/tensor_play.py");

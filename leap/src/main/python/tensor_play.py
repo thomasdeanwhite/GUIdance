@@ -98,9 +98,8 @@ with tf.Session() as sess:
     sess.run(init_op)
 
     # Restore variables from disk.
-    model_file = "NuiMimic/default-user/model/model.ckpt"
-    if os.path.isfile("NuiMimic/default-user/model/checkpoint"):
-        saver.restore(sess, model_file)
+    model_file = "NuiMimic/data/model/model.ckpt"
+    saver.restore(sess, model_file)
 
 
 
