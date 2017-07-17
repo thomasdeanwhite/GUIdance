@@ -87,7 +87,7 @@ public class UserInteraction implements Interaction {
             return Event.NONE;
         }
 
-        if (rawEvents.size() > 0 && rawEvents.get(0).getTimestamp() <
+        if (rawEvents.size() > 0 && rawEvents.get(0).getTimestamp() <=
                 timePassed){
             e = rawEvents.remove(0);
         }
