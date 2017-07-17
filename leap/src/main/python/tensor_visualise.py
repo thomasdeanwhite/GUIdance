@@ -12,7 +12,7 @@ import math
 import sys
 
 
-learning_rate = 0.001
+learning_rate = 0.0001
 epochs = 1000
 batch_size = 25
 percent_training = 0.7
@@ -110,14 +110,14 @@ b_conv1 = bias_variable([4])
 x_image = tf.reshape(x_img, [-1, image_height, image_height, 1])
 
 h_conv1 = conv2d(x_image, W_conv1) + b_conv1
-h_pool1 = max_pool_2x2(h_conv1)
+h_pool1 = tf.nn.relu(max_pool_2x2(h_conv1))
 
 
 W_conv2 = weight_variable([8, 8, 4, 8])
 b_conv2 = bias_variable([8])
 
 h_conv2 = conv2d(h_pool1, W_conv2) + b_conv2
-h_pool2 = max_pool_2x2(h_conv2)
+h_pool2 = tf.nn.relu(max_pool_2x2(h_conv2))
 
 
 W_fc1 = weight_variable([16*16*8, 1024])
@@ -128,24 +128,18 @@ h_fc1 = tf.matmul(h_pool2_flat, W_fc1) + b_fc1
 
 h_fcl_joined = tf.concat([h_fc1, x_rem], 1)
 
-print("unjoined shape", h_fc1.shape)
-
-keep_prob = 1.0
+keep_prob = tf.placeholder(tf.float32)
 h_fc1_drop = tf.nn.dropout(h_fcl_joined, keep_prob)
-
-print("x_rem shape", x_rem.shape)
-
-print("joined shape", h_fcl_joined.shape)
 
 W_fc2 = weight_variable([1024+rem_features, 256])
 b_fc2 = bias_variable([256])
 
-h_fcl2 = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
+h_fcl2 = tf.tanh(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
 W_fc3 = weight_variable([256, 4])
 b_fc3 = bias_variable([4])
 
-y_ = tf.matmul(h_fcl2, W_fc3) + b_fc3
+y_ = tf.tanh(tf.matmul(h_fcl2, W_fc3) + b_fc3)
 
 print(y_.shape)
 
@@ -168,6 +162,8 @@ plt.figure(1)
 
 plots = 1
 
+image_size = [10, 13]
+
 def get_image(sess, ds, width, height, fn):
     res = sess.run(fn, feed_dict={x:[ds]})
     #res = tf.reduce_sum(tf.transpose(res), keep_dims=True)
@@ -178,19 +174,20 @@ def getActivations(sess, layer,stimuli, count, plot_orig):
     plotNNFilter(units, stimuli, count, plot_orig)
 
 def plotNNFilter(units, stimuli, count, plot_orig):
+    global image_size
     filters = units.shape[3]
-    n_columns = 13
-    n_rows = 5
+    n_columns = image_size[1]
+    n_rows = image_size[0]
 
     stimuli = stimuli[0:image_features]
 
     if plot_orig:
         plt.subplot(n_rows, n_columns, count + 1)
-        plt.title('Inp')
+        #plt.title('Inp')
         plt.imshow(np.reshape(stimuli, [image_height, image_height]), cmap="gray")
     for i in range(filters):
         plt.subplot(n_rows, n_columns, i+2+count)
-        plt.title('F ' + str(i))
+        #plt.title('F ' + str(i))
         plt.imshow(units[0,:,:,i], cmap="gray")
 
 def show_image(ds, width, height):
@@ -218,16 +215,22 @@ with tf.Session() as sess:
 
     count = 0
 
-    for i in range(data.shape[0]):
+    for j in range(data.shape[0]):
+
+        i = random.choice(range(data.shape[0]))
+
         plt.figure(1, figsize=(20,20))
 
-        getActivations(sess, h_pool1, data[i], count, True)
-        count += 4
+        res = sess.run(y_, feed_dict={x:[data[i]], keep_prob:1.0})
 
-        getActivations(sess, h_pool2, data[i], count, False)
-        count += 9
+        if (res[0][2] < 0.25):
+            getActivations(sess, h_pool1, data[i], count, True)
+            count += 4
 
-        if count > 64:
-            plt.show()
-            count = 0
+            getActivations(sess, h_pool2, data[i], count, False)
+            count += 9
+
+            if count >= image_size[0] * image_size[1]:
+                plt.show()
+                count = 0
 
