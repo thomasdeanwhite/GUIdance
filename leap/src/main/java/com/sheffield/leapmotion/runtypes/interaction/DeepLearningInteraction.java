@@ -163,13 +163,13 @@ public class DeepLearningInteraction extends UserInteraction {
         }
 
 
-        if (lmm > rmm && lmm > 0.5+CLICK_THRESHOLD) {
+        if (lmm > rmm && lmm > CLICK_THRESHOLD) {
             me = MouseEvent.LEFT_DOWN;
-        } else if (rmm > lmm && rmm > 0.5+CLICK_THRESHOLD) {
+        } else if (rmm > lmm && rmm > CLICK_THRESHOLD) {
             me = MouseEvent.RIGHT_CLICK;
-        } else if (lmm < rmm && lmm < 0.5) {
+        } else if (lmm < rmm && lmm < CLICK_THRESHOLD) {
             me = MouseEvent.LEFT_UP;
-        } else if (rmm < lmm && rmm < 0.5) {
+        } else if (rmm < lmm && rmm < CLICK_THRESHOLD) {
             me = MouseEvent.RIGHT_UP;
         }
 

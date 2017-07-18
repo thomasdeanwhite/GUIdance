@@ -93,13 +93,13 @@ public class Event implements Serializable {
     }
 
     private float leftClickToFloat() {
-        return (1 + eventToFloat(MouseEvent.LEFT_DOWN) -
-                eventToFloat(MouseEvent.LEFT_UP))/2;
+        return (eventToFloat(MouseEvent.LEFT_DOWN) -
+                eventToFloat(MouseEvent.LEFT_UP));
     }
 
     private float rightClickToFloat() {
-        return (1 + eventToFloat(MouseEvent.RIGHT_DOWN) -
-                eventToFloat(MouseEvent.RIGHT_UP))/2;
+        return (eventToFloat(MouseEvent.RIGHT_DOWN) -
+                eventToFloat(MouseEvent.RIGHT_UP));
     }
 
     private float eventToFloat(MouseEvent event) {
