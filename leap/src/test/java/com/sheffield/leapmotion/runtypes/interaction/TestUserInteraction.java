@@ -28,6 +28,10 @@ public class TestUserInteraction {
 
             String tmpDir = System.getProperty("java.io.tmpdir") +  Long.toString(System.nanoTime());
 
+            if (!tmpDir.endsWith(File.pathSeparator)){
+                tmpDir += File.pathSeparator;
+            }
+
             Properties.INPUT = new String[]{"test"};
 
             String fullFileName = tmpDir + "/data/" + Properties.INPUT[0] + "/";
