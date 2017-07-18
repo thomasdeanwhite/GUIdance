@@ -19,6 +19,8 @@ import static org.junit.jupiter.api.Assertions.fail;
  */
 public class TestUserInteraction {
 
+    private static String sep = "/";
+
     private static File file;
     private static File tmpFile;
 
@@ -28,8 +30,8 @@ public class TestUserInteraction {
 
             String tmp = System.getProperty("java.io.tmpdir");
 
-            if (!tmp.endsWith(File.pathSeparator)){
-                tmp += File.pathSeparator;
+            if (!tmp.endsWith(sep)){
+                tmp += sep;
             }
 
             String tmpDir = tmp +  Long.toString(System.nanoTime());
@@ -38,7 +40,7 @@ public class TestUserInteraction {
 
             Properties.INPUT = new String[]{"test"};
 
-            String fullFileName = tmpDir + File.pathSeparator + "data" + File.pathSeparator + Properties.INPUT[0] + File.pathSeparator;
+            String fullFileName = tmpDir + sep + "data" + sep + Properties.INPUT[0] + sep;
 
             file = new File(fullFileName, "user_interactions.csv");
 
