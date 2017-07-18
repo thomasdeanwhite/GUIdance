@@ -26,15 +26,19 @@ public class TestUserInteraction {
     public static void setup(){
         try {
 
-            String tmpDir = System.getProperty("java.io.tmpdir") +  Long.toString(System.nanoTime());
+            String tmp = System.getProperty("java.io.tmpdir");
 
-            if (!tmpDir.endsWith(File.pathSeparator)){
-                tmpDir += File.pathSeparator;
+            if (!tmp.endsWith(File.pathSeparator)){
+                tmp += File.pathSeparator;
             }
+
+            String tmpDir = tmp +  Long.toString(System.nanoTime());
+
+
 
             Properties.INPUT = new String[]{"test"};
 
-            String fullFileName = tmpDir + "/data/" + Properties.INPUT[0] + "/";
+            String fullFileName = tmpDir + File.pathSeparator + "data" + File.pathSeparator + Properties.INPUT[0] + File.pathSeparator;
 
             file = new File(fullFileName, "user_interactions.csv");
 
