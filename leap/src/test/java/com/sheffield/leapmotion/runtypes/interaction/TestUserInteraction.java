@@ -52,7 +52,8 @@ public class TestUserInteraction {
 
             FileHandler.writeToFile(file, data);
         } catch (IOException e) {
-            e.printStackTrace();
+            App.out.println("Cannot create file: " + file.getAbsolutePath());
+            e.printStackTrace(App.out);
         }
     }
 
