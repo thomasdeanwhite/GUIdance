@@ -92,6 +92,59 @@ public class TestUserInteraction {
         assertEquals(MouseEvent.MOVE, e.getEvent());
     }
 
+    @Test
+    public void testTimeBefore(){
+        UserInteraction ui = new UserInteraction();
+
+        try {
+            ui.load();
+        } catch (IOException e) {
+            e.printStackTrace();
+            fail("File should exist");
+        }
+
+        Event e = ui.interact(-1);
+
+        assertEquals(Event.NONE, e);
+    }
+
+    @Test
+    public void testEmpty(){
+        UserInteraction ui = new UserInteraction();
+
+        try {
+            ui.load();
+        } catch (IOException e) {
+            e.printStackTrace();
+            fail("File should exist");
+        }
+
+        for (int i = 0; i < 10; i++)
+            ui.interact(i);
+        Event e = ui.interact(1);
+
+        assertEquals(Event.NONE, e);
+    }
+
+
+    @Test
+    public void testFileOutput(){
+        UserInteraction ui = new UserInteraction();
+
+        try {
+            ui.load();
+        } catch (IOException e) {
+            e.printStackTrace();
+            fail("File should exist");
+        }
+
+        Event e = ui.interact(0);
+        ui.postInteraction(e);
+
+        assertEquals(e, ui.getLastEvent());
+
+    }
+
 
     @AfterAll
     public static void tearDown(){

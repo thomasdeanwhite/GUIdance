@@ -23,6 +23,11 @@ public class UserInteraction implements Interaction {
     protected long minTime = Long.MAX_VALUE;
     protected State lastState = State.ORIGIN;
     protected HashMap<Integer, State> states;
+
+    public Event getLastEvent() {
+        return lastEvent;
+    }
+
     protected File trainingDataInputFile;
     protected File trainingDataOutputFile;
 
