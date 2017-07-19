@@ -11,8 +11,7 @@ import matplotlib.pyplot as plt
 import math
 import sys
 
-
-learning_rate = 0.000001
+learning_rate=0.0001
 epochs = 30000
 batch_size = 30
 percent_training = 0.7
@@ -27,6 +26,10 @@ image_height = 64
 data = []
 output = []
 wd = os.getcwd()
+
+if not os.path.exists(wd + "/model"):
+    os.makedirs(wd + "/model")
+
 for i in range(1, len(sys.argv)):
     os.chdir(os.path.join(wd, sys.argv[i]))
     print("loading", sys.argv[i])
@@ -141,9 +144,14 @@ y_ = tf.tanh(tf.matmul(h_fcl2, W_fc3) + b_fc3)
 print("model created successfully")
 
 loss = tf.losses.mean_squared_error(y, y_)
-train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
 
-accuracy = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(y, y_)), 8.0))
+#learning_rate = tf.placeholder(tf.float32, shape=[])
+
+# train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+train_step = tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False).minimize(loss)
+
+
+accuracy = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(y, y_)), 2.0))
 
 tf.summary.scalar('accuracy', accuracy)
 
@@ -181,11 +189,23 @@ with tf.Session() as sess:
         batch_y = train_labels[samples]
         sess.run(train_step, feed_dict={x: batch_x, y: batch_y, keep_prob: 0.95})
 
-        print(epoch, ") Vacc: ", (sess.run(accuracy, feed_dict={x: valid_dataset, y: valid_labels, keep_prob: 1.0})))
+
+        opt = str(epoch) + ") Vacc: " + str(sess.run(accuracy, feed_dict={x: valid_dataset, y: valid_labels, keep_prob: 1.0}))
+
+        print(opt)
+
+
+
+        with open("training_out.log", "a") as myfile:
+            myfile.write(opt + "\n")
+
+
 
         if epoch % 50 == 0:
+            os.chdir(wd + "/model")
             save_path = saver.save(sess, str(epoch) + model_file)
             print("Model saved in file: %s" % save_path)
+            os.chdir(wd)
 
     print("\nTraining complete!")
     writer.add_graph(sess.graph)

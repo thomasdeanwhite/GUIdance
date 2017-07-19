@@ -2,32 +2,61 @@ package com.sheffield.leapmotion.runtypes;
 
 import com.sheffield.leapmotion.App;
 import com.sheffield.leapmotion.Properties;
-import com.sheffield.leapmotion.runtypes.interaction.DeepLearningInteraction;
+import com.sheffield.leapmotion.runtypes.interaction.*;
 import com.sheffield.leapmotion.runtypes.interaction.Event;
-import com.sheffield.leapmotion.runtypes.interaction.Interaction;
-import com.sheffield.leapmotion.runtypes.interaction.UserInteraction;
 import com.sheffield.leapmotion.sampler.MouseEvent;
+import org.jnativehook.GlobalScreen;
+import org.jnativehook.NativeHookException;
+import org.jnativehook.keyboard.NativeKeyEvent;
+import org.jnativehook.keyboard.NativeKeyListener;
 
 import java.awt.*;
 
 import java.awt.event.InputEvent;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 /**
  * Created by thoma on 20/06/2017.
  */
-public class ApplicationTestingRunType implements RunType {
+public class ApplicationTestingRunType implements RunType, NativeKeyListener {
 
     private Rectangle bounds;
+    private boolean running = true;
+    private ApplicationThread appThread;
+
+    public boolean isRunning() {
+        return running;
+    }
 
     @Override
     public int run() {
+
+        try {
+            GlobalScreen.registerNativeHook();
+        } catch (NativeHookException e) {
+            e.printStackTrace();
+        }
+
+        // Get the logger for "org.jnativehook" and set the level to warning.
+        Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
+        logger.setLevel(Level.WARNING);
+        logger.setUseParentHandlers(false);
+
+        GlobalScreen.addNativeKeyListener(this);
+
+
+
         Interaction interaction;
 
         switch (Properties.INTERACTION){
             case DEEP_LEARNING:
                 interaction = new DeepLearningInteraction();
+                break;
+            case MONKEY:
+                interaction = new MonkeyInteraction();
                 break;
             case USER:
             default:
@@ -36,7 +65,7 @@ public class ApplicationTestingRunType implements RunType {
 
 
 
-        ApplicationThread appThread = new ApplicationThread();
+        appThread = new ApplicationThread();
 
         App.out.println("- Using exec: " + Properties.EXEC);
 
@@ -111,7 +140,7 @@ public class ApplicationTestingRunType implements RunType {
 
             interaction.postInteraction(e);
 
-        } while (currentTime < finishTime);
+        } while (currentTime < finishTime && running);
 
         appThread.kill();
 
@@ -138,4 +167,34 @@ public class ApplicationTestingRunType implements RunType {
         r.mouseRelease(button);
     }
 
+
+    private int keyPressedToExit = 0;
+
+
+    @Override
+    public void nativeKeyPressed(NativeKeyEvent nativeKeyEvent) {
+        if (nativeKeyEvent.getKeyCode() == NativeKeyEvent.VC_ESCAPE) {
+            keyPressedToExit++;
+        } else {
+            keyPressedToExit = 0;
+        }
+
+        if (keyPressedToExit >= 3){
+            running = false;
+            App.out.println("!!! User Initiated Exit !!!");
+            appThread.kill();
+            App.getApp().end();
+            System.exit(0);
+        }
+    }
+
+    @Override
+    public void nativeKeyReleased(NativeKeyEvent nativeKeyEvent) {
+
+    }
+
+    @Override
+    public void nativeKeyTyped(NativeKeyEvent nativeKeyEvent) {
+
+    }
 }
