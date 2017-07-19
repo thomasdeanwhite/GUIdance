@@ -215,19 +215,27 @@ with tf.Session() as sess:
 
     count = 0
 
-    for j in range(data.shape[0]):
+    results = sess.run(y_, feed_dict={x:data, keep_prob:1.0})
 
-        i = random.choice(range(data.shape[0]))
+    print(results.shape)
+
+    indices = tf.nn.top_k(results[:, 2], k=results.shape[0]).indices
+
+    print(indices.shape)
+
+    for j in range(indices.shape[0]):
 
         plt.figure(1, figsize=(20,20))
 
-        res = sess.run(y_, feed_dict={x:[data[i]], keep_prob:1.0})
+        d = data[indices[j]]
+
+        res = sess.run(y_, feed_dict={x:[d], keep_prob:1.0})
 
         if (res[0][2] < 0.25):
-            getActivations(sess, h_pool1, data[i], count, True)
+            getActivations(sess, h_pool1, d, count, True)
             count += 4
 
-            getActivations(sess, h_pool2, data[i], count, False)
+            getActivations(sess, h_pool2, d, count, False)
             count += 9
 
             if count >= image_size[0] * image_size[1]:
