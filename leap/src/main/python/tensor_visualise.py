@@ -145,15 +145,6 @@ print(y_.shape)
 
 print("model created successfully")
 
-loss = tf.losses.sum_of_squares(y, y_)
-train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
-accuracy = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(y, y_)), 6.0))
-
-tf.summary.scalar('accuracy', accuracy)
-
-merged = tf.summary.merge_all()
-writer = tf.summary.FileWriter('tf')
-
 saver = tf.train.Saver()
 
 plt.close('all')
@@ -227,7 +218,9 @@ with tf.Session() as sess:
 
         plt.figure(1, figsize=(20,20))
 
-        d = data[indices[j]]
+        index = indices[j].eval()
+
+        d = data[index]
 
         res = sess.run(y_, feed_dict={x:[d], keep_prob:1.0})
 

@@ -8,6 +8,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.File;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Created by thoma on 20/06/2017.
@@ -40,7 +42,14 @@ public class ApplicationThread {
                 String exec = Properties.EXEC;
 
                 try {
-                    process = new ProcessBuilder(exec).start();// Runtime.getRuntime().exec(exec);
+
+                    List<String> commands = Arrays.asList(exec.split(" "));
+
+                    ProcessBuilder builder = new ProcessBuilder(commands);
+                    builder.redirectErrorStream(true);
+                    builder.directory(new File(System.getProperty("user.dir")));
+                    App.out.println(System.getProperty("user.dir"));
+                    process = builder.start();
 
                     output();
                 } catch (IOException e) {
