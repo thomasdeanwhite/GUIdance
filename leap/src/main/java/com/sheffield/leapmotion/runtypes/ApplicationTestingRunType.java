@@ -2,8 +2,7 @@ package com.sheffield.leapmotion.runtypes;
 
 import com.sheffield.leapmotion.App;
 import com.sheffield.leapmotion.Properties;
-import com.sheffield.leapmotion.output.StateComparator;
-import com.sheffield.leapmotion.runtypes.interaction.DeepQNetworkInteraction;
+import com.sheffield.leapmotion.runtypes.interaction.DeepLearningInteraction;
 import com.sheffield.leapmotion.runtypes.interaction.Event;
 import com.sheffield.leapmotion.runtypes.interaction.Interaction;
 import com.sheffield.leapmotion.runtypes.interaction.UserInteraction;
@@ -28,7 +27,7 @@ public class ApplicationTestingRunType implements RunType {
 
         switch (Properties.INTERACTION){
             case DEEP_LEARNING:
-                interaction = new DeepQNetworkInteraction();
+                interaction = new DeepLearningInteraction();
                 break;
             case USER:
             default:

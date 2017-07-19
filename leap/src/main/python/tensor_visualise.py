@@ -145,7 +145,7 @@ print(y_.shape)
 
 print("model created successfully")
 
-loss = tf.losses.huber_loss(y, y_)
+loss = tf.losses.sum_of_squares(y, y_)
 train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
 accuracy = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(y, y_)), 6.0))
 

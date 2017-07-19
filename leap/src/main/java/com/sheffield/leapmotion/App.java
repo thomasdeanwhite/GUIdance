@@ -148,58 +148,58 @@ public class App implements ThrowableListener, Tickable {
         }
     }
 
-    static {
-        System.setSecurityManager(new NoExitSecurityManager());
-    }
-
-    private static class NoExitSecurityManager extends SecurityManager {
-
-        @Override
-        public void checkPermission(Permission perm) {
-            if (perm.getName().contains("loadLibrary")) {
-                if (perm.getName().contains("LeapJava")) {
-                    App.out.println("- LeapJava loaded dynamically.");
-                    //App.getApp().setStatus(AppStatus.TESTING);
-                    // new Exception().printStackTrace(App.out);
-                    // throw new IllegalStateException("NO LOAD");
-                    // throw new SecurityException("Cannot load LeapLibrary");
-                }
-            }
-
-            if (perm.getName().toLowerCase().contains("fullscreen")) {
-                throw new SecurityException("NO!");
-            }
-        }
-
-        @Override
-        public void checkPermission(Permission perm, Object context) {
-        }
-
-        @Override
-        public void checkExit(int status) {
-            if (CLOSING) {
-                super.checkExit(status);
-            } else {
-                //App.getApp().setStatus(AppStatus.FINISHED);
-
-                StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-
-                if (stackTraceElements.length > 2) {
-                    String className = stackTraceElements[2].getClassName();
-                    if (className.contains("javax.swing.JFrame") && stackTraceElements[2].getMethodName().contains("setDefaultCloseOperation")) {
-                        super.checkExit(status);
-                        return;
-                    }
-                }
-
-                CLOSING = true;
-
-                App.getApp().dump(1);
-
-                throw new SecurityException("Cannot exit: dumping testing information.");
-            }
-        }
-    }
+//    static {
+//        System.setSecurityManager(new NoExitSecurityManager());
+//    }
+//
+//    private static class NoExitSecurityManager extends SecurityManager {
+//
+//        @Override
+//        public void checkPermission(Permission perm) {
+//            if (perm.getName().contains("loadLibrary")) {
+//                if (perm.getName().contains("LeapJava")) {
+//                    App.out.println("- LeapJava loaded dynamically.");
+//                    //App.getApp().setStatus(AppStatus.TESTING);
+//                    // new Exception().printStackTrace(App.out);
+//                    // throw new IllegalStateException("NO LOAD");
+//                    // throw new SecurityException("Cannot load LeapLibrary");
+//                }
+//            }
+//
+//            if (perm.getName().toLowerCase().contains("fullscreen")) {
+//                throw new SecurityException("NO!");
+//            }
+//        }
+//
+//        @Override
+//        public void checkPermission(Permission perm, Object context) {
+//        }
+//
+//        @Override
+//        public void checkExit(int status) {
+//            if (CLOSING) {
+//                super.checkExit(status);
+//            } else {
+//                //App.getApp().setStatus(AppStatus.FINISHED);
+//
+//                StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+//
+//                if (stackTraceElements.length > 2) {
+//                    String className = stackTraceElements[2].getClassName();
+//                    if (className.contains("javax.swing.JFrame") && stackTraceElements[2].getMethodName().contains("setDefaultCloseOperation")) {
+//                        super.checkExit(status);
+//                        return;
+//                    }
+//                }
+//
+//                CLOSING = true;
+//
+//                App.getApp().dump(1);
+//
+//                throw new SecurityException("Cannot exit: dumping testing information.");
+//            }
+//        }
+//    }
 
     public AppStatus status() {
         return status;

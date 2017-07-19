@@ -23,6 +23,11 @@ public class UserInteraction implements Interaction {
     protected long minTime = Long.MAX_VALUE;
     protected State lastState = State.ORIGIN;
     protected HashMap<Integer, State> states;
+
+    public Event getLastEvent() {
+        return lastEvent;
+    }
+
     protected File trainingDataInputFile;
     protected File trainingDataOutputFile;
 
@@ -87,7 +92,7 @@ public class UserInteraction implements Interaction {
             return Event.NONE;
         }
 
-        if (rawEvents.size() > 0 && rawEvents.get(0).getTimestamp() <
+        if (rawEvents.size() > 0 && rawEvents.get(0).getTimestamp() <=
                 timePassed){
             e = rawEvents.remove(0);
         }
