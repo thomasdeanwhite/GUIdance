@@ -2,7 +2,7 @@ import os
 import subprocess
 
 
-data_location = 'C:/work/leapmotion-study/data'
+data_location = 'C:/work/gui-study/data'
 folders = ['ASLDigits/bin', 'GorogoaPuzzle/run', 'LeapmotionPaint', 'PolyDrop', 'VirtualPianoForBeginners/App']
 frame_gens = ['RANDOM', 'STATE_DEPENDENT', 'SINGLE_MODEL', 'VQ', 'RANDOM']
 iterations = 10

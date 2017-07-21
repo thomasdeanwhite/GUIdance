@@ -1,4 +1,4 @@
-import com.sheffield.leapmotion.util.ProgressBar;
+import com.thomasdeanwhite.gui.util.ProgressBar;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

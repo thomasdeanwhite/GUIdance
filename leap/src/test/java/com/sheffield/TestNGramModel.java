@@ -1,8 +1,8 @@
 package com.sheffield;
 
-import com.sheffield.leapmotion.frame.analyzer.machinelearning.ngram.DataSparsityException;
-import com.sheffield.leapmotion.frame.analyzer.machinelearning.ngram.NGram;
-import com.sheffield.leapmotion.frame.analyzer.machinelearning.ngram.NGramModel;
+import com.thomasdeanwhite.gui.ngram.DataSparsityException;
+import com.thomasdeanwhite.gui.ngram.NGram;
+import com.thomasdeanwhite.gui.ngram.NGramModel;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 

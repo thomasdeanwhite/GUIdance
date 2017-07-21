@@ -1,9 +1,11 @@
 package com.sheffield.leapmotion.runtypes.interaction;
 
-import com.sheffield.leapmotion.App;
-import com.sheffield.leapmotion.Properties;
-import com.sheffield.leapmotion.sampler.MouseEvent;
-import com.sheffield.leapmotion.util.FileHandler;
+import com.thomasdeanwhite.gui.App;
+import com.thomasdeanwhite.gui.Properties;
+import com.thomasdeanwhite.gui.runtypes.interaction.Event;
+import com.thomasdeanwhite.gui.runtypes.interaction.UserInteraction;
+import com.thomasdeanwhite.gui.sampler.MouseEvent;
+import com.thomasdeanwhite.gui.util.FileHandler;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

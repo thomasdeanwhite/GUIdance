@@ -1,6 +1,7 @@
 package com.sheffield.leapmotion.runtypes.interaction;
 
-import com.sheffield.leapmotion.sampler.MouseEvent;
+import com.thomasdeanwhite.gui.runtypes.interaction.Event;
+import com.thomasdeanwhite.gui.sampler.MouseEvent;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
