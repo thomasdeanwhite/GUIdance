@@ -2,12 +2,9 @@ package com.thomasdeanwhite.gui.runtypes;
 
 import com.thomasdeanwhite.gui.App;
 import com.thomasdeanwhite.gui.Properties;
+import com.thomasdeanwhite.gui.runtypes.interaction.*;
 import com.thomasdeanwhite.gui.runtypes.interaction.Event;
 import com.thomasdeanwhite.gui.sampler.MouseEvent;
-import com.thomasdeanwhite.gui.runtypes.interaction.DeepLearningInteraction;
-import com.thomasdeanwhite.gui.runtypes.interaction.Interaction;
-import com.thomasdeanwhite.gui.runtypes.interaction.MonkeyInteraction;
-import com.thomasdeanwhite.gui.runtypes.interaction.UserInteraction;
 import org.jnativehook.GlobalScreen;
 import org.jnativehook.NativeHookException;
 import org.jnativehook.keyboard.NativeKeyEvent;
@@ -57,6 +54,9 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
         switch (Properties.INTERACTION){
             case DEEP_LEARNING:
                 interaction = new DeepLearningInteraction();
+                break;
+            case EXPLORATION_DEEP_LEARNING:
+                interaction = new ExplorationDeepLearningInteraction();
                 break;
             case MONKEY:
                 interaction = new MonkeyInteraction();

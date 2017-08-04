@@ -40,7 +40,7 @@ public class Properties extends InstrumentationProperties {
     public static int CLUSTERS = 400;
 
     public enum Interaction {
-        USER, MONKEY, DEEP_LEARNING
+        USER, MONKEY, EXPLORATION_DEEP_LEARNING, DEEP_LEARNING
     }
 
     @Parameter(key = "interaction", description = "Technique for application interaction", hasArgs = true, category = "GUI Testing")

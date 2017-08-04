@@ -6,10 +6,7 @@ import com.thomasdeanwhite.gui.Properties;
 import com.thomasdeanwhite.gui.output.StateComparator;
 import com.thomasdeanwhite.gui.sampler.MouseEvent;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -34,6 +31,7 @@ public class DeepLearningInteraction extends UserInteraction {
     private Event nextEvent;
 
     private Process pythonProcess;
+    private BufferedWriter pythonWriter;
 
     Gson gson;
 
@@ -105,6 +103,10 @@ public class DeepLearningInteraction extends UserInteraction {
                     }
                     pythonProcess = process;
 
+                    pythonWriter = new BufferedWriter(
+                            new OutputStreamWriter(pythonProcess.getOutputStream())
+                    );
+
 
 
                     new Thread(() -> {
@@ -138,8 +140,8 @@ public class DeepLearningInteraction extends UserInteraction {
                     }).start();
                 }
 
-                pythonProcess.getOutputStream().write((input + "\n").getBytes());
-                pythonProcess.getOutputStream().flush();
+                pythonWriter.write(input + "\n");
+                //pythonProcess.getOutputStream().flush();
 
             } catch (IOException e1) {
                 e1.printStackTrace();

@@ -1,22 +1,13 @@
 library(dplyr)
 library(ggplot2)
-library(tidyr)
 
-setwd('C:/work/NuiMimic/NuiMimic/')
+setwd('/home/thomas/work/NuiMimic/NuiMimic/data')
 
-data <- read.csv("debug.csv", header = TRUE)
-
-#p <- data %>% 
-#  group_by(output, value, ignore_dict) %>%
-#  ggplot(aes(x=output, y=value, group=output)) +
-#  geom_boxplot() +
-#  facet_wrap(state~ignore_dict, scales = "free")
+data <- read.csv("training_out.log", header = FALSE)
 
 p <- data %>% 
-  group_by(output, value, state) %>%
-  ggplot(aes(x=output, y=value, group=output)) +
-  geom_boxplot() +
-  facet_wrap(~state, scales = "free")
+  ggplot(aes(x=V1, y=V2)) +
+  geom_line() + xlab('epoch') + ylab('accuracy')
 
 print(p)
 

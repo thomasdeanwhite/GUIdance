@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 input_length = 4100
 output_length = 4
 
+wd = os.getcwd()
 
 image_height = 64
 image_features = image_height * image_height
@@ -20,7 +21,9 @@ hidden_layers = [1024, 256, 64]
 
 x = tf.placeholder(tf.float32, [None, image_features + rem_features])
 
-x_img = tf.slice(x, [0, 0], [-1, image_features])
+x_img_raw = tf.slice(x, [0, 0], [-1, image_features])
+
+x_img = tf.subtract(tf.multiply(x_img_raw, 2.0), 1.0)
 
 x_rem = tf.slice(x, [0, image_features], [-1, -1])
 
@@ -99,8 +102,10 @@ with tf.Session() as sess:
     sess.run(init_op)
 
     # Restore variables from disk.
-    model_file = "NuiMimic/data/model/model.ckpt"
-    saver.restore(sess, model_file)
+    model_file = wd + "/model/model.ckpt"
+    if os.path.isfile(wd + "/model/checkpoint"):
+        saver.restore(sess, model_file)
+        print("Model restored.")
 
 
 

@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import math
 import sys
 
-learning_rate=0.001
-epochs = 15000
+learning_rate = 0.001
+epochs = 150000
 batch_size = 30
 percent_training = 0.7
 percent_testing = 1
@@ -82,7 +82,9 @@ print('Test set', test_dataset.shape, test_labels.shape)
 
 x = tf.placeholder(tf.float32, [None, train_dataset.shape[1]])
 
-x_img = tf.slice(x, [0, 0], [-1, image_features])
+x_img_raw = tf.slice(x, [0, 0], [-1, image_features])
+
+x_img = tf.subtract(tf.multiply(x_img_raw, 2.0), 1.0)
 
 x_rem = tf.slice(x, [0, image_features], [-1, -1])
 
@@ -110,14 +112,14 @@ b_conv1 = bias_variable([4])
 x_image = tf.reshape(x_img, [-1, image_height, image_height, 1])
 
 h_conv1 = conv2d(x_image, W_conv1) + b_conv1
-h_pool1 = tf.nn.relu(max_pool_2x2(h_conv1))
+h_pool1 = tf.nn.tanh(max_pool_2x2(h_conv1))
 
 
 W_conv2 = weight_variable([8, 8, 4, 8])
 b_conv2 = bias_variable([8])
 
 h_conv2 = conv2d(h_pool1, W_conv2) + b_conv2
-h_pool2 = tf.nn.relu(max_pool_2x2(h_conv2))
+h_pool2 = tf.nn.tanh(max_pool_2x2(h_conv2))
 
 
 W_fc1 = weight_variable([16*16*8, 1024])

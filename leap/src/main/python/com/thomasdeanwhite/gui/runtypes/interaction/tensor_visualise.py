@@ -82,7 +82,9 @@ print('Test set', test_dataset.shape, test_labels.shape)
 
 x = tf.placeholder(tf.float32, [None, train_dataset.shape[1]])
 
-x_img = tf.slice(x, [0, 0], [-1, image_features])
+x_img_raw = tf.slice(x, [0, 0], [-1, image_features])
+
+x_img = tf.subtract(tf.multiply(x_img_raw, 2.0), 1.0)
 
 x_rem = tf.slice(x, [0, image_features], [-1, -1])
 
@@ -143,8 +145,6 @@ y_ = tf.tanh(tf.matmul(h_fcl2, W_fc3) + b_fc3)
 
 print(y_.shape)
 
-print("model created successfully")
-
 saver = tf.train.Saver()
 
 plt.close('all')
@@ -197,10 +197,10 @@ with tf.Session() as sess:
 
 
     # Restore variables from disk.
-    model_file = "model/model.ckpt"
-    # if os.path.isfile("model/checkpoint"):
-    #     saver.restore(sess, model_file)
-    #     print("Model restored.")
+    model_file = wd + "/model/model.ckpt"
+    if os.path.isfile(wd + "/model/checkpoint"):
+        saver.restore(sess, model_file)
+        print("Model restored.")
 
     total_len = train_labels.shape[0]
 
@@ -210,7 +210,7 @@ with tf.Session() as sess:
 
     print(results.shape)
 
-    indices = tf.nn.top_k(results[:, 2], k=results.shape[0]).indices
+    indices = tf.nn.top_k(tf.abs(results[:, 2]), k=results.shape[0]).indices
 
     print(indices.shape)
 
