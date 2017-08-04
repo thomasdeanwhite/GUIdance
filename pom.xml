@@ -140,22 +140,6 @@
 			</plugin>
 
 		</plugins>
-		<resources>
-			<resource>
-				<directory>${project
-							.basedir}/lib</directory>
-				<includes>
-					<include>Leap.dll</include>
-					<include>Leap.lib</include>
-					<include>Leap.CSharp.dll</include>
-					<include>Leap.CSharp.NET3.5.dll</include>
-					<include>LeapCSharp.NET4.0.dll</include>
-					<include>LeapJava.dll</include>
-					<include>LeapJava.jar</include>
-					<include>LeapPython.pyd</include>
-				</includes>
-			</resource>
-		</resources>
 	</build>
 
 	<modules>

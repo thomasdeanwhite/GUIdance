@@ -20,12 +20,17 @@
           <dependency>
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-surefire-provider</artifactId>
-            <version>1.0.0-M5</version>
+            <version>RELEASE</version>
           </dependency>
           <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.0.0-M5</version>
+            <version>RELEASE</version>
+          </dependency>
+          <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <version>RELEASE</version>
           </dependency>
         </dependencies>
         <configuration>
@@ -106,39 +111,8 @@
       </exclusions>
     </dependency>
   </dependencies>
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.nd4j</groupId>
-        <artifactId>nd4j-native-platform</artifactId>
-        <version>${nd4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.nd4j</groupId>
-        <artifactId>nd4j-cuda-7.5-platform</artifactId>
-        <version>${nd4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.nd4j</groupId>
-        <artifactId>nd4j-cuda-8.0-platform</artifactId>
-        <version>${nd4j.version}</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
   <properties>
-    <java.version>1.8</java.version>
-    <rl4j.version>0.8.0</rl4j.version>
-    <guava.version>19.0</guava.version>
-    <dl4j.spark.version>0.8.0_spark_1</dl4j.spark.version>
-    <scala.binary.version>2.11</scala.binary.version>
-    <datavec.version>0.8.0</datavec.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <nd4j.version>0.8.0</nd4j.version>
-    <dl4j.version>0.8.0</dl4j.version>
-    <arbiter.version>0.8.0</arbiter.version>
-    <datavec.spark.version>0.8.0_spark_1</datavec.spark.version>
-    <nd4j.backend>nd4j-native-platform</nd4j.backend>
-    <shadedClassifier>bin</shadedClassifier>
   </properties>
 </project>
 

@@ -105,7 +105,7 @@ with tf.Session() as sess:
     model_file = wd + "/model/model.ckpt"
     if os.path.isfile(wd + "/model/checkpoint"):
         saver.restore(sess, model_file)
-        print("Model restored.")
+        print("dl-result model loaded")
 
 
 

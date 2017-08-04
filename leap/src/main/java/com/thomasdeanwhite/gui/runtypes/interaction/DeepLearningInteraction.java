@@ -19,19 +19,21 @@ public class DeepLearningInteraction extends UserInteraction {
 
     private static final float CLICK_THRESHOLD = 0.25f;
 
-    private static final float RANDOM_PROBABILITY = 0.005f;
+    protected static float RANDOM_PROBABILITY = 0.005f;
 
-    private static final float JITTER = 0.0000001f;
+    protected static float JITTER = 0.0000001f;
 
-    private Event lastEvent = Event.NONE;
-    private Event secondLastEvent = lastEvent;
+    protected Event lastEvent = Event.NONE;
+    protected Event secondLastEvent = lastEvent;
 
     private int iteration = 0;
 
-    private Event nextEvent;
+    protected Event nextEvent;
 
     private Process pythonProcess;
     private BufferedWriter pythonWriter;
+
+    private boolean modelFound = false;
 
     Gson gson;
 
@@ -92,13 +94,13 @@ public class DeepLearningInteraction extends UserInteraction {
 
                         ProcessBuilder builder = new ProcessBuilder(String.format(pythonCommand, "python3"), pathToPythonScript);
                         builder.redirectErrorStream(true);
-                        builder.directory(new File(System.getProperty("user.dir")));
+                        builder.directory(new File(System.getProperty("user.dir") + "/NuiMimic/data"));
                         App.out.println(System.getProperty("user.dir"));
                         process = builder.start();
                     } catch (IOException e2){
                         ProcessBuilder builder = new ProcessBuilder(String.format(pythonCommand, "python"), pathToPythonScript);
                         builder.redirectErrorStream(true);
-                        builder.directory(new File(System.getProperty("user.dir")));
+                        builder.directory(new File(System.getProperty("user.dir") + "/NuiMimic/data"));
                         process = builder.start();
                     }
                     pythonProcess = process;
@@ -154,9 +156,22 @@ public class DeepLearningInteraction extends UserInteraction {
     }
 
     public void processLine (String line){
+
         if (Properties.SHOW_OUTPUT) {
             App.out.println("\rlem: " + lastEvent.toString() + " disp: " + line);
         }
+
+        if (line.contains("model loaded")){
+            modelFound = true;
+            App.out.println("- DNN Loaded successfully!");
+            return;
+        }
+
+        if (!modelFound){
+            throw new ModelNotFoundException("Model could not be found in ./NuiMimic/data");
+        }
+
+
         //output: x y lmm rmm
         //x y lmm rmm
         String[] eles = line.split(" ");
