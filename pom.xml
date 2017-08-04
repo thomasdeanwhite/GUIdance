@@ -3,12 +3,12 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.sheffield</groupId>
-	<artifactId>leapmotion-tester</artifactId>
+	<groupId>com.thomasdeanwhite</groupId>
+	<artifactId>gui</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
-	<name>leapmotion-tester</name>
+	<name>Gui Tester</name>
 	<url>http://maven.apache.org</url>
 
 	<properties>
@@ -72,10 +72,10 @@
 										<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
 											<manifestEntries>
 												<Main-Class>
-													com.sheffield.leapmotion.App
+													com.thomasdeanwhite.gui.App
 												</Main-Class>
 												<Premain-class>
-													com.sheffield.leapmotion.App
+													com.thomasdeanwhite.gui.App
 												</Premain-class>
 
 												<Build-Number>1</Build-Number>
@@ -108,10 +108,10 @@
 						</manifest>
 						<manifestEntries>
 							<Main-Class>
-								com.sheffield.leapmotion.App
+								com.thomasdeanwhite.gui.App
 							</Main-Class>
 							<Premain-class>
-								com.sheffield.leapmotion.App
+								com.thomasdeanwhite.gui.App
 							</Premain-class>
 
 						</manifestEntries>
@@ -143,6 +143,6 @@
 	</build>
 
 	<modules>
-		<module>leap</module>
+		<module>gui-tester</module>
 	</modules>
 </project>

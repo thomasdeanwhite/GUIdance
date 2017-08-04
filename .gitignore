@@ -20,3 +20,6 @@ leap/NuiMimic
 leap/NuiMimic/*
 chrome/*
 leap/*.iml
+**.jar
+*.jar
+*/*.jar
