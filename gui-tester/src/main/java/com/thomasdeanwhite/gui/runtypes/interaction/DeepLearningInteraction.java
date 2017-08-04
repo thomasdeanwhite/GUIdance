@@ -21,7 +21,7 @@ public class DeepLearningInteraction extends UserInteraction {
 
     protected static float RANDOM_PROBABILITY = 0.005f;
 
-    protected static float JITTER = 0.0000001f;
+    protected static float JITTER = 0.0001f;
 
     protected Event lastEvent = Event.NONE;
     protected Event secondLastEvent = lastEvent;
@@ -95,7 +95,6 @@ public class DeepLearningInteraction extends UserInteraction {
                         ProcessBuilder builder = new ProcessBuilder(String.format(pythonCommand, "python3"), pathToPythonScript);
                         builder.redirectErrorStream(true);
                         builder.directory(new File(System.getProperty("user.dir") + "/NuiMimic/data"));
-                        App.out.println(System.getProperty("user.dir"));
                         process = builder.start();
                     } catch (IOException e2){
                         ProcessBuilder builder = new ProcessBuilder(String.format(pythonCommand, "python"), pathToPythonScript);

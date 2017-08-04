@@ -27,8 +27,6 @@ public class ExplorationDeepLearningInteraction extends DeepLearningInteraction 
 
         //eliminate randomness from parent class
         RANDOM_PROBABILITY = 0f;
-        JITTER = 0f;
-
 
         //setup as normal
         super.load();

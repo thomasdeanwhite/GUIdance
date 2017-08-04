@@ -190,47 +190,48 @@ def show_image(ds, width, height):
     plt.imshow(ds, cmap="gray")
 
 # start the session
-with tf.Session() as sess:
+def run():
+    with tf.Session() as sess:
 
 
-    sess.run(tf.global_variables_initializer())
+        sess.run(tf.global_variables_initializer())
 
 
-    # Restore variables from disk.
-    model_file = wd + "/model/model.ckpt"
-    if os.path.isfile(wd + "/model/checkpoint"):
-        saver.restore(sess, model_file)
-        print("Model restored.")
+        # Restore variables from disk.
+        model_file = wd + "/model/model.ckpt"
+        if os.path.isfile(wd + "/model/checkpoint"):
+            saver.restore(sess, model_file)
+            print("Model restored.")
 
-    total_len = train_labels.shape[0]
+        total_len = train_labels.shape[0]
 
-    count = 0
+        count = 0
 
-    results = sess.run(y_, feed_dict={x:data, keep_prob:1.0})
+        results = sess.run(y_, feed_dict={x:data, keep_prob:1.0})
 
-    print(results.shape)
+        print(results.shape)
 
-    indices = tf.nn.top_k(tf.abs(results[:, 2]), k=results.shape[0]).indices
+        indices = tf.nn.top_k(tf.abs(results[:, 2]), k=results.shape[0]).indices
 
-    print(indices.shape)
+        print(indices.shape)
 
-    for j in range(indices.shape[0]):
+        for j in range(indices.shape[0]):
 
-        plt.figure(1, figsize=(20,20))
+            plt.figure(1, figsize=(20,20))
 
-        index = indices[j].eval()
+            index = indices[j].eval()
 
-        d = data[index]
+            d = data[index]
 
-        #res = sess.run(y_, feed_dict={x:[d], keep_prob:1.0})
+            #res = sess.run(y_, feed_dict={x:[d], keep_prob:1.0})
 
-        getActivations(sess, h_pool1, d, count, True)
-        count += 4
+            getActivations(sess, h_pool1, d, count, True)
+            count += 4
 
-        getActivations(sess, h_pool2, d, count, False)
-        count += 9
+            getActivations(sess, h_pool2, d, count, False)
+            count += 9
 
-        if count >= image_size[0] * image_size[1]:
-            plt.show()
-            count = 0
+            if count >= image_size[0] * image_size[1]:
+                plt.show()
+                count = 0
 
