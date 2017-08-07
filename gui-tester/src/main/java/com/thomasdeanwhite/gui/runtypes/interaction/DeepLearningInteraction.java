@@ -87,7 +87,7 @@ public class DeepLearningInteraction extends UserInteraction {
                     String pythonCommand = "%s";// + input;
                     Process process;
 
-                    String pathToPythonScript = DeepLearningInteraction.class.getResource("tensor_play.py").getPath();
+                    String pathToPythonScript = System.getProperty("user.dir") + "/nuimimic.jar";
 
                     try {
 
@@ -156,9 +156,9 @@ public class DeepLearningInteraction extends UserInteraction {
 
     public void processLine (String line){
 
-        if (Properties.SHOW_OUTPUT) {
-            App.out.println("\rlem: " + lastEvent.toString() + " disp: " + line);
-        }
+//        if (Properties.SHOW_OUTPUT) {
+//            App.out.println("\rlem: " + lastEvent.toString() + " disp: " + line);
+//        }
 
         if (line.contains("model loaded")){
             modelFound = true;
