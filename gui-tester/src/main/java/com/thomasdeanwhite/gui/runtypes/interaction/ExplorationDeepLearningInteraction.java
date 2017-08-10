@@ -55,35 +55,6 @@ public class ExplorationDeepLearningInteraction extends DeepLearningInteraction 
                 heatmapFile.createNewFile();
                 FileHandler.writeToFile(heatmapFile, "x,y,leftClick,rightClick\n");
 
-
-
-
-                //screnshot app if doesn't exist
-                File screenshot = new File(Properties.TESTING_OUTPUT + "/screenshot.csv");
-
-                if (!screenshot.exists()) {
-                    screenshot.createNewFile();
-
-                    BufferedImage screen = StateComparator.screenshot();
-                    int[] data = ((DataBufferInt) screen.getRaster().getDataBuffer()).getData();
-
-                    StringBuilder sb = new StringBuilder();
-                    int width = screen.getWidth();
-                    sb.append("x,y,pixel\n");
-
-                    for (int i = 0; i < screen.getWidth(); i++) {
-                        for (int j = 0; j < screen.getHeight(); j++) {
-                            int blackAndWhite = data[(j * width) + i];
-                            blackAndWhite = (int) ((0.333 * ((blackAndWhite >> 16) &
-                                    0x0FF) +
-                                    0.333 * ((blackAndWhite >> 8) & 0x0FF) +
-                                    0.333 * (blackAndWhite & 0x0FF)));
-                            sb.append(i + "," + j + "," + blackAndWhite + "\n");
-                        }
-                    }
-
-                    FileHandler.writeToFile(screenshot, sb.toString());
-                }
             } catch (IOException e) {
                 e.printStackTrace();
             }

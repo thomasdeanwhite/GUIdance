@@ -3,9 +3,7 @@
 from __future__ import print_function
 import numpy as np
 import tensorflow as tf
-import sys
 import os
-import matplotlib.pyplot as plt
 
 input_length = 4100
 output_length = 4

@@ -41,6 +41,8 @@ public class DeepLearningInteraction extends UserInteraction {
     public void load() throws IOException {
         super.load();
 
+        App.out.println("- Looking for jar file in: " + System.getProperty("user.dir"));
+
         lastState = State.ORIGIN;
         states = new HashMap<>();
 

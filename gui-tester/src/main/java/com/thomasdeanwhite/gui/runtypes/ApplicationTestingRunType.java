@@ -2,9 +2,11 @@ package com.thomasdeanwhite.gui.runtypes;
 
 import com.thomasdeanwhite.gui.App;
 import com.thomasdeanwhite.gui.Properties;
+import com.thomasdeanwhite.gui.output.StateComparator;
 import com.thomasdeanwhite.gui.runtypes.interaction.*;
 import com.thomasdeanwhite.gui.runtypes.interaction.Event;
 import com.thomasdeanwhite.gui.sampler.MouseEvent;
+import com.thomasdeanwhite.gui.util.FileHandler;
 import org.jnativehook.GlobalScreen;
 import org.jnativehook.NativeHookException;
 import org.jnativehook.keyboard.NativeKeyEvent;
@@ -13,6 +15,9 @@ import org.jnativehook.keyboard.NativeKeyListener;
 import java.awt.*;
 
 import java.awt.event.InputEvent;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
+import java.io.File;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -48,10 +53,9 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
         GlobalScreen.addNativeKeyListener(this);
 
 
-
         Interaction interaction;
 
-        switch (Properties.INTERACTION){
+        switch (Properties.INTERACTION) {
             case DEEP_LEARNING:
                 interaction = new DeepLearningInteraction();
                 break;
@@ -65,7 +69,6 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
             default:
                 interaction = new UserInteraction();
         }
-
 
 
         appThread = new ApplicationThread();
@@ -108,7 +111,7 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
 
             Event e = interaction.interact(timePassed);
 
-            if (bounds == null){
+            if (bounds == null) {
                 Window activeWindow = javax.swing.FocusManager.getCurrentManager().getActiveWindow();
 
                 bounds = new Rectangle(Toolkit.getDefaultToolkit()
@@ -123,7 +126,7 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
                 }
             }
 
-            r.mouseMove((int)(bounds.getX() + e.getMouseX()), (int)(bounds.getY() + e.getMouseY()));
+            r.mouseMove((int) (bounds.getX() + e.getMouseX()), (int) (bounds.getY() + e.getMouseY()));
 
             if (e.getEvent().equals(MouseEvent.LEFT_CLICK)) {
                 click(r, InputEvent.BUTTON1_MASK);
@@ -144,6 +147,39 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
             interaction.postInteraction(e);
 
         } while (currentTime < finishTime && running);
+
+        try {
+            //screnshot app if doesn't exist
+            File screenshot = new File(Properties.TESTING_OUTPUT + "/screenshot.csv");
+
+            if (!screenshot.exists()) {
+
+                screenshot.createNewFile();
+
+
+                BufferedImage screen = StateComparator.screenshot();
+                int[] data = ((DataBufferInt) screen.getRaster().getDataBuffer()).getData();
+
+                StringBuilder sb = new StringBuilder();
+                int width = screen.getWidth();
+                sb.append("x,y,pixel\n");
+
+                for (int i = 0; i < screen.getWidth(); i++) {
+                    for (int j = 0; j < screen.getHeight(); j++) {
+                        int blackAndWhite = data[(j * width) + i];
+                        blackAndWhite = (int) ((0.333 * ((blackAndWhite >> 16) &
+                                0x0FF) +
+                                0.333 * ((blackAndWhite >> 8) & 0x0FF) +
+                                0.333 * (blackAndWhite & 0x0FF)));
+                        sb.append(i + "," + j + "," + blackAndWhite + "\n");
+                    }
+                }
+
+                FileHandler.writeToFile(screenshot, sb.toString());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         appThread.kill();
 
@@ -182,7 +218,7 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
             keyPressedToExit = 0;
         }
 
-        if (keyPressedToExit >= 3){
+        if (keyPressedToExit >= 3) {
             running = false;
             App.out.println("!!! User Initiated Exit !!!");
             appThread.kill();

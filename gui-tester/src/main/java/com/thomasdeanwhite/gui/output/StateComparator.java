@@ -195,13 +195,13 @@ public class StateComparator {
         Rectangle bounds = new Rectangle(Toolkit.getDefaultToolkit()
                 .getScreenSize());
 
-        if (activeWindow != null) {
-            bounds = new Rectangle(
-                    (int) activeWindow.getBounds().getX(),
-                    (int) activeWindow.getBounds().getY(),
-                    (int) activeWindow.getBounds().getWidth(),
-                    (int) activeWindow.getBounds().getHeight());
-        }
+//        if (activeWindow != null) {
+//            bounds = new Rectangle(
+//                    (int) activeWindow.getBounds().getX(),
+//                    (int) activeWindow.getBounds().getY(),
+//                    (int) activeWindow.getBounds().getWidth(),
+//                    (int) activeWindow.getBounds().getHeight());
+//        }
 
         return screenshot(bounds);
     }

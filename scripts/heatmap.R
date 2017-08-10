@@ -9,16 +9,18 @@ reset <- function(){
   remove(heatmap)
 }
 
-if (!exists("screenshot")){
+#if (!exists("screenshot")){
   screenshot <- read.csv('screenshot.csv', header = TRUE)
-}
+#}
 
-if (!exists("heatmap")){
+#if (!exists("heatmap")){
   heatmap <- read.csv('heatmap.csv', header = TRUE)
   
-  heatmap[heatmap$leftClick == -1,] <- 1
-  heatmap[heatmap$rightClick == -1,] <- 1
-}
+  heatmap <- heatmap[complete.cases(heatmap),]
+  
+  heatmap[heatmap$leftClick != 0,] <- 1
+  heatmap[heatmap$rightClick != 0,] <- 1
+#}
 
 heatmap_melt <- melt(heatmap, id=c("x", "y"))
 
