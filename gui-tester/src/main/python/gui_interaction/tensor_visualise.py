@@ -106,40 +106,46 @@ def max_pool_2x2(x):
                           strides=[1, 2, 2, 1], padding='SAME')
 
 
-W_conv1 = weight_variable([8, 8, 1, 4])
-b_conv1 = bias_variable([4])
+# this layer will compress screenshot by factor of 4
+W_img_inpt = weight_variable([image_features, 32*32])
+b_img_inpt = bias_variable([32*32])
 
-x_image = tf.reshape(x_img, [-1, image_height, image_height, 1])
+W_img_inpt2 = weight_variable([32*32, 16*16])
+b_img_inpt2 = bias_variable([16*16])
 
-h_conv1 = conv2d(x_image, W_conv1) + b_conv1
-h_pool1 = tf.nn.relu(max_pool_2x2(h_conv1))
+h_auto_fc1 = tf.nn.tanh(tf.matmul(x_img, W_img_inpt) + b_img_inpt)
 
+h_auto_fc2 = tf.nn.tanh(tf.matmul(h_auto_fc1, W_img_inpt2) + b_img_inpt2)
 
-W_conv2 = weight_variable([8, 8, 4, 8])
-b_conv2 = bias_variable([8])
+W_auto_decoder = weight_variable([16*16, 32*32])
+b_auto_decoder = bias_variable([32*32])
 
-h_conv2 = conv2d(h_pool1, W_conv2) + b_conv2
-h_pool2 = tf.nn.relu(max_pool_2x2(h_conv2))
+W_auto_decoder2 = weight_variable([32*32, image_features])
+b_auto_decoder2 = bias_variable([image_features])
 
+h_deco_fc1 = tf.nn.tanh(tf.matmul(h_auto_fc2, W_auto_decoder) + b_auto_decoder)
+auto_encoder_ = tf.tanh(tf.matmul(h_deco_fc1, W_auto_decoder2) + b_auto_decoder2)
 
-W_fc1 = weight_variable([16*16*8, 1024])
-b_fc1 = bias_variable([1024])
+auto_encoder_out = tf.multiply(tf.add(auto_encoder_, 1.0), 0.5)
 
-h_pool2_flat = tf.reshape(h_pool2, [-1, 16*16*8])
-h_fc1 = tf.matmul(h_pool2_flat, W_fc1) + b_fc1
+loss_auto_encoder = tf.losses.mean_squared_error(x_img, auto_encoder_)
 
-h_fcl_joined = tf.concat([h_fc1, x_rem], 1)
+train_auto_encoder_step = tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False).minimize(loss_auto_encoder)
+
+accuracy_auto_encoder = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img, auto_encoder_)), 2.0))
+
+h_fcl_joined = tf.concat([auto_encoder_, x_rem], 1)
 
 keep_prob = tf.placeholder(tf.float32)
 h_fc1_drop = tf.nn.dropout(h_fcl_joined, keep_prob)
 
-W_fc2 = weight_variable([1024+rem_features, 256])
+W_fc2 = weight_variable([image_features+rem_features, 256])
 b_fc2 = bias_variable([256])
 
 h_fcl2 = tf.tanh(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
-W_fc3 = weight_variable([256, 4])
-b_fc3 = bias_variable([4])
+W_fc3 = weight_variable([256, rem_features])
+b_fc3 = bias_variable([rem_features])
 
 y_ = tf.tanh(tf.matmul(h_fcl2, W_fc3) + b_fc3)
 
@@ -198,40 +204,28 @@ def run():
 
 
         # Restore variables from disk.
-        model_file = wd + "/model/model.ckpt"
-        if os.path.isfile(wd + "/model/checkpoint"):
+        model_file = wd + "/model_encoding/model.ckpt"
+        if os.path.isfile(wd + "/model_encoding/checkpoint"):
             saver.restore(sess, model_file)
             print("Model restored.")
-
-        total_len = train_labels.shape[0]
-
         count = 0
 
-        results = sess.run(y_, feed_dict={x:data, keep_prob:1.0})
+        stimuli = data[:, 0:image_features]
 
-        print(results.shape)
+        results = sess.run(auto_encoder_out, feed_dict={x:data})
 
-        indices = tf.nn.top_k(tf.abs(results[:, 2]), k=results.shape[0]).indices
+        while count < 20:
+            plt.subplot(10, 2, count + 1)
+            #plt.title('Inp')
+            plt.imshow(np.reshape(stimuli[count,:], [image_height, image_height]), cmap="gray")
 
-        print(indices.shape)
 
-        for j in range(indices.shape[0]):
+            plt.subplot(10, 2, count + 2)
+            #plt.title('Inp')
+            plt.imshow(np.reshape(results[count,:], [image_height, image_height]), cmap="gray")
+            count = count + 2
 
-            plt.figure(1, figsize=(20,20))
 
-            index = indices[j].eval()
+        plt.show()
 
-            d = data[index]
-
-            #res = sess.run(y_, feed_dict={x:[d], keep_prob:1.0})
-
-            getActivations(sess, h_pool1, d, count, True)
-            count += 4
-
-            getActivations(sess, h_pool2, d, count, False)
-            count += 9
-
-            if count >= image_size[0] * image_size[1]:
-                plt.show()
-                count = 0
-
+run()

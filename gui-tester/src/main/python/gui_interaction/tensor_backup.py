@@ -27,13 +27,8 @@ data = []
 output = []
 wd = os.getcwd()
 
-TRAIN_MODEL = False
-
 if not os.path.exists(wd + "/model"):
     os.makedirs(wd + "/model")
-
-if not os.path.exists(wd + "/model_encoding"):
-    os.makedirs(wd + "/model_encoding")
 
 for i in range(1, len(sys.argv)):
     os.chdir(os.path.join(wd, sys.argv[i]))
@@ -111,38 +106,34 @@ def max_pool_2x2(x):
                           strides=[1, 2, 2, 1], padding='SAME')
 
 
-# this layer will compress screenshot by factor of 4
-W_img_inpt = weight_variable([image_features, 32*32])
-b_img_inpt = bias_variable([32*32])
+W_conv1 = weight_variable([8, 8, 1, 4])
+b_conv1 = bias_variable([4])
 
-W_img_inpt2 = weight_variable([32*32, 16*16])
-b_img_inpt2 = bias_variable([16*16])
+x_image = tf.reshape(x_img, [-1, image_height, image_height, 1])
 
-h_auto_fc1 = tf.nn.tanh(tf.matmul(x_img, W_img_inpt) + b_img_inpt)
+h_conv1 = conv2d(x_image, W_conv1) + b_conv1
+h_pool1 = tf.nn.tanh(max_pool_2x2(h_conv1))
 
-h_auto_fc2 = tf.nn.tanh(tf.matmul(h_auto_fc1, W_img_inpt2) + b_img_inpt2)
 
-W_auto_decoder = weight_variable([16*16, 32*32])
-b_auto_decoder = bias_variable([32*32])
+W_conv2 = weight_variable([8, 8, 4, 8])
+b_conv2 = bias_variable([8])
 
-W_auto_decoder2 = weight_variable([32*32, image_features])
-b_auto_decoder2 = bias_variable([image_features])
+h_conv2 = conv2d(h_pool1, W_conv2) + b_conv2
+h_pool2 = tf.nn.tanh(max_pool_2x2(h_conv2))
 
-h_deco_fc1 = tf.nn.tanh(tf.matmul(h_auto_fc2, W_auto_decoder) + b_auto_decoder)
-auto_encoder_ = tf.tanh(tf.matmul(h_deco_fc1, W_auto_decoder2) + b_auto_decoder2)
 
-loss_auto_encoder = tf.losses.mean_squared_error(x_img, auto_encoder_)
+W_fc1 = weight_variable([16*16*8, 1024])
+b_fc1 = bias_variable([1024])
 
-train_auto_encoder_step = tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False).minimize(loss_auto_encoder)
+h_pool2_flat = tf.reshape(h_pool2, [-1, 16*16*8])
+h_fc1 = tf.matmul(h_pool2_flat, W_fc1) + b_fc1
 
-accuracy_auto_encoder = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img, auto_encoder_)), 2.0))
-
-h_fcl_joined = tf.concat([auto_encoder_, x_rem], 1)
+h_fcl_joined = tf.concat([h_fc1, x_rem], 1)
 
 keep_prob = tf.placeholder(tf.float32)
 h_fc1_drop = tf.nn.dropout(h_fcl_joined, keep_prob)
 
-W_fc2 = weight_variable([image_features+rem_features, 256])
+W_fc2 = weight_variable([1024+rem_features, 256])
 b_fc2 = bias_variable([256])
 
 h_fcl2 = tf.tanh(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
@@ -176,6 +167,8 @@ plt.close('all')
 plt.figure(1)
 
 plots = 1
+
+TRAIN_MODEL = True
 
 # start the session
 if TRAIN_MODEL:
@@ -237,57 +230,3 @@ if TRAIN_MODEL:
 
 else:
     # Auto-encoder
-    with tf.Session() as sess:
-
-
-        sess.run(tf.global_variables_initializer())
-
-
-        # Restore variables from disk.
-        model_file = "model_encoding/model.ckpt"
-        # if os.path.isfile("model/checkpoint"):
-        #     saver.restore(sess, model_file)
-        #     print("Model restored.")
-
-        total_len = train_labels.shape[0]
-
-        count = 0
-
-        for epoch in range(epochs):
-            samples = random.sample(range(total_len), batch_size)
-            batch_x = train_dataset[samples]
-            batch_y = train_labels[samples]
-            sess.run(train_auto_encoder_step, feed_dict={x: batch_x})
-
-
-            opt = "en " + str(epoch) + "," + str(sess.run(accuracy_auto_encoder, feed_dict={x: valid_dataset}))
-
-            print(opt)
-
-
-
-            with open("encoding_out.log", "a") as myfile:
-                myfile.write(opt + "\n")
-
-
-
-            if epoch % 50 == 0:
-                os.chdir(wd + "/model_encoding")
-                save_path = saver.save(sess, str(epoch) + model_file)
-                print("Model saved in file: %s" % save_path)
-                os.chdir(wd)
-
-        print("\nTraining complete!")
-        writer.add_graph(sess.graph)
-
-        opt = "-1," + str(sess.run(accuracy_auto_encoder, feed_dict={x: test_dataset}))
-
-        print(opt)
-
-        with open("encoding_out.log", "a") as myfile:
-            myfile.write(opt + "\n")
-
-        print()
-
-        save_path = saver.save(sess, model_file)
-        print("Model saved in file: %s" % save_path)
