@@ -10,6 +10,8 @@ from six.moves import cPickle as pickle
 import matplotlib.pyplot as plt
 import math
 import sys
+import random
+from sklearn.decomposition import PCA
 
 
 learning_rate = 0.0001
@@ -50,7 +52,29 @@ for i in range(1, len(sys.argv)):
 
 data = np.array(data)
 
+def whiten_data(d):
+
+    new_d = d - d.mean(axis=0)
+
+    new_d = new_d / np.sqrt((new_d ** 2).sum(axis=1))[:,None]
+
+    cov = np.cov(new_d, rowvar=True)
+
+    U, S, V = np.linalg.svd(cov)
+
+    z_mat = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + 1E-5)), U.T))
+
+    new_d = np.dot(z_mat, new_d)
+
+    return new_d, U
+
+
+print("Whitening data")
 image_features = image_height * image_height
+
+whitened_data, U = whiten_data(data[:, 0:image_features])
+
+np.copyto(data, whitened_data, where)
 
 rem_features = data.shape[1] % image_features
 
@@ -91,11 +115,11 @@ x_rem = tf.slice(x, [0, image_features], [-1, -1])
 y = tf.placeholder(tf.float32, [None, train_labels.shape[1]])
 
 def weight_variable(shape):
-    initial = tf.random_uniform(shape, minval=-0.5, maxval=0.5)
+    initial = tf.random_uniform(shape, minval=-1.5, maxval=1.5)
     return tf.Variable(initial)
 
 def bias_variable(shape):
-    initial = tf.constant(0.1, shape=shape)
+    initial = tf.random_uniform(shape, minval=-1.5, maxval=1.5)
     return tf.Variable(initial)
 
 def conv2d(x, W):
@@ -106,16 +130,17 @@ def max_pool_2x2(x):
                           strides=[1, 2, 2, 1], padding='SAME')
 
 
-# this layer will compress screenshot by factor of 4
+# this layer will compress screenshot by factor of 4 in both dimensions
+# across two layers
 W_img_inpt = weight_variable([image_features, 32*32])
 b_img_inpt = bias_variable([32*32])
 
 W_img_inpt2 = weight_variable([32*32, 16*16])
 b_img_inpt2 = bias_variable([16*16])
 
-h_auto_fc1 = tf.nn.tanh(tf.matmul(x_img, W_img_inpt) + b_img_inpt)
+h_auto_fc1 = tf.nn.sigmoid(tf.add(tf.matmul(x_img_raw, W_img_inpt), b_img_inpt))
 
-h_auto_fc2 = tf.nn.tanh(tf.matmul(h_auto_fc1, W_img_inpt2) + b_img_inpt2)
+h_auto_fc2 = tf.nn.sigmoid(tf.add(tf.matmul(h_auto_fc1, W_img_inpt2), b_img_inpt2))
 
 W_auto_decoder = weight_variable([16*16, 32*32])
 b_auto_decoder = bias_variable([32*32])
@@ -123,16 +148,17 @@ b_auto_decoder = bias_variable([32*32])
 W_auto_decoder2 = weight_variable([32*32, image_features])
 b_auto_decoder2 = bias_variable([image_features])
 
-h_deco_fc1 = tf.nn.tanh(tf.matmul(h_auto_fc2, W_auto_decoder) + b_auto_decoder)
-auto_encoder_ = tf.tanh(tf.matmul(h_deco_fc1, W_auto_decoder2) + b_auto_decoder2)
+auto_encoder_step = tf.nn.sigmoid(tf.add(tf.matmul(h_auto_fc2, W_auto_decoder), b_auto_decoder))
+
+auto_encoder_ = tf.nn.sigmoid(tf.add(tf.matmul(auto_encoder_step, W_auto_decoder2), b_auto_decoder2))
+
+loss_auto_encoder = tf.reduce_mean(tf.pow(x_img_raw - auto_encoder_, 2))
+
+train_auto_encoder_step = tf.train.RMSPropOptimizer(learning_rate).minimize(loss_auto_encoder)
+
+accuracy_auto_encoder = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img_raw, auto_encoder_)), 2.0))
 
 auto_encoder_out = tf.multiply(tf.add(auto_encoder_, 1.0), 0.5)
-
-loss_auto_encoder = tf.losses.mean_squared_error(x_img, auto_encoder_)
-
-train_auto_encoder_step = tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False).minimize(loss_auto_encoder)
-
-accuracy_auto_encoder = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img, auto_encoder_)), 2.0))
 
 h_fcl_joined = tf.concat([auto_encoder_, x_rem], 1)
 
@@ -191,39 +217,59 @@ def show_image(ds, width, height):
     global plots
     ds = ds[0:width*height]
     ds = np.reshape(ds, [width, height])
-    plt.subplot(5, 4, plots)
+    plt.subplot(5, 2, plots)
     plots += 1
     plt.imshow(ds, cmap="gray")
 
 # start the session
 def run():
+    global data
     with tf.Session() as sess:
 
 
         sess.run(tf.global_variables_initializer())
 
+        figs = 30
+
 
         # Restore variables from disk.
         model_file = wd + "/model_encoding/model.ckpt"
-        if os.path.isfile(wd + "/model_encoding/checkpoint"):
-            saver.restore(sess, model_file)
-            print("Model restored.")
+        # if os.path.isfile(wd + "/model_encoding/checkpoint"):
+        #     saver.restore(sess, model_file)
+        #     print("Model restored.")
         count = 0
+
+        #random.shuffle(data)
 
         stimuli = data[:, 0:image_features]
 
-        results = sess.run(auto_encoder_out, feed_dict={x:data})
+        data_whitened, U = whiten_data(stimuli)
 
-        while count < 20:
-            plt.subplot(10, 2, count + 1)
+        results = sess.run(auto_encoder_, feed_dict={x:data})
+        print("Acc: " + str(sess.run(accuracy_auto_encoder, feed_dict={x: data})))
+        print("Loss: " + str(sess.run(loss_auto_encoder, feed_dict={x: data})))
+
+        total_rows = math.ceil(figs / 5)
+
+        while count < (figs/3):
+
+            # plot_num = count % 5
+            # plot_row = math.floor(count / 5)
+
+            plt.subplot(5, total_rows, count*3 + 1)
             #plt.title('Inp')
             plt.imshow(np.reshape(stimuli[count,:], [image_height, image_height]), cmap="gray")
 
 
-            plt.subplot(10, 2, count + 2)
+            plt.subplot(5, total_rows, count*3 + 2)
+            #plt.title('Inp')
+            plt.imshow(np.reshape(data_whitened[count,:], [image_height, image_height]), cmap="gray")
+
+
+            plt.subplot(5, total_rows, count*3 + 3)
             #plt.title('Inp')
             plt.imshow(np.reshape(results[count,:], [image_height, image_height]), cmap="gray")
-            count = count + 2
+            count = count + 1
 
 
         plt.show()

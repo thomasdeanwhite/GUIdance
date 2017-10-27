@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import math
 import sys
 
-learning_rate = 0.001
-epochs = 150000
+learning_rate = 0.0001
+epochs = 300000
 batch_size = 30
 percent_training = 0.7
 percent_testing = 1
@@ -60,7 +60,31 @@ os.chdir(wd)
 
 data = np.array(data)
 
+
+def whiten_data(d):
+
+    new_d = d - d.mean(axis=0)
+
+    new_d = new_d / np.sqrt((new_d ** 2).sum(axis=1))[:,None]
+
+    cov = np.cov(new_d, rowvar=True)
+
+    U, S, V = np.linalg.svd(cov)
+
+    z_mat = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + 1E-5)), U.T))
+
+    new_d = np.dot(z_mat, new_d)
+
+    return new_d, U
+
+
 image_features = image_height * image_height
+
+image_data, U = whiten_data(data[:, 0:image_features])
+
+whitened_data = whiten_data(image_data)
+
+
 
 rem_features = data.shape[1] % image_features
 
@@ -89,18 +113,16 @@ x = tf.placeholder(tf.float32, [None, train_dataset.shape[1]])
 
 x_img_raw = tf.slice(x, [0, 0], [-1, image_features])
 
-x_img = tf.subtract(tf.multiply(x_img_raw, 2.0), 1.0)
-
 x_rem = tf.slice(x, [0, image_features], [-1, -1])
 
 y = tf.placeholder(tf.float32, [None, train_labels.shape[1]])
 
 def weight_variable(shape):
-    initial = tf.random_uniform(shape, minval=-0.5, maxval=0.5)
+    initial = tf.random_uniform(shape, minval=-0.05, maxval=0.05)
     return tf.Variable(initial)
 
 def bias_variable(shape):
-    initial = tf.constant(0.1, shape=shape)
+    initial = tf.random_uniform(shape, minval=-0.05, maxval=0.05)
     return tf.Variable(initial)
 
 def conv2d(x, W):
@@ -111,16 +133,17 @@ def max_pool_2x2(x):
                           strides=[1, 2, 2, 1], padding='SAME')
 
 
-# this layer will compress screenshot by factor of 4
+# this layer will compress screenshot by factor of 4 in both dimensions
+# across two layers
 W_img_inpt = weight_variable([image_features, 32*32])
 b_img_inpt = bias_variable([32*32])
 
 W_img_inpt2 = weight_variable([32*32, 16*16])
 b_img_inpt2 = bias_variable([16*16])
 
-h_auto_fc1 = tf.nn.tanh(tf.matmul(x_img, W_img_inpt) + b_img_inpt)
+h_auto_fc1 = tf.nn.sigmoid(tf.add(tf.matmul(x_img_raw, W_img_inpt), b_img_inpt))
 
-h_auto_fc2 = tf.nn.tanh(tf.matmul(h_auto_fc1, W_img_inpt2) + b_img_inpt2)
+h_auto_fc2 = tf.nn.sigmoid(tf.add(tf.matmul(h_auto_fc1, W_img_inpt2), b_img_inpt2))
 
 W_auto_decoder = weight_variable([16*16, 32*32])
 b_auto_decoder = bias_variable([32*32])
@@ -128,16 +151,22 @@ b_auto_decoder = bias_variable([32*32])
 W_auto_decoder2 = weight_variable([32*32, image_features])
 b_auto_decoder2 = bias_variable([image_features])
 
-h_deco_fc1 = tf.nn.tanh(tf.matmul(h_auto_fc2, W_auto_decoder) + b_auto_decoder)
-auto_encoder_ = tf.tanh(tf.matmul(h_deco_fc1, W_auto_decoder2) + b_auto_decoder2)
+auto_encoder_step = tf.nn.sigmoid(tf.add(tf.matmul(h_auto_fc2, W_auto_decoder), b_auto_decoder))
 
-loss_auto_encoder = tf.losses.mean_squared_error(x_img, auto_encoder_)
+auto_encoder_ = tf.nn.sigmoid(tf.add(tf.matmul(auto_encoder_step, W_auto_decoder2), b_auto_decoder2))
 
-train_auto_encoder_step = tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False).minimize(loss_auto_encoder)
 
-accuracy_auto_encoder = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img, auto_encoder_)), 2.0))
 
-h_fcl_joined = tf.concat([auto_encoder_, x_rem], 1)
+loss_auto_encoder = tf.reduce_mean(tf.pow(x_img_raw - auto_encoder_, 2))
+
+train_auto_encoder_step = tf.train.RMSPropOptimizer(learning_rate).minimize(loss_auto_encoder)
+
+accuracy_auto_encoder = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img_raw, auto_encoder_)), 2.0))
+
+#normalise autoencoder output between -1 and 1
+auto_out = tf.subtract(tf.multiply(auto_encoder_, 2.0), 1.0)
+
+h_fcl_joined = tf.concat([auto_out, x_rem], 1)
 
 keep_prob = tf.placeholder(tf.float32)
 h_fc1_drop = tf.nn.dropout(h_fcl_joined, keep_prob)
@@ -176,6 +205,8 @@ plt.close('all')
 plt.figure(1)
 
 plots = 1
+
+
 
 # start the session
 if TRAIN_MODEL:
