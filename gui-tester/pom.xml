@@ -81,6 +81,11 @@
             <version>RELEASE</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.scythe</groupId>
+            <artifactId>scythe</artifactId>
+            <version>0.0.1-DEV</version>
+        </dependency>
 
     </dependencies>
 
