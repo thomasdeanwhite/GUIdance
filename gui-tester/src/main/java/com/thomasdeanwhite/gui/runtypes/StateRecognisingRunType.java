@@ -4,7 +4,7 @@ import com.thomasdeanwhite.gui.util.FileHandler;
 import com.thomasdeanwhite.gui.Properties;
 import com.thomasdeanwhite.gui.runtypes.state_identification.ImageStateIdentifier;
 import com.thomasdeanwhite.gui.runtypes.state_identification.StateShowingFrame;
-import com.sheffield.output.Csv;
+import com.scythe.output.Csv;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;

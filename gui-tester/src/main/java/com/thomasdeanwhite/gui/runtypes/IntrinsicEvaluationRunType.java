@@ -11,7 +11,7 @@ import com.thomasdeanwhite.gui.ngram.NGram;
 import com.thomasdeanwhite.gui.ngram.NGramModel;
 import com.thomasdeanwhite.gui.util.FileHandler;
 import com.thomasdeanwhite.gui.util.ProgressBar;
-import com.sheffield.output.Csv;
+import com.scythe.output.Csv;
 
 import java.io.File;
 import java.util.*;

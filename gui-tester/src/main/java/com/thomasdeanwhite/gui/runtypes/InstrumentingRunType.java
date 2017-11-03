@@ -1,13 +1,13 @@
 package com.thomasdeanwhite.gui.runtypes;
 
-import com.sheffield.instrumenter.analysis.ClassAnalyzer;
-import com.sheffield.instrumenter.analysis.ClassNode;
-import com.sheffield.instrumenter.analysis.DependencyTree;
-import com.sheffield.instrumenter.instrumentation.ClassReplacementTransformer;
+import com.scythe.instrumenter.analysis.ClassAnalyzer;
+import com.scythe.instrumenter.analysis.ClassNode;
+import com.scythe.instrumenter.analysis.DependencyTree;
+import com.scythe.instrumenter.instrumentation.ClassReplacementTransformer;
 import com.thomasdeanwhite.gui.App;
 import com.thomasdeanwhite.gui.util.FileHandler;
 import com.thomasdeanwhite.gui.Properties;
-import com.sheffield.util.ClassNameUtils;
+import com.scythe.util.ClassNameUtils;
 
 import java.io.File;
 import java.util.*;
