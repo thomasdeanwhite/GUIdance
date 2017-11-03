@@ -9,7 +9,7 @@ before_install:
   - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
   - sudo apt-get update
   - sudo apt-get install libstdc++-4.9-dev -y
-  - git clone --depth=1 https://github.com/thomasdeanwhite/instrumentation.git
+  - git clone --depth=1 https://github.com/thomasdeanwhite/Scythe.git instrumentation
   - pushd instrumentation
   - mvn clean install
   - popd
