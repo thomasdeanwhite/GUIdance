@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import math
 import sys
 
-learning_rate = 0.0001
+learning_rate = 0.00001
 epochs = 300000
 batch_size = 30
 percent_training = 0.7
@@ -80,11 +80,13 @@ def whiten_data(d):
 
 image_features = image_height * image_height
 
-image_data, U = whiten_data(data[:, 0:image_features])
+print("Whitening data")
 
-whitened_data = whiten_data(image_data)
+whitened_data, U = whiten_data(data[:, 0:image_features])
 
+data[:, 0:image_features] = whitened_data[:, :]
 
+print("Data white")
 
 rem_features = data.shape[1] % image_features
 
@@ -118,11 +120,11 @@ x_rem = tf.slice(x, [0, image_features], [-1, -1])
 y = tf.placeholder(tf.float32, [None, train_labels.shape[1]])
 
 def weight_variable(shape):
-    initial = tf.random_uniform(shape, minval=-0.05, maxval=0.05)
+    initial = tf.random_uniform(shape, minval=-0.5, maxval=0.5)
     return tf.Variable(initial)
 
 def bias_variable(shape):
-    initial = tf.random_uniform(shape, minval=-0.05, maxval=0.05)
+    initial = tf.random_uniform(shape, minval=-0.5, maxval=0.5)
     return tf.Variable(initial)
 
 def conv2d(x, W):

@@ -3,7 +3,6 @@
 from __future__ import print_function
 import numpy as np
 import tensorflow as tf
-import random
 import csv
 import os
 from six.moves import cPickle as pickle
@@ -26,7 +25,7 @@ sdw = 0.005
 show_output_image = True
 image_height = 64
 
-data = []
+raw_data = []
 output = []
 wd = os.getcwd()
 for i in range(1, len(sys.argv)):
@@ -34,11 +33,11 @@ for i in range(1, len(sys.argv)):
     print("loading", sys.argv[i])
     with open('training_inputs.csv', 'rt') as csvfile:
         reader = csv.reader(csvfile, delimiter=',', quotechar='|')
-        counter = len(data)
+        counter = len(raw_data)
         for row in reader:
-            data.append([])
+            raw_data.append([])
             for e in row:
-                data[counter].append(float(e))
+                raw_data[counter].append(float(e))
             counter += 1
 
     with open('training_outputs.csv', 'rt') as csvfile:
@@ -50,7 +49,13 @@ for i in range(1, len(sys.argv)):
                 output[counter].append(float(e))
             counter += 1
 
-data = np.array(data)
+raw_data = np.array(raw_data)
+output = np.array(output)
+
+def get_sample(data, output, n):
+    random.seed(1)
+    samples = random.sample(range(data.shape[0]), n)
+    return data[samples], output[samples], samples
 
 def whiten_data(d):
 
@@ -72,9 +77,17 @@ def whiten_data(d):
 print("Whitening data")
 image_features = image_height * image_height
 
-whitened_data, U = whiten_data(data[:, 0:image_features])
+#raw_data = raw_data[:, :]
 
-np.copyto(data, whitened_data, where)
+whitened_data, U = whiten_data(raw_data[:, 0:image_features])
+
+data = np.copy(raw_data)
+
+data[:, 0:image_features] = whitened_data[:, :]
+
+raw_data, output, samp = get_sample(raw_data, output, 30)
+
+data = data[samp]
 
 rem_features = data.shape[1] % image_features
 
@@ -86,25 +99,7 @@ output = np.array(output)
 print("Data Shape:", data.shape)
 print("Output Shape:", output.shape)
 
-
-def get_sample(data, output, n):
-    samples = random.sample(range(data.shape[0]), n)
-    return data[samples], output[samples], samples
-
-train_dataset, train_labels, samples = get_sample(data, output, int(percent_training * data.shape[0]))
-data = np.delete(data, samples, axis=0)
-
-valid_dataset, valid_labels, samples = get_sample(data, output, int(percent_validation * data.shape[0]))
-data = np.delete(data, samples, axis=0)
-
-test_dataset, test_labels, _ = get_sample(data, output, int(percent_testing * data.shape[0]))
-
-
-print('Training set', train_dataset.shape, train_labels.shape)
-print('Validation set', valid_dataset.shape, valid_labels.shape)
-print('Test set', test_dataset.shape, test_labels.shape)
-
-x = tf.placeholder(tf.float32, [None, train_dataset.shape[1]])
+x = tf.placeholder(tf.float32, [None, data.shape[1]])
 
 x_img_raw = tf.slice(x, [0, 0], [-1, image_features])
 
@@ -112,7 +107,7 @@ x_img = tf.subtract(tf.multiply(x_img_raw, 2.0), 1.0)
 
 x_rem = tf.slice(x, [0, image_features], [-1, -1])
 
-y = tf.placeholder(tf.float32, [None, train_labels.shape[1]])
+y = tf.placeholder(tf.float32, [None, output.shape[1]])
 
 def weight_variable(shape):
     initial = tf.random_uniform(shape, minval=-1.5, maxval=1.5)
@@ -234,16 +229,19 @@ def run():
 
         # Restore variables from disk.
         model_file = wd + "/model_encoding/model.ckpt"
-        # if os.path.isfile(wd + "/model_encoding/checkpoint"):
-        #     saver.restore(sess, model_file)
-        #     print("Model restored.")
+        if os.path.isfile(wd + "/model_encoding/checkpoint"):
+            saver.restore(sess, model_file)
+            print("Model restored.")
         count = 0
 
         #random.shuffle(data)
 
-        stimuli = data[:, 0:image_features]
+        stimuli = raw_data[:, 0:image_features]
+        stimuli_whitened = data[:, 0:image_features]
 
-        data_whitened, U = whiten_data(stimuli)
+        print("")
+
+        #data_whitened, U = whiten_data(stimuli)
 
         results = sess.run(auto_encoder_, feed_dict={x:data})
         print("Acc: " + str(sess.run(accuracy_auto_encoder, feed_dict={x: data})))
@@ -263,7 +261,7 @@ def run():
 
             plt.subplot(5, total_rows, count*3 + 2)
             #plt.title('Inp')
-            plt.imshow(np.reshape(data_whitened[count,:], [image_height, image_height]), cmap="gray")
+            plt.imshow(np.reshape(stimuli_whitened[count,:], [image_height, image_height]), cmap="gray")
 
 
             plt.subplot(5, total_rows, count*3 + 3)
