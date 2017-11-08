@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import math
 import sys
 import random
-from sklearn.decomposition import PCA
+from sklearn import decomposition
+from sklearn import datasets
 
 
 learning_rate = 0.0001
@@ -57,6 +58,35 @@ def get_sample(data, output, n):
     samples = random.sample(range(data.shape[0]), n)
     return data[samples], output[samples], samples
 
+def shape_to_string(frame):
+    return ("(" + str(frame.shape[0]) + ", " + str(frame.shape[1]) + ")")
+
+
+# def whiten_data(d):
+#
+#     new_d = d - d.mean(axis=0)
+#
+#     new_d = new_d / np.sqrt((new_d ** 2).sum(axis=1))[:,None]
+#
+#     cov = np.cov(new_d, rowvar=True)
+#
+#     U, S, V = np.linalg.svd(cov)
+#
+#     z_mat = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + 1E-5)), U.T))
+#
+#     new_d = np.dot(z_mat, new_d)
+#
+#     return new_d, U
+
+
+compressed_features = 32*32*2
+
+pca = decomposition.PCA(n_components=compressed_features, whiten=True)
+
+# def whiten_data(d):
+#     global pca
+#     return pca.transform(d)
+
 def whiten_data(d):
 
     new_d = d - d.mean(axis=0)
@@ -79,11 +109,26 @@ image_features = image_height * image_height
 
 #raw_data = raw_data[:, :]
 
-whitened_data, U = whiten_data(raw_data[:, 0:image_features])
+whitened_data = np.copy(raw_data[:, 0:image_features])
 
-data = np.copy(raw_data)
+pca.fit(whitened_data)
 
-data[:, 0:image_features] = whitened_data[:, :]
+whitened_data, U = whiten_data(whitened_data)
+
+print("Whitened data shape: " + shape_to_string(whitened_data))
+
+data = np.copy(raw_data[:, image_features:(image_features+4)])
+
+# data[:, 0:image_features] = whitened_data[:, :]
+
+
+data = np.insert(data, [0], whitened_data, axis=1)
+
+print(shape_to_string(data))
+
+# whitened_data = np.dot(whitened_data, U)
+
+print("Rotated whitened data shape: " + shape_to_string(whitened_data))
 
 raw_data, output, samp = get_sample(raw_data, output, 30)
 
@@ -237,7 +282,7 @@ def run():
         #random.shuffle(data)
 
         stimuli = raw_data[:, 0:image_features]
-        stimuli_whitened = data[:, 0:image_features]
+        stimuli_whitened = data[:, 0:image_features]#pca.inverse_transform(data)[:, 0:image_features]
 
         print("")
 
