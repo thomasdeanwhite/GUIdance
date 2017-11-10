@@ -12,8 +12,8 @@ p = mloss %>%
   ggplot(aes(x=epoch, y=value, color = variable, fill=variable)) +
   geom_line() +
   xlab("Epoch") + 
-  ylab("Loss (mean^2 difference)") +
-  scale_y_log10() 
+  ylab("Loss (average mean^2 difference)") +
+  scale_y_log10(limits=c(min(mloss$value), 0.11)) 
 
 print("Distribution plot - loading")
 # raw_data <- read.csv('data.csv')
