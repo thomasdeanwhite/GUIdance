@@ -23,8 +23,8 @@ hidden_layers = [4900, 4096, 256]
 sd = 0.005
 sdw = 0.005
 show_output_image = True
-image_height = 64
-compressed_features = 64*64
+image_height = 28
+compressed_features = 28*28
 rem_features = 4
 
 

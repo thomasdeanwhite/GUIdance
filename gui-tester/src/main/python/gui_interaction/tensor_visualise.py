@@ -11,9 +11,6 @@ import math
 import sys
 import random
 from autoencoder import AutoEncoder
-from sklearn import decomposition
-from sklearn import preprocessing
-
 
 learning_rate = 0.0001
 epochs = 1000
@@ -26,7 +23,8 @@ sd = 0.005
 sdw = 0.005
 show_output_image = True
 image_height = 64
-
+compressed_features = 64*64
+rem_features = 4
 raw_data = []
 output = []
 wd = os.getcwd()
@@ -81,62 +79,28 @@ def get_sample(data, output, n):
 def shape_to_string(frame):
     return ("(" + str(frame.shape[0]) + ", " + str(frame.shape[1]) + ")")
 
-
-compressed_features = 64*64
-
-#pca = decomposition.PCA(n_components=compressed_features, whiten=True)
-fileObject = open(wd + "/pca.pickle",'rb')
-preop = pickle.load(fileObject)
-
-def whiten_data(d):
-    global preop
-    d = preop['pca'].transform(d)
-    #d = preop['scalar'].transform(d)
-    return d
-
 image_features = image_height * image_height
 
-#raw_data = raw_data[:, :]
 
-whitened_data = np.copy(raw_data[:, 0:image_features])
-# print("Fitting data")
-# pca.fit(whitened_data)
+whitened_data = np.copy(raw_data[:, 0:image_features]).astype(float)
 
-print("Whitening data")
+#whitened_data /= 255.0
 
-# preop['pca'] = decomposition.PCA(n_components=compressed_features, whiten=True)
-#
-# preop['pca'].fit(whitened_data)
-
-whitened_data = whiten_data(whitened_data)
-
-# scalar = preprocessing.MinMaxScaler(feature_range=(-1, 1))
-#
-# preop['scalar'] = scalar
-
-preop['scalar'].fit(whitened_data)
-
-whitened_data = preop['scalar'].transform(whitened_data)
-
-print("Whitened Data: mean: " + str(np.mean(whitened_data)) + " var: " + str(np.var(whitened_data)) +
+print("Image Data: mean: " + str(np.mean(whitened_data)) + " var: " + str(np.var(whitened_data)) +
       " range: (" + str(np.min(whitened_data)) + "," + str(np.max(whitened_data)) + ")")
 
-#whitened_data = preop['scalar'].transform(whitened_data)
-
-data = np.copy(raw_data[:, image_features:(image_features+4)])
+data = np.copy(raw_data[:, image_features:(image_features+rem_features)])
 
 
 data = np.insert(data, [0], whitened_data, axis=1)
 
-print(shape_to_string(data))
+print("Data shape: " + shape_to_string(data))
 
 raw_data, output, samp = get_sample(raw_data, output, 30)
 
 data = data[samp]
 
 whitened_data = data[:, 0:compressed_features]
-
-rem_features = data.shape[1] % compressed_features
 
 #data = data[:, 0:image_height*image_height]
 output = np.array(output)
@@ -160,31 +124,15 @@ def bias_variable(shape):
     initial = tf.random_uniform(shape, minval=-1.5, maxval=1.5)
     return tf.Variable(initial)
 
-# W_img_inpt = weight_variable([compressed_features, 24*24])
-# b_img_inpt = bias_variable([24*24])
-#
-# W_img_inpt2 = weight_variable([24*24, 16*16])
-# b_img_inpt2 = bias_variable([16*16])
-#
-# h_auto_fc1 = tf.nn.sigmoid(tf.add(tf.matmul(x_img_raw, W_img_inpt), b_img_inpt))
-#
-# h_auto_fc2 = tf.nn.sigmoid(tf.add(tf.matmul(h_auto_fc1, W_img_inpt2), b_img_inpt2))
-#
-# W_auto_decoder = weight_variable([16*16, 24*24])
-# b_auto_decoder = bias_variable([24*24])
-#
-# W_auto_decoder2 = weight_variable([24*24, compressed_features])
-# b_auto_decoder2 = bias_variable([compressed_features])
-#
-# auto_encoder_step = tf.nn.sigmoid(tf.add(tf.matmul(h_auto_fc2, W_auto_decoder), b_auto_decoder))
-#
-# auto_encoder_ = tf.nn.sigmoid(tf.add(tf.matmul(auto_encoder_step, W_auto_decoder2), b_auto_decoder2))
-#
-# loss_auto_encoder = tf.reduce_mean(tf.pow(x_img_raw - auto_encoder_, 2))
-
 auto_encoder = AutoEncoder(x_img_raw)
 
-train_auto_encoder_step = tf.train.RMSPropOptimizer(learning_rate).minimize(auto_encoder.loss)
+loss_auto_encoder = tf.reduce_mean(tf.square(x_img_raw - auto_encoder.output_layer))
+
+
+
+learning_rate = tf.placeholder(tf.float32)
+
+train_auto_encoder_step = tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False).minimize(loss_auto_encoder)
 
 accuracy_auto_encoder = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img_raw, auto_encoder.output_layer)), 2.0))
 
@@ -236,15 +184,15 @@ def run():
         #random.shuffle(data)
 
         stimuli = raw_data[:, 0:image_features]
-        stimuli_whitened = preop['pca'].inverse_transform(preop['scalar'].inverse_transform(data[:, 0:compressed_features]))
+        stimuli_whitened = sess.run(x_img_raw, feed_dict={x:data})
 
         print("")
 
         #data_whitened, U = whiten_data(stimuli)
 
-        results = preop['pca'].inverse_transform(preop['scalar'].inverse_transform(sess.run(auto_encoder.output_layer, feed_dict={x:data})))
-        print("Acc: " + str(sess.run(accuracy_auto_encoder, feed_dict={x: data})))
-        print("Loss: " + str(sess.run(auto_encoder.loss, feed_dict={x: data})))
+        results = sess.run(auto_encoder.output_layer, feed_dict={x:data, auto_encoder.keep_prob: 1.0})
+        print("Acc: " + str(sess.run(accuracy_auto_encoder, feed_dict={x: data, auto_encoder.keep_prob: 1.0})))
+        print("Loss: " + str(sess.run(auto_encoder.loss, feed_dict={x: data, auto_encoder.keep_prob: 1.0})))
 
         total_rows = math.ceil(figs / 5)
 
@@ -267,7 +215,6 @@ def run():
             #plt.title('Inp')
             plt.imshow(np.reshape(results[count, :], [image_height, image_height]), cmap="gray")
             count = count + 1
-
 
         plt.show()
 

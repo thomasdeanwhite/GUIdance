@@ -10,24 +10,21 @@ import math
 import sys
 from sklearn import decomposition
 from sklearn import preprocessing
+from autoencoder import AutoEncoder
+
 
 learning_rate_start = 1.0
 learning_rate_min = 0.001
-learning_rate_decay = 0.995
+learning_rate_decay = 0.99
 epochs = 10000
-batch_size = 256
-percent_training = 0.7
+batch_size = 1024
+percent_training = 0.8
 percent_testing = 1
-percent_validation = 0.5
-hidden_layers = [4900, 4096, 256]
-sd = 0.05
-sdw = 0.05
-show_output_image = True
+percent_validation = 0.9
 image_height = 64
 TRAIN_MODEL = False
-
 TRAIN_AUTOENCODER = True
-
+compressed_features = 64*64
 raw_data = []
 output = []
 wd = os.getcwd()
@@ -51,53 +48,28 @@ for i in range(1, len(sys.argv)):
             for e in row:
                 output[counter].append(float(e))
             counter += 1
-
 os.chdir(wd)
-
 raw_data = np.array(raw_data)
+
+raw_data = np.insert(raw_data, [compressed_features], output, axis=1)
+
 output = np.array(output)
-
-compressed_features = 64 * 64
-
-preop = {
-    'pca': decomposition.PCA(n_components=compressed_features, whiten=True),
-    'scalar': preprocessing.MinMaxScaler(feature_range=(-1, 1))
-}
-
-
-def whiten_data(d):
-    global preop
-    return preop['pca'].transform(d)
-
 
 image_features = image_height * image_height
 
-# raw_data = raw_data[:, :]
+print("Raw data shape:", raw_data.shape)
 
-whitened_data = np.copy(raw_data[:, 0:image_features])
+whitened_data = np.copy(raw_data[:, 0:image_features]).astype(float)
 print("Fitting data")
-preop['pca'].fit(whitened_data)
-
-print("Whitening data")
-
-whitened_data = whiten_data(whitened_data)
-
-preop['scalar'].fit(whitened_data)
-whitened_data = preop['scalar'].transform(whitened_data)
-
-file_Name = "pca.pickle"
-fileObject = open(file_Name, 'wb')
-print("Writing pca pickle")
-pickle.dump(preop, fileObject)
-fileObject.close()
-
-print("Whitened Data: mean: " + str(np.mean(whitened_data)) + " var: " + str(np.var(whitened_data)) +
+#whitened_data = whitened_data / 255
+rem_features = 4
+print("Image Data: mean: " + str(np.mean(whitened_data)) + " var: " + str(np.var(whitened_data)) +
       " range: (" + str(np.min(whitened_data)) + "," + str(np.max(whitened_data)) + ")")
-data = np.copy(raw_data[:, image_features:(image_features + 4)])
+data = np.copy(raw_data[:, image_features:(image_features + rem_features)])
 
 data = np.insert(data, [0], whitened_data, axis=1)
 
-rem_features = data.shape[1] % compressed_features
+
 
 output = np.array(output)
 
@@ -132,7 +104,7 @@ x_img_raw = tf.slice(x, [0, 0], [-1, compressed_features])
 
 x_rem = tf.slice(x, [0, compressed_features], [-1, -1])
 
-y = tf.placeholder(tf.float32, [None, output.shape[1]])
+y = tf.placeholder(tf.float32, [None, rem_features])
 
 
 def weight_variable(shape):
@@ -145,39 +117,28 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 
-W_img_inpt = weight_variable([compressed_features, 24 * 24])
-b_img_inpt = bias_variable([24 * 24])
+auto_encoder = AutoEncoder(x_img_raw)
 
-W_img_inpt2 = weight_variable([24 * 24, 16 * 16])
-b_img_inpt2 = bias_variable([16 * 16])
+for hl in auto_encoder.hidden_layers:
+    print(hl.shape)
 
-h_auto_fc1 = tf.nn.tanh(tf.add(tf.matmul(x_img_raw, W_img_inpt), b_img_inpt))
+loss_auto_encoder = auto_encoder.loss
 
-h_auto_fc2 = tf.nn.tanh(tf.add(tf.matmul(h_auto_fc1, W_img_inpt2), b_img_inpt2))
 
-W_auto_decoder = weight_variable([16 * 16, 24 * 24])
-b_auto_decoder = bias_variable([24 * 24])
-
-W_auto_decoder2 = weight_variable([24 * 24, compressed_features])
-b_auto_decoder2 = bias_variable([compressed_features])
-
-auto_encoder_step = tf.nn.sigmoid(tf.add(tf.matmul(h_auto_fc2, W_auto_decoder), b_auto_decoder))
-
-auto_encoder_ = tf.nn.sigmoid(tf.add(tf.matmul(auto_encoder_step, W_auto_decoder2), b_auto_decoder2))
-
-loss_auto_encoder = tf.reduce_mean(tf.pow(x_img_raw - auto_encoder_, 2))
 
 learning_rate = tf.placeholder(tf.float32)
 # tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False)
+
+tf.train.AdamOptimizer(learning_rate)
 #
-train_auto_encoder_step = tf.train.RMSPropOptimizer(learning_rate).minimize(loss_auto_encoder)
+train_auto_encoder_step = tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False).minimize(loss_auto_encoder)
 
 accuracy_auto_encoder = tf.add(1.0,
-                               -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img_raw, auto_encoder_)), 2.0))
+                               -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img_raw, auto_encoder.output_layer)), 2.0))
 
 # auto_encoder_out = tf.multiply(tf.add(auto_encoder_, 1.0), 0.5)
 
-h_fcl_joined = tf.concat([auto_encoder_, x_rem], 1)
+h_fcl_joined = tf.concat([auto_encoder.output_layer, x_rem], 1)
 
 keep_prob = tf.placeholder(tf.float32)
 h_fc1_drop = tf.nn.dropout(h_fcl_joined, keep_prob)
@@ -316,10 +277,11 @@ elif TRAIN_AUTOENCODER:
                 batch_x = train_dataset[samples]
                 batch_y = train_labels[samples]
                 sess.run(train_auto_encoder_step, feed_dict={x: batch_x,
-                                                             learning_rate: learn_rate})
+                                                             learning_rate: learn_rate,
+                                                             auto_encoder.keep_prob: 0.99})
 
-            opt = str(epoch) + "," + str(sess.run(loss_auto_encoder, feed_dict={x: valid_dataset})) + \
-                "," + str(sess.run(loss_auto_encoder, feed_dict={x: train_dataset})) + "," + str(learn_rate)
+            opt = str(epoch) + "," + str(sess.run(loss_auto_encoder, feed_dict={x: valid_dataset, auto_encoder.keep_prob: 1.0})) + \
+                "," + str(sess.run(loss_auto_encoder, feed_dict={x: train_dataset, auto_encoder.keep_prob: 1.0})) + "," + str(learn_rate)
 
             learn_rate = max(learn_rate * learning_rate_decay, learning_rate_min)
 
@@ -342,7 +304,7 @@ elif TRAIN_AUTOENCODER:
         print("\nTraining complete!")
         writer.add_graph(sess.graph)
 
-        opt = str(epochs) + "," + str(sess.run(accuracy_auto_encoder, feed_dict={x: test_dataset}))
+        opt = str(epochs) + "," + str(sess.run(accuracy_auto_encoder, feed_dict={x: test_dataset, auto_encoder.keep_prob: 1.0}))
 
         print(opt)
 
