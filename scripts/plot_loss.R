@@ -13,8 +13,8 @@ p = mloss %>%
   geom_line() +
   xlab("Epoch") + 
   ylab("Loss (average mean^2 difference)") +
-  scale_y_log10(limits=c(min(mloss$value), 0.11))  +
-  ggtitle("Loss function for MNIST data set")
+  scale_y_log10(limits=c(min(mloss$value), max(mloss$value)))  +
+  ggtitle("Loss function for GUI data set")
 
 print("Distribution plot - loading")
 # raw_data <- read.csv('data.csv')

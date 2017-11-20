@@ -5,11 +5,11 @@ import tensorflow as tf
 
 
 def weight_variable(shape):
-    initial = tf.random_normal(shape, mean=0, stddev=0.1)
+    initial = tf.random_normal(shape, mean=0, stddev=0.05)
     return tf.Variable(initial)
 
 def bias_variable(shape):
-    initial = tf.random_normal(shape, mean=0, stddev=0.1)
+    initial = tf.random_normal(shape, mean=0, stddev=0.05)
     return tf.Variable(initial)
 
 class AutoEncoder:

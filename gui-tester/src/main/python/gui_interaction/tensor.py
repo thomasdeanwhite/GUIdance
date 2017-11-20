@@ -17,7 +17,7 @@ learning_rate_start = 1.0
 learning_rate_min = 0.001
 learning_rate_decay = 0.99
 epochs = 10000
-batch_size = 1024
+batch_size = 10000
 percent_training = 0.8
 percent_testing = 1
 percent_validation = 0.9
@@ -108,12 +108,12 @@ y = tf.placeholder(tf.float32, [None, rem_features])
 
 
 def weight_variable(shape):
-    initial = tf.random_uniform(shape, minval=-1, maxval=1)
+    initial = tf.random_normal(shape, mean=0, stddev=0.05)
     return tf.Variable(initial)
 
 
 def bias_variable(shape):
-    initial = tf.random_uniform(shape, minval=-1, maxval=1)
+    initial = tf.random_normal(shape, mean=0, stddev=0.05)
     return tf.Variable(initial)
 
 
@@ -130,7 +130,9 @@ learning_rate = tf.placeholder(tf.float32)
 # tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False)
 
 tf.train.AdamOptimizer(learning_rate)
-#
+
+global_step = tf.placeholder(tf.int64)
+
 train_auto_encoder_step = tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False).minimize(loss_auto_encoder)
 
 accuracy_auto_encoder = tf.add(1.0,
@@ -278,7 +280,8 @@ elif TRAIN_AUTOENCODER:
                 batch_y = train_labels[samples]
                 sess.run(train_auto_encoder_step, feed_dict={x: batch_x,
                                                              learning_rate: learn_rate,
-                                                             auto_encoder.keep_prob: 0.99})
+                                                             auto_encoder.keep_prob: 0.99,
+                                                             global_step: epoch})
 
             opt = str(epoch) + "," + str(sess.run(loss_auto_encoder, feed_dict={x: valid_dataset, auto_encoder.keep_prob: 1.0})) + \
                 "," + str(sess.run(loss_auto_encoder, feed_dict={x: train_dataset, auto_encoder.keep_prob: 1.0})) + "," + str(learn_rate)
