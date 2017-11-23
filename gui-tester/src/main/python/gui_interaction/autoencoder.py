@@ -5,11 +5,11 @@ import tensorflow as tf
 
 
 def weight_variable(shape):
-    initial = tf.random_normal(shape, mean=0, stddev=0.05)
+    initial = tf.random_normal(shape, mean=0, stddev=0.1)
     return tf.Variable(initial)
 
 def bias_variable(shape):
-    initial = tf.random_normal(shape, mean=0, stddev=0.05)
+    initial = tf.random_normal(shape, mean=0, stddev=0.1)
     return tf.Variable(initial)
 
 class AutoEncoder:
@@ -29,7 +29,7 @@ class AutoEncoder:
     keep_prob = tf.placeholder(tf.float32)
 
     def dropout(self, x):
-        return tf.nn.dropout(tf.nn.relu(x), self.keep_prob)
+        return tf.nn.dropout(x, self.keep_prob)
 
     def __init__(self, image=tf.placeholder(tf.float32, [None, image_size])):
         self.image = image
@@ -37,7 +37,7 @@ class AutoEncoder:
         #self.activation_functions = [tf.nn.relu, self.dropout,
         #                             tf.nn.relu, tf.nn.sigmoid]
 
-        self.activation_functions = [self.dropout, tf.nn.sigmoid]
+        self.activation_functions = [self.dropout, tf.nn.tanh]
 
         hidden_layers_n = [self.image_size]
         hidden_layers_n.extend(self.hidden_layers_n)

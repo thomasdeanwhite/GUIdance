@@ -89,6 +89,25 @@ whitened_data = np.copy(raw_data[:, 0:image_features]).astype(float)
 print("Image Data: mean: " + str(np.mean(whitened_data)) + " var: " + str(np.var(whitened_data)) +
       " range: (" + str(np.min(whitened_data)) + "," + str(np.max(whitened_data)) + ")")
 
+
+preop = {}
+
+with open('preop.pickle','rb') as f:
+    preop = pickle.load(f)
+
+whitened_data = whitened_data - preop['mean']
+
+whitened_data = whitened_data / preop['std']
+
+def inverse_proep(data):
+    global preop
+    data = data * preop['std']
+    data = data + preop['mean']
+    return data
+
+
+
+
 data = np.copy(raw_data[:, image_features:(image_features+rem_features)])
 
 
@@ -208,12 +227,12 @@ def run():
 
             plt.subplot(5, total_rows, count*3 + 2)
             #plt.title('Inp')
-            plt.imshow(np.reshape(stimuli_whitened[count,:], [image_height, image_height]), cmap="gray")
+            plt.imshow(np.reshape(inverse_proep(stimuli_whitened[count,:]), [image_height, image_height]), cmap="gray")
 
 
             plt.subplot(5, total_rows, count*3 + 3)
             #plt.title('Inp')
-            plt.imshow(np.reshape(results[count, :], [image_height, image_height]), cmap="gray")
+            plt.imshow(np.reshape(inverse_proep(results[count, :]), [image_height, image_height]), cmap="gray")
             count = count + 1
 
         plt.show()

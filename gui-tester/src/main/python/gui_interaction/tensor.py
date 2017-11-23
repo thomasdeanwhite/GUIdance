@@ -14,11 +14,11 @@ from autoencoder import AutoEncoder
 
 
 learning_rate_start = 1.0
-learning_rate_min = 0.001
-learning_rate_decay = 0.99
-epochs = 10000
+learning_rate_min = 0.005
+learning_rate_decay = 0.9995
+epochs = 50000
 batch_size = 10000
-percent_training = 0.8
+percent_training = 0.9
 percent_testing = 1
 percent_validation = 0.9
 image_height = 64
@@ -62,6 +62,23 @@ print("Raw data shape:", raw_data.shape)
 whitened_data = np.copy(raw_data[:, 0:image_features]).astype(float)
 print("Fitting data")
 #whitened_data = whitened_data / 255
+
+
+mean_features = np.mean(whitened_data, axis=0)
+standard_deviation = np.std(whitened_data, axis=0)
+
+preop = {
+    'mean':mean_features,
+    'std':standard_deviation
+}
+
+with open('preop.pickle', 'wb') as f:
+    pickle.dump(preop, f)
+
+whitened_data = whitened_data - mean_features
+
+whitened_data = whitened_data / standard_deviation
+
 rem_features = 4
 print("Image Data: mean: " + str(np.mean(whitened_data)) + " var: " + str(np.var(whitened_data)) +
       " range: (" + str(np.min(whitened_data)) + "," + str(np.max(whitened_data)) + ")")
@@ -129,11 +146,11 @@ loss_auto_encoder = auto_encoder.loss
 learning_rate = tf.placeholder(tf.float32)
 # tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False)
 
-tf.train.AdamOptimizer(learning_rate)
+#tf.train.AdamOptimizer(learning_rate)
 
 global_step = tf.placeholder(tf.int64)
 
-train_auto_encoder_step = tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08, False).minimize(loss_auto_encoder)
+train_auto_encoder_step = tf.train.MomentumOptimizer(learning_rate, 0.9).minimize(loss_auto_encoder)
 
 accuracy_auto_encoder = tf.add(1.0,
                                -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img_raw, auto_encoder.output_layer)), 2.0))
@@ -278,9 +295,10 @@ elif TRAIN_AUTOENCODER:
                 samples = slice(i, i + total_len)
                 batch_x = train_dataset[samples]
                 batch_y = train_labels[samples]
+
                 sess.run(train_auto_encoder_step, feed_dict={x: batch_x,
                                                              learning_rate: learn_rate,
-                                                             auto_encoder.keep_prob: 0.99,
+                                                             auto_encoder.keep_prob: 0.9,
                                                              global_step: epoch})
 
             opt = str(epoch) + "," + str(sess.run(loss_auto_encoder, feed_dict={x: valid_dataset, auto_encoder.keep_prob: 1.0})) + \
