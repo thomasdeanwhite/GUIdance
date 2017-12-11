@@ -61,6 +61,13 @@ public class ApplicationThread {
         });
 
         t.start();
+
+        //give the AUT time to start
+        try {
+            Thread.sleep(Properties.DELAY_TIME);
+        } catch (InterruptedException ie){
+            ie.printStackTrace(App.out);
+        }
     }
 
     public void output() {

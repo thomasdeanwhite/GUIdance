@@ -32,9 +32,8 @@ public class ExplorationDeepLearningInteraction extends DeepLearningInteraction 
         super.load();
 
         //seed random first event
-        nextEvent = new Event(MouseEvent.MOVE,
-                Event.bounds.x + random.nextInt((int) Event.bounds.getWidth()),
-                Event.bounds.y + random.nextInt((int) Event.bounds.getHeight()),
+        nextEvent = new Event(MouseEvent.NONE,
+                0, 0,
                 0,
                 0);
         lastEvent = nextEvent;
@@ -63,15 +62,12 @@ public class ExplorationDeepLearningInteraction extends DeepLearningInteraction 
         Event newEvent = super.interact(timePassed);
 
         try {
-            FileHandler.appendToFile(heatmapFile, newEvent.getMouseX() + ","
-                    + newEvent.getMouseY() + ","
-                    + newEvent.leftClickToFloat() + ","
-                    + newEvent.rightClickToFloat() + "\n");
+            FileHandler.appendToFile(heatmapFile, newEvent.toCsv());
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return new Event(MouseEvent.MOVE,
+        return new Event(MouseEvent.NONE,
                 newEvent.getMouseX(),
                 newEvent.getMouseY(),
                 System.currentTimeMillis(),

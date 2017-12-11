@@ -13,6 +13,7 @@ import random
 from autoencoder import AutoEncoder
 
 learning_rate = 0.0001
+balance_data = True
 epochs = 1000
 batch_size = 25
 percent_training = 0.7
@@ -24,7 +25,7 @@ sdw = 0.005
 show_output_image = True
 image_height = 64
 compressed_features = 64*64
-rem_features = 4
+rem_features = 8
 raw_data = []
 output = []
 wd = os.getcwd()
@@ -32,6 +33,8 @@ wd = os.getcwd()
 print(wd)
 
 file_Name = wd + "/data.pickle"
+
+image_features = image_height * image_height
 
 if os.path.isfile(file_Name):
     print("Restoring pickled data")
@@ -62,6 +65,8 @@ else:
                 for e in row:
                     output[counter].append(float(e))
                 counter += 1
+
+    os.chdir(wd)
     raw_data = np.array(raw_data)
     output = np.array(output)
     fileObject = open(file_Name,'wb')
@@ -78,8 +83,6 @@ def get_sample(data, output, n):
 
 def shape_to_string(frame):
     return ("(" + str(frame.shape[0]) + ", " + str(frame.shape[1]) + ")")
-
-image_features = image_height * image_height
 
 
 whitened_data = np.copy(raw_data[:, 0:image_features]).astype(float)
@@ -155,22 +158,22 @@ train_auto_encoder_step = tf.train.AdadeltaOptimizer(learning_rate, 0.95, 1e-08,
 
 accuracy_auto_encoder = tf.add(1.0, -tf.div(tf.reduce_mean(tf.losses.absolute_difference(x_img_raw, auto_encoder.output_layer)), 2.0))
 
-auto_encoder_out = tf.multiply(tf.add(auto_encoder.output_layer, 1.0), 0.5)
-
-h_fcl_joined = tf.concat([auto_encoder.output_layer, x_rem], 1)
-
 keep_prob = tf.placeholder(tf.float32)
-h_fc1_drop = tf.nn.dropout(h_fcl_joined, keep_prob)
+h_fc1_drop = tf.nn.dropout(auto_encoder.minimal_layer, keep_prob)
 
-W_fc2 = weight_variable([compressed_features+rem_features, 256])
+print("Autoencoder minimal layer:", tf.size(auto_encoder.minimal_layer))
+
+W_fc2 = weight_variable([auto_encoder.minimal_layer_size, 256])
 b_fc2 = bias_variable([256])
 
-h_fcl2 = tf.tanh(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+h_fcl2 = tf.nn.relu(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
 W_fc3 = weight_variable([256, rem_features])
 b_fc3 = bias_variable([rem_features])
 
-y_ = tf.tanh(tf.matmul(h_fcl2, W_fc3) + b_fc3)
+y_ = tf.sigmoid(tf.matmul(h_fcl2, W_fc3) + b_fc3)
+
+saver_auto = tf.train.Saver(auto_encoder.variables)
 
 saver = tf.train.Saver()
 
@@ -196,7 +199,7 @@ def run():
         # Restore variables from disk.
         model_file = wd + "/model_encoding/model.ckpt"
         if os.path.isfile(wd + "/model_encoding/checkpoint"):
-            saver.restore(sess, model_file)
+            saver_auto.restore(sess, model_file)
             print("Model restored.")
         count = 0
 

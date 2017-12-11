@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.thomasdeanwhite.gui.App;
 import com.thomasdeanwhite.gui.Properties;
 import com.thomasdeanwhite.gui.output.StateComparator;
+import com.thomasdeanwhite.gui.sampler.MouseEvent;
 import com.thomasdeanwhite.gui.util.FileHandler;
 
 import java.io.File;
@@ -30,6 +31,9 @@ public class UserInteraction implements Interaction {
     protected File trainingDataInputFile;
     protected File trainingDataOutputFile;
 
+    protected int lastMouseX = 0;
+    protected int lastMouseY = 0;
+
     @Override
     public void load() throws IOException {
 
@@ -54,8 +58,6 @@ public class UserInteraction implements Interaction {
 
         for (String line : contents){
             Event e = gson.fromJson(line, Event.class);
-
-            e.moveMouse((int)e.bounds.getX(), (int)e.bounds.getY());
 
             if (e.getTimestamp() < minTime){
                 minTime = e.getTimestamp();
@@ -105,6 +107,11 @@ public class UserInteraction implements Interaction {
             return Event.NONE;
         }
 
+        if (!e.getEvent().equals(MouseEvent.KEYBOARD_INPUT) && !e.getEvent().equals(MouseEvent.SHORTCUT_INPUT)){
+            lastMouseX = e.getMouseX();
+            lastMouseY = e.getMouseY();
+        }
+
         lastState = captureState(e);
 
         return e;
@@ -124,7 +131,7 @@ public class UserInteraction implements Interaction {
             trainingInputRow += d + ",";
         }
 
-        trainingInputRow = trainingInputRow + e.toCsv(lastEvent.getMouseX(), lastEvent.getMouseY());
+        trainingInputRow = trainingInputRow.substring(0, trainingInputRow.length()-1);
 
         try {
             FileHandler.appendToFile(trainingDataInputFile, trainingInputRow + "\n");
@@ -135,8 +142,7 @@ public class UserInteraction implements Interaction {
 
 
         try {
-            FileHandler.appendToFile(trainingDataOutputFile, rawEvents.get
-                    (0).toCsv(e.getMouseX(), e.getMouseY()) + "\n");
+            FileHandler.appendToFile(trainingDataOutputFile, e.toCsv() + "\n");
         } catch (IOException e1) {
             e1.printStackTrace();
         }
@@ -147,7 +153,7 @@ public class UserInteraction implements Interaction {
 
 
     public State captureState(Event e) {
-        double[] newImage = StateComparator.screenshotState(e.getMouseX(), e.getMouseY());
+        double[] newImage = StateComparator.screenshotState(lastMouseX, lastMouseY);
 
         int stateNumber = states.size();
 

@@ -85,7 +85,7 @@ public class Properties extends InstrumentationProperties {
     public static int BEZIER_POINTS = 1;
 
     @Parameter(key = "startDelayTime", description = "Delay Time before frames are seeded", hasArgs = true, category = "Leap Motion Testing")
-    public static long DELAY_TIME = 15000;
+    public static long DELAY_TIME = 5000;
 
     @Parameter(key = "maxLoadedFrames", description = "Frames to retain for com.leap.gui.Frame.frame(int [0->maxLoadedFrames]) method", hasArgs = true, category = "Leap Motion Testing")
     public static int MAX_LOADED_FRAMES = 200;

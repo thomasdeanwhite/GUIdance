@@ -78,8 +78,7 @@ public class DeepLearningInteraction extends UserInteraction {
                 input += d + " ";
 
 
-            String mouseInfo = lastEvent.toCsv(secondLastEvent.getMouseX() + (float)(JITTER - Math.random() * JITTER * 2f),
-                    secondLastEvent.getMouseY() + (float)(JITTER - Math.random() * JITTER * 2f))
+            String mouseInfo = lastEvent.toCsv()
                     .replace(",", " ");
 
             input += mouseInfo;
@@ -179,11 +178,11 @@ public class DeepLearningInteraction extends UserInteraction {
         float lmm = Float.parseFloat(eles[2]);
         float rmm = Float.parseFloat(eles[3]);
 
-        MouseEvent me = MouseEvent.MOVE;
+        MouseEvent me = MouseEvent.NONE;
 
-        if (lastEvent.getEvent().equals(MouseEvent.LEFT_DOWN) || lastEvent.getEvent().equals(MouseEvent.DRAGGED)){
-            me = MouseEvent.DRAGGED;
-        }
+//        if (lastEvent.getEvent().equals(MouseEvent.LEFT_DOWN) || lastEvent.getEvent().equals(MouseEvent.DRAGGED)){
+//            me = MouseEvent.DRAGGED;
+//        }
 
 
         if (lmm > rmm && lmm > CLICK_THRESHOLD) {
@@ -196,20 +195,20 @@ public class DeepLearningInteraction extends UserInteraction {
             me = MouseEvent.RIGHT_UP;
         }
 
-        int diffx = (int) (Float.parseFloat(eles[0]) * Event.bounds.getWidth());
-        int diffy = (int) (Float.parseFloat(eles[1]) * Event.bounds.getHeight());
-
-        float mag = (float) Math.sqrt(diffx * diffx + diffy * diffy);
-
-        diffx = (int)(mouseSpeed * diffx / mag);
-        diffy = (int)(mouseSpeed * diffy / mag);
-
-        int mx = (int)Math.max(Math.min(Event.bounds.getWidth(), lastEvent.getMouseX() + diffx), 0);
-        int my = (int)Math.max(Math.min(Event.bounds.getHeight(), lastEvent.getMouseY() + diffy), 0);
+//        int diffx = (int) (Float.parseFloat(eles[0]) * Event.bounds.getWidth());
+//        int diffy = (int) (Float.parseFloat(eles[1]) * Event.bounds.getHeight());
+//
+//        float mag = (float) Math.sqrt(diffx * diffx + diffy * diffy);
+//
+//        diffx = (int)(mouseSpeed * diffx / mag);
+//        diffy = (int)(mouseSpeed * diffy / mag);
+//
+//        int mx = (int)Math.max(Math.min(Event.bounds.getWidth(), lastEvent.getMouseX() + diffx), 0);
+//        int my = (int)Math.max(Math.min(Event.bounds.getHeight(), lastEvent.getMouseY() + diffy), 0);
 
         nextEvent = new Event(me,
-                mx,
-                my,
+                0,
+                0,
                 System.currentTimeMillis(),
                 iteration);
     }

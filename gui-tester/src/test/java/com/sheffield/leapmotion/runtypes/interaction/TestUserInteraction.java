@@ -91,7 +91,7 @@ public class TestUserInteraction {
 
         assertEquals(10, e.getMouseX());
         assertEquals(20, e.getMouseY());
-        assertEquals(MouseEvent.MOVE, e.getEvent());
+        assertEquals(MouseEvent.NONE, e.getEvent());
     }
 
     @Test

@@ -1,56 +1,52 @@
 library('ggplot2')
 library('dplyr')
 library('reshape2')
+library('png')
+library('grid')
 
-setwd('C:/work/NuiMimic/NuiMimic/')
+setwd('/home/thomas/work/NuiMimic/NuiMimic/data/')
 
 reset <- function(){
   remove(screenshot)
   remove(heatmap)
 }
 
-#if (!exists("screenshot")){
-  screenshot <- read.csv('screenshot.csv', header = TRUE)
-#}
+screenshot <- readPNG('screenshot.png')
+
+glob_screenshot <- screenshot#rasterGrob(screenshot, interpolate=TRUE)
+
+# screen_grey = apply(screenshot, 1, rowMeans)
+# screen_grey = as.data.frame(screen_grey, row.names = range(0, 1024))
+# 
+# screen_grey_tidy = data.frame(x=c(), y=c(), var=c(), val=c())
+
+
+
+# for (i in 1:1280){
+#   row_screenshot = data.frame(x=c(), y=c(), var=c(), val=c())
+#   for (j in 1:1024){
+#     row_screenshot = bind_rows(row_screenshot, 
+#       data.frame(x=c(i), y=c(j), var=c("Pixel"), val=c(screen_grey[i,j])))
+#   }
+#   screen_grey_tidy = bind_rows(screen_grey_tidy, row_screenshot)
+#   cat(paste("\r", i, "/1280"))
+# }
 
 #if (!exists("heatmap")){
-  heatmap <- read.csv('heatmap.csv', header = TRUE)
-
-  heatmap <- heatmap[complete.cases(heatmap),]
-
-  heatmap[heatmap$leftClick != 0,]$leftClick <- 1
-  heatmap[heatmap$rightClick != 0,]$rightClick <- 1
+  heatmap <- read.csv('screenshot_out.csv', header = TRUE)
 #}
+  
 
-heatmap_melt <- melt(heatmap, id=c("x", "y"))
 
-averaged_heatmap <- dcast(heatmap_melt, x + y ~ variable, mean)
+cols <- c("LeftClick"="red", "RightClick"="blue", "Keyboard"="green", "Shortcut"="green")
 
-freq_positions <- heatmap %>% group_by(x, y) %>%
-  count(x, y)
-
-max_freq <- (max(freq_positions$n) * 4)
-
-freq_positions$n <- freq_positions$n / max_freq
-
-joined_heatmap <- screenshot %>% left_join(freq_positions) %>%
-  left_join(averaged_heatmap)
-
-joined_heatmap$pixel <- joined_heatmap$pixel / 255
-
-joined_heatmap$leftClick <- joined_heatmap$leftClick / 4
-joined_heatmap$rightClick <- joined_heatmap$rightClick / 4
-
-joined_heatmap[is.na(joined_heatmap)] <- 0
-
-cols <- c("LEFT_CLICK"="red", "RIGHT_CLICK"="blue", "MOVE"="green")
-
-p <- joined_heatmap %>%
-  ggplot(aes(x=x, y=y, fill=pixel)) + geom_tile() +
-  geom_point(aes(alpha=n, color="MOVE", stroke=0)) +
-  geom_point(aes(alpha=leftClick, color="LEFT_CLICK", stroke=0)) +
+p <- heatmap %>%
+  ggplot(aes(x=x, y=y, fill=val)) + #geom_tile() +
+  #geom_point(aes(alpha=n, color="MOVE", stroke=0)) +
+  annotation_raster(glob_screenshot, xmin=1, xmax=1280, ymin=-1024, ymax=0) +
+  geom_point(aes(alpha=val, color="LeftClick", stroke=0), size=1, shape=15) +
   #geom_point(aes(alpha=rightClick,color="RIGHT_CLICK", stroke=0)) +
-  scale_alpha_continuous(limits=c(0,1.0)) +
+  scale_alpha_continuous(limits=c(0,16.0)) +
   scale_colour_manual(name="Action",values=cols) +
   scale_y_reverse() + scale_fill_gradient(low = "#000000", high = "#FFFFFF", space = "Lab",
                                           na.value = "#00FFFF", guide = "colourbar")

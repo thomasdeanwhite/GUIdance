@@ -48,21 +48,26 @@ public class SamplerApp implements NativeKeyListener, NativeMouseInputListener, 
         GlobalScreen.addNativeMouseWheelListener(this);
 
         GlobalScreen.addNativeMouseMotionListener(this);
+
+        GlobalScreen.addNativeKeyListener(this);
     }
 
     @Override
     public void nativeKeyPressed(NativeKeyEvent nativeKeyEvent) {
-
+        mouseEvent = MouseEvent.KEYBOARD_INPUT;
+        writeToOutput(0, 0);
     }
 
     @Override
     public void nativeKeyReleased(NativeKeyEvent nativeKeyEvent) {
-
+        mouseEvent = MouseEvent.KEYBOARD_INPUT;
+        writeToOutput(0, 0);
     }
 
     @Override
     public void nativeKeyTyped(NativeKeyEvent nativeKeyEvent) {
-
+        mouseEvent = MouseEvent.KEYBOARD_INPUT;
+        writeToOutput(0, 0);
     }
 
     @Override
@@ -83,8 +88,6 @@ public class SamplerApp implements NativeKeyListener, NativeMouseInputListener, 
             mouseEvent = MouseEvent.LEFT_DOWN;
         } else if (nativeMouseEvent.getButton() == 2){
             mouseEvent = MouseEvent.RIGHT_DOWN;
-        } else {
-            mouseEvent = MouseEvent.OTHER_DOWN;
         }
         outputXYLocation(nativeMouseEvent);
     }
@@ -98,38 +101,36 @@ public class SamplerApp implements NativeKeyListener, NativeMouseInputListener, 
             mouseEvent = MouseEvent.LEFT_UP;
         } else if (nativeMouseEvent.getButton() == 2){
             mouseEvent = MouseEvent.RIGHT_UP;
-        } else {
-            mouseEvent = MouseEvent.OTHER_UP;
         }
         outputXYLocation(nativeMouseEvent);
     }
 
     @Override
     public void nativeMouseMoved(NativeMouseEvent nativeMouseEvent) {
-        mouseEvent = MouseEvent.MOVE;
+        mouseEvent = MouseEvent.NONE;
 
-        if (!lastEvent.equals(MouseEvent.MOVE)){
-            startMove = System.currentTimeMillis() - MOVEMENT_DELAY;
-        }
-        delay = (int)(System.currentTimeMillis() - startMove);
-
-        if (MOVEMENT_DELAY <= delay){
-            delay = 0;
-            outputXYLocation(nativeMouseEvent);
-        }
+//        if (!lastEvent.equals(MouseEvent.MOVE)){
+//            startMove = System.currentTimeMillis() - MOVEMENT_DELAY;
+//        }
+//        delay = (int)(System.currentTimeMillis() - startMove);
+//
+//        if (MOVEMENT_DELAY <= delay){
+//            delay = 0;
+//            outputXYLocation(nativeMouseEvent);
+//        }
     }
 
     @Override
     public void nativeMouseDragged(NativeMouseEvent nativeMouseEvent) {
-        mouseEvent = MouseEvent.DRAGGED;
-        outputXYLocation(nativeMouseEvent);
+//        mouseEvent = MouseEvent.DRAGGED;
+//        outputXYLocation(nativeMouseEvent);
     }
 
     @Override
     public void nativeMouseWheelMoved(NativeMouseWheelEvent nativeMouseWheelEvent) {
-        mouseEvent = MouseEvent.MOUSE_WHEEL;
-
-        writeToOutput(nativeMouseWheelEvent.getWheelRotation(), 0);
+//        mouseEvent = MouseEvent.MOUSE_WHEEL;
+//
+//        writeToOutput(nativeMouseWheelEvent.getWheelRotation(), 0);
     }
 
     public void outputXYLocation(NativeMouseEvent nme){
@@ -138,20 +139,12 @@ public class SamplerApp implements NativeKeyListener, NativeMouseInputListener, 
 
     public synchronized void writeToOutput(int x, int y){
 
-        if (lastEvent.equals(mouseEvent) && ((lastX == x && lastY == y))){
+        if (mouseEvent == MouseEvent.NONE){
             return;
         }
 
         if (bounds == null){
             Window activeWindow = javax.swing.FocusManager.getCurrentManager().getActiveWindow();
-
-
-            Robot robot = null;
-            try {
-                robot = new Robot();
-            } catch (AWTException e) {
-                e.printStackTrace();
-            }
 
             bounds = new Rectangle(Toolkit.getDefaultToolkit()
                     .getScreenSize());

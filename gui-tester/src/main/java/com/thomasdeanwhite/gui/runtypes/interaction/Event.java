@@ -10,23 +10,6 @@ import java.io.Serializable;
  */
 public class Event implements Serializable {
 
-    public static Rectangle bounds;
-
-    static {
-        Window activeWindow = javax.swing.FocusManager.getCurrentManager().getActiveWindow();
-
-        bounds = new Rectangle(Toolkit.getDefaultToolkit()
-                .getScreenSize());
-
-        if (activeWindow != null) {
-            bounds = new Rectangle(
-                    (int) activeWindow.getBounds().getX(),
-                    (int) activeWindow.getBounds().getY(),
-                    (int) activeWindow.getBounds().getWidth(),
-                    (int) activeWindow.getBounds().getHeight());
-        }
-    }
-
     public static Event NONE = new Event(MouseEvent.NONE, 0, 0, 0, -1);
 
     private long timestamp;
@@ -76,30 +59,31 @@ public class Event implements Serializable {
         this.eventIndex = eventIndex;
     }
 
-    public String toCsv(float lastMouseX, float lastMouseY) {
-        float mx = (float) ((mouseX - lastMouseX)/bounds.getWidth());
-        float my = (float) ((mouseY - lastMouseY)/bounds.getHeight());
+    public String csvHeader(){
+        return "leftDown,leftUp,rightDown,rightUp,leftClick,rightClick,keyboardInput,shortcutInput";
+    }
 
-        assert(mx <= 1 && mx >= -1);
-        assert(my <= 1 && my >= -1);
+    public String toCsv() {
 
-        return mx + "," + my + "," + leftClickToFloat() + "," +
-                rightClickToFloat();
+        return eventToFloat(MouseEvent.LEFT_DOWN) + "," +
+                eventToFloat(MouseEvent.LEFT_UP) + "," +
+                eventToFloat(MouseEvent.RIGHT_DOWN) + "," +
+                eventToFloat(MouseEvent.RIGHT_UP) + "," +
+                eventToFloat(MouseEvent.LEFT_CLICK) + "," +
+                eventToFloat(MouseEvent.RIGHT_CLICK) + "," +
+                eventToFloat(MouseEvent.KEYBOARD_INPUT) + "," +
+                eventToFloat(MouseEvent.SHORTCUT_INPUT);
     }
 
     public String toString() {
-        return "(" + mouseX + " " + mouseY + " " + leftClickToFloat() + " " +
-                rightClickToFloat() + ")";
-    }
-
-    public float leftClickToFloat() {
-        return (eventToFloat(MouseEvent.LEFT_DOWN) -
-                eventToFloat(MouseEvent.LEFT_UP));
-    }
-
-    public float rightClickToFloat() {
-        return (eventToFloat(MouseEvent.RIGHT_DOWN) -
-                eventToFloat(MouseEvent.RIGHT_UP));
+        return "(" + eventToFloat(MouseEvent.LEFT_DOWN) + "," +
+                eventToFloat(MouseEvent.LEFT_UP) + "," +
+                eventToFloat(MouseEvent.RIGHT_DOWN) + "," +
+                eventToFloat(MouseEvent.RIGHT_UP) + "," +
+                eventToFloat(MouseEvent.LEFT_CLICK) + "," +
+                eventToFloat(MouseEvent.RIGHT_CLICK) + "," +
+                eventToFloat(MouseEvent.KEYBOARD_INPUT) + "," +
+                eventToFloat(MouseEvent.SHORTCUT_INPUT) + ")";
     }
 
     private float eventToFloat(MouseEvent event) {

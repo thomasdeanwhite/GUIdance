@@ -7,6 +7,7 @@ import com.thomasdeanwhite.gui.runtypes.interaction.*;
 import com.thomasdeanwhite.gui.runtypes.interaction.Event;
 import com.thomasdeanwhite.gui.sampler.MouseEvent;
 import com.thomasdeanwhite.gui.util.FileHandler;
+import javafx.scene.input.KeyCode;
 import org.jnativehook.GlobalScreen;
 import org.jnativehook.NativeHookException;
 import org.jnativehook.keyboard.NativeKeyEvent;
@@ -31,6 +32,7 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
     private Rectangle bounds;
     private boolean running = true;
     private ApplicationThread appThread;
+    private boolean paused = false;
 
     public boolean isRunning() {
         return running;
@@ -105,9 +107,20 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
 
             if (!appThread.isAppRunning()) {
                 appThread.run();
+
             }
             currentTime = System.currentTimeMillis();
             long timePassed = currentTime - startTime;
+
+            if (paused){
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                continue;
+            }
 
             Event e = interaction.interact(timePassed);
 
@@ -126,8 +139,15 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
                 }
             }
 
-            r.mouseMove((int) (bounds.getX() + e.getMouseX()), (int) (bounds.getY() + e.getMouseY()));
+            int mouseX = (int) (bounds.getX() + e.getMouseX());
+            int mouseY = (int) (bounds.getY() + e.getMouseY());
 
+            r.mouseMove(mouseX, mouseY);
+            try {
+            Thread.sleep(10);
+            } catch (InterruptedException ie){
+                //done goofed
+            }
             if (e.getEvent().equals(MouseEvent.LEFT_CLICK)) {
                 click(r, InputEvent.BUTTON1_MASK);
             } else if (e.getEvent().equals(MouseEvent.RIGHT_CLICK)) {
@@ -142,9 +162,19 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
                 mouseUp(r, InputEvent.BUTTON1_MASK);
             } else if (e.getEvent().equals(MouseEvent.RIGHT_UP)) {
                 mouseUp(r, InputEvent.BUTTON2_MASK);
+            } else if (e.getEvent().equals(MouseEvent.KEYBOARD_INPUT)) {
+                keyTyped(r);
+            } else if (e.getEvent().equals(MouseEvent.SHORTCUT_INPUT)) {
+                shortcutPressed(r);
             }
 
             interaction.postInteraction(e);
+
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException ie){
+                //done goofed
+            }
 
         } while (currentTime < finishTime && running);
 
@@ -206,6 +236,16 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
         r.mouseRelease(button);
     }
 
+    public void keyTyped(Robot r) {
+        int keycode = 48 + (int)(Math.random()*42);
+        r.keyPress(keycode);
+        r.keyRelease(keycode);
+    }
+
+    public void shortcutPressed(Robot r) {
+        r.keyPress(KeyCode.ENTER.ordinal());
+    }
+
 
     private int keyPressedToExit = 0;
 
@@ -216,6 +256,10 @@ public class ApplicationTestingRunType implements RunType, NativeKeyListener {
             keyPressedToExit++;
         } else {
             keyPressedToExit = 0;
+        }
+
+        if (nativeKeyEvent.getKeyCode() == NativeKeyEvent.VC_PAUSE) {
+            paused = !paused;
         }
 
         if (keyPressedToExit >= 3) {
