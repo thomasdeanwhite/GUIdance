@@ -158,7 +158,8 @@ print("Output layer", y_.shape)
 print("model created successfully")
 
 #loss = tf.reduce_mean(tf.square(tf.subtract(y, y_)), axis=0)
-loss = tf.losses.softmax_cross_entropy(y, y_)
+#loss = tf.losses.softmax_cross_entropy(y, y_)
+loss = tf.reduce_mean(tf.square(tf.subtract(y, y_)))
 #epsilon = 0.00001
 #loss = tf.reduce_mean(-tf.reduce_sum(y * tf.log(tf.add(y_, epsilon)), reduction_indices=[1]))
 
@@ -182,6 +183,8 @@ plt.figure(1)
 plots = 1
 
 image_size = [10, 13]
+
+figs = 30
 
 with tf.Session() as sess:
 
@@ -207,12 +210,11 @@ with tf.Session() as sess:
 
 
         encoder_results = sess.run(auto_encoder.minimal_layer, feed_dict={x:data, auto_encoder.keep_prob: 1.0})
+        results = sess.run(out, feed_dict={x_inp: encoder_results, keep_prob: 1.0})
 
-        results = sess.run(y_, feed_dict={x_inp: encoder_results, keep_prob: 1.0})
-
-        for j in range(images_x):
-            xn = i * image_height + (image_height/2)
-            yn = int(j * image_height + (image_height/2))
+        for j in range(images_x - image_height):
+            xn = int(i + (image_height/2))
+            yn = int(j + (image_height/2))
 
             xn = max(xn, 0)
             xn = min(xn, images_y - image_height)
@@ -220,20 +222,60 @@ with tf.Session() as sess:
             yn = max(yn, 0)
             yn = min(yn, images_x - image_height)
 
-            index = yn#(j * images_x)
+            index = j#(j * images_x)
 
             with open("screenshot_out.csv", "a") as myfile:
-                myfile.write(str(xn) + "," + str(yn) + "," + "LeftClick," + str(results[index, 0]) + "\n")
+                myfile.write(str(xn) + "," + str(yn) + "," + "LeftDown," + str(results[index, 0]) + "\n")
+                myfile.write(str(xn) + "," + str(yn) + "," + "LeftUp," + str(results[index, 1]) + "\n")
+                myfile.write(str(xn) + "," + str(yn) + "," + "RightDown," + str(results[index, 2]) + "\n")
+                myfile.write(str(xn) + "," + str(yn) + "," + "RightUp," + str(results[index, 3]) + "\n")
+                myfile.write(str(xn) + "," + str(yn) + "," + "KeyDown," + str(results[index, 6]) + "\n")
+                myfile.write(str(xn) + "," + str(yn) + "," + "ShortcutDown," + str(results[index, 7]) + "\n")
+
+        # if i % 75 == 0:
+        #     count = 0
+        #
+        #     np.random.shuffle(data)
+        #
+        #     encoder_results_full = sess.run(auto_encoder.output_layer, feed_dict={x:data, auto_encoder.keep_prob: 1.0})
+        #
+        #     stimuli = raw_data[:, 0:image_features]
+        #     stimuli_whitened = sess.run(x_img_raw, feed_dict={x:data})
+        #
+        #     screens = sess.run(auto_encoder.output_layer, feed_dict={x:data, auto_encoder.keep_prob: 1.0})
+        #
+        #     total_rows = math.ceil(figs / 5)
+        #     while count < (figs/3):
+        #
+        #         # plot_num = count % 5
+        #         # plot_row = math.floor(count / 5)
+        #
+        #         plt.subplot(5, total_rows, count*3 + 1)
+        #         #plt.title('Inp')
+        #         plt.imshow(np.reshape(stimuli[count,:], [image_height, image_height]), cmap="gray")
+        #
+        #
+        #         plt.subplot(5, total_rows, count*3 + 2)
+        #         #plt.title('Inp')
+        #         plt.imshow(np.reshape(inverse_proep(stimuli_whitened[count,:]), [image_height, image_height]), cmap="gray")
+        #
+        #
+        #         plt.subplot(5, total_rows, count*3 + 3)
+        #         #plt.title('Inp')
+        #         plt.imshow(np.reshape(inverse_proep(encoder_results_full[count, :]), [image_height, image_height]), cmap="gray")
+        #         count = count + 1
+        #
+        #     plt.show()
 
 
-    for i in range(images_y):
-        i = max(i, 0)
-        i = min(i, images_y - image_height)
+    for i in range(images_y - image_height):
+        # i = max(i, 0)
+        # i = min(i, images_y - image_height)
         print(i, "of", images_y)
         segments = []
-        for j in range(images_x):
-            j = max(j, 0)
-            j = min(j, images_x - image_height)
+        for j in range(images_x - image_height):
+            # j = max(j, 0)
+            # j = min(j, images_x - image_height)
             segment_row = img[i:i+image_height, j:j+image_height]
             segments.append(np.reshape(segment_row, [image_features]))
 

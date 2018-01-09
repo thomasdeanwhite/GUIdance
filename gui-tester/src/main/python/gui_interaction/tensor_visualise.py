@@ -201,6 +201,8 @@ def run():
         if os.path.isfile(wd + "/model_encoding/checkpoint"):
             saver_auto.restore(sess, model_file)
             print("Model restored.")
+
+
         count = 0
 
         #random.shuffle(data)

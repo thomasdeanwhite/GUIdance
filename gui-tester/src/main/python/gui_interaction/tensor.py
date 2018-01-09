@@ -219,9 +219,9 @@ out = tf.nn.softmax(y_)
 #y_ = tf.layers.dense(h_fcl2, rem_features)
 print("Output layer", y_.shape)
 print("model created successfully")
-
+loss = tf.reduce_mean(tf.square(tf.subtract(y, y_)))
 #loss = tf.reduce_mean(tf.square(tf.subtract(y, y_)), axis=0)
-loss = tf.losses.softmax_cross_entropy(y, y_)
+#loss = tf.losses.softmax_cross_entropy(y, y_)
 #epsilon = 0.00001
 #loss = tf.reduce_mean(-tf.reduce_sum(y * tf.log(tf.add(y_, epsilon)), reduction_indices=[1]))
 
