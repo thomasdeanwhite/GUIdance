@@ -13,7 +13,7 @@ public class Event implements Serializable {
     public static Event NONE = new Event(MouseEvent.NONE, 0, 0, 0, -1);
 
     private long timestamp;
-    private MouseEvent event;
+    private MouseEvent event = MouseEvent.NONE;
     private int mouseX;
     private int mouseY;
     private int eventIndex = 0;

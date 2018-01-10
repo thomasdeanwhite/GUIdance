@@ -65,8 +65,10 @@ public class TestUserInteraction {
 
             String data = "";
 
+            MouseEvent[] evnts = MouseEvent.values();
+
             for (int i = 0; i < 10; i++){
-                data += "{\"timestamp\":" + i + ",\"event\":\"MOVE\",\"mouseX\":" + (10+i) + ",\"mouseY\":" + (20 - i) + ",\"eventIndex\":" + (20 + i) + "}\n";
+                data += "{\"timestamp\":" + i + ",\"event\":\""+evnts[i%evnts.length]+"\",\"mouseX\":" + (10+i) + ",\"mouseY\":" + (20 - i) + ",\"eventIndex\":" + (20 + i) + "}\n";
             }
 
             FileHandler.writeToFile(file, data);
@@ -91,7 +93,7 @@ public class TestUserInteraction {
 
         assertEquals(10, e.getMouseX());
         assertEquals(20, e.getMouseY());
-        assertEquals(MouseEvent.NONE, e.getEvent());
+        assertEquals(MouseEvent.LEFT_DOWN, e.getEvent());
     }
 
     @Test

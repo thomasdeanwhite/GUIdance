@@ -12,21 +12,21 @@ public class TestEvent {
     public void testEventZerosToCsv(){
         Event e = new Event(MouseEvent.NONE, 0, 0, 0, 0);
 
-        assertEquals("0.0,0.0,0.0,0.0", e.toCsv());
+        assertEquals("0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0", e.toCsv());
     }
 
     @Test
     public void testEventLeftClickToCsv(){
         Event e = new Event(MouseEvent.LEFT_DOWN, 0, 0, 0, 0);
 
-        assertEquals("0.0,0.0,1.0,0.0", e.toCsv());
+        assertEquals("1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0", e.toCsv());
     }
 
     @Test
     public void testEventRightClickToCsv(){
         Event e = new Event(MouseEvent.RIGHT_DOWN, 0, 0, 0, 0);
 
-        assertEquals("0.0,0.0,0.0,1.0", e.toCsv());
+        assertEquals("0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0", e.toCsv());
     }
 
 
@@ -34,14 +34,14 @@ public class TestEvent {
     public void testEventLeftUpToCsv(){
         Event e = new Event(MouseEvent.LEFT_UP, 0, 0, 0, 0);
 
-        assertEquals("0.0,0.0,-1.0,0.0", e.toCsv());
+        assertEquals("0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0", e.toCsv());
     }
 
     @Test
     public void testEventRightUpToCsv(){
         Event e = new Event(MouseEvent.RIGHT_UP, 0, 0, 0, 0);
 
-        assertEquals("0.0,0.0,0.0,-1.0", e.toCsv());
+        assertEquals("0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0", e.toCsv());
     }
 
 }
