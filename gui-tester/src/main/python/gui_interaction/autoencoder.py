@@ -13,12 +13,15 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 class AutoEncoder:
-    learning_rate = 0.0001
+    learning_rate = 0.1
     epochs = 1000
     batch_size = 25
-    input_features = 64*64
-    image_size = 64*64
-    hidden_layers_n = [32*32]
+    input_features = 1024*1024
+    image_size = 1024*1024
+    network_width = 1024
+    hidden_layers_n = [[2048, 2048, 1], [32, 32, 4]]  # TODO: make this
+    # support a
+    #  CNN
     variables = []
     activation_functions = []
     image = None
@@ -52,7 +55,7 @@ class AutoEncoder:
         hidden_layers_n.extend(self.hidden_layers_n)
 
         self.hidden_layers = []
-        last_layer = self.image
+        last_layer = tf.reshape(self.image, self.hidden_layers_n[0])
         last_size = 0
 
         input_stack = []

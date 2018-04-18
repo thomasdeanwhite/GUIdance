@@ -11,6 +11,7 @@ import sys
 from sklearn import decomposition
 from sklearn import preprocessing
 from autoencoder import AutoEncoder
+import cv2 as cv
 
 
 learning_rate_start = 1.0
@@ -23,32 +24,14 @@ percent_testing = 1
 percent_validation = 0.9
 image_height = 64
 TRAIN_MODEL = True
-TRAIN_AUTOENCODER = False
+TRAIN_AUTOENCODER = True
 compressed_features = 64*64
 raw_data = []
 output = []
 balance_data = True
 wd = os.getcwd()
 for i in range(1, len(sys.argv)):
-    os.chdir(os.path.join(wd, sys.argv[i]))
-    print("loading", sys.argv[i])
-    with open('training_inputs.csv', 'rt') as csvfile:
-        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
-        counter = len(raw_data)
-        for row in reader:
-            raw_data.append([])
-            for e in row:
-                raw_data[counter].append(float(e))
-            counter += 1
-
-    with open('training_outputs.csv', 'rt') as csvfile:
-        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
-        counter = len(output)
-        for row in reader:
-            output.append([])
-            for e in row:
-                output[counter].append(float(e))
-            counter += 1
+    os.chdir(sys.argv[i])
 os.chdir(wd)
 raw_data = np.array(raw_data)
 
@@ -60,6 +43,9 @@ output = np.array(output)
 image_features = image_height * image_height
 
 print("Raw data shape:", raw_data.shape)
+
+for i in raw_data.shape[0]:
+    raw_data[0] = scikit.transform.resize(raw_data, )
 
 whitened_data = np.copy(raw_data[:, 0:image_features]).astype(float)
 print("Fitting data")
@@ -139,11 +125,7 @@ def bias_variable(shape):
 
 auto_encoder = AutoEncoder(x_img_raw)
 
-
-
 loss_auto_encoder = auto_encoder.loss
-
-
 
 learning_rate = tf.placeholder(tf.float32)
 
