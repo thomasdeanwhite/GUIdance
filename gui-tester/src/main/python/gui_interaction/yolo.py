@@ -48,198 +48,205 @@ class Yolo:
 
     def create_filter(self, size, name):
 
-        return tf.get_variable(name, size, initializer=tf.truncated_normal_initializer(stddev=5e-2, dtype=tf.float32),
-                               dtype=tf.float32)
+        return tf.Variable(tf.truncated_normal(size, stddev=0.05), name=name)
+        #
+        # return tf.get_variable(name, size, initializer=tf.truncated_normal_initializer(stddev=5e-2, dtype=tf.float32),
+        #                    dtype=tf.float32)
+
+    def leaky_relu(self, layer):
+        return tf.nn.leaky_relu(
+            tf.nn.batch_normalization(layer, 0, 2, None, None, 0.000001),
+            0.1)
 
     def create_network(self):
 
         anchors_size = len(cfg.anchors)/2
         classes = len(self.names)
 
-        height = cfg.height/cfg.grid_shape[1]*anchors_size
-        width = cfg.width/cfg.grid_shape[0]*anchors_size
+        height = int(cfg.height/cfg.grid_shape[1]*anchors_size)
+        width = int(cfg.width/cfg.grid_shape[0]*anchors_size)
 
         self.x = tf.placeholder(tf.float32, [None, cfg.height, cfg.width, 1], "input")
 
         #self.input_var = tf.Variable(self.x)
 
         #self.object_recognition = tf.placeholder(tf.float32, [None, cfg.height, cfg.width, 1], "obj-rec")
-        self.network = tf.nn.conv2d(self.x,
+        self.network = self.leaky_relu(tf.nn.conv2d(self.x,
                                     self.create_filter([height,
                                                         width,
                                                         1,
                                                         32], "f1"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
         self.network = tf.nn.max_pool(self.network, [1, 1, 1, 1], [1, 2, 2, 1], padding="SAME")
         print(self.network.shape)
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([height/2,
-                                                        width/2,
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/2),
+                                                        int(width/2),
                                                         32,
                                                         64], "f2"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = tf.nn.max_pool(self.network, [1, 1, 1, 1], [1, 2, 2, 1], padding="SAME")
         print(self.network.shape)
 
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([height/4,
-                                                        width/4,
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/4),
+                                                        int(width/4),
                                                         64,
                                                         128], "f3"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        print(self.network.shape)
+
+        self.network = tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/4),
+                                                        int(width/4),
+                                                        128,
+                                                        64], "f4"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
         print(self.network.shape)
 
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 128,
-        #                                                 64], "f4"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
-        #
-        #
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 64,
-        #                                                 128], "f5"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
+
+        self.network = tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/4),
+                                                        int(width/4),
+                                                        64,
+                                                        128], "f5"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+        print(self.network.shape)
 
         self.network = tf.nn.max_pool(self.network, [1, 1, 1, 1], [1, 2, 2, 1], padding="SAME")
         print(self.network.shape)
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([height/4,
-                                                        width/4,
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/8),
+                                                        int(width/8),
                                                         128,
                                                         256], "f6"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
 
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 256,
-        #                                                 128], "f7"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
-        #
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 128,
-        #                                                 256], "f8"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
+        self.network = tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/8),
+                                                        int(width/8),
+                                                        256,
+                                                        128], "f7"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+        print(self.network.shape)
+
+        self.network = tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/8),
+                                                        int(width/8),
+                                                        128,
+                                                        256], "f8"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+        print(self.network.shape)
 
         self.network = tf.nn.max_pool(self.network, [1, 1, 1, 1], [1, 2, 2, 1], padding="SAME")
         print(self.network.shape)
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([height/4,
-                                                        width/4,
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/16),
+                                                        int(width/16),
                                                         256,
                                                         512], "f9"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        print(self.network.shape)
+
+        self.network = tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/16),
+                                                        int(width/16),
+                                                        512,
+                                                        256], "f10"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
         print(self.network.shape)
 
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 512,
-        #                                                 256], "f10"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
-        #
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 256,
-        #                                                 512], "f11"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
-        #
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 512,
-        #                                                 256], "f12"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
-        #
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 256,
-        #                                                 512], "f13"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/16),
+                                                        int(width/16),
+                                                        256,
+                                                        512], "f11"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        print(self.network.shape)
+
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/16),
+                                                        int(width/16),
+                                                        512,
+                                                        256], "f12"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        print(self.network.shape)
+
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/16),
+                                                        int(width/16),
+                                                        256,
+                                                        512], "f13"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
 
         reorg = tf.extract_image_patches(self.network, [1, 2, 2, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding="SAME")
 
         self.network = tf.nn.max_pool(self.network, [1, 1, 1, 1], [1, 2, 2, 1], padding="SAME")
         print(self.network.shape)
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([height/4,
-                                                        width/4,
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/32),
+                                                        int(width/32),
                                                         512,
                                                         1024], "f14"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 1024,
-        #                                                 512], "f15"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
-        #
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 512,
-        #                                                 1024], "f16"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
-        #
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 1024,
-        #                                                 512], "f17"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
-        #
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 512,
-        #                                                 1024], "f18"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
-        #
-        # self.network = tf.nn.conv2d(self.network,
-        #                             self.create_filter([height/4,
-        #                                                 width/4,
-        #                                                 1024,
-        #                                                 1024], "f19"),
-        #                             [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
-        # print(self.network.shape)
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/32),
+                                                        int(width/32),
+                                                        1024,
+                                                        512], "f15"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        print(self.network.shape)
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([height/4,
-                                                        width/4,
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/32),
+                                                        int(width/32),
+                                                        512,
+                                                        1024], "f16"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        print(self.network.shape)
+
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/32),
+                                                        int(width/32),
+                                                        1024,
+                                                        512], "f17"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        print(self.network.shape)
+
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/32),
+                                                        int(width/32),
+                                                        512,
+                                                        1024], "f18"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        print(self.network.shape)
+
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/32),
+                                                        int(width/32),
+                                                        1024,
+                                                        1024], "f19"),
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        print(self.network.shape)
+
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/32),
+                                                        int(width/32),
                                                         1024,
                                                         1024], "f20"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         print("Combining ", self.network.shape, "with reorg:", reorg.shape)
@@ -247,18 +254,18 @@ class Yolo:
 
         print(self.network.shape)
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([height/4,
-                                                        width/4,
+        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
+                                    self.create_filter([int(height/32),
+                                                        int(width/32),
                                                         3072,
                                                         1024], "f21"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
 
         self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([height/4,
-                                                        width/4,
+                                    self.create_filter([int(height/32),
+                                                        int(width/32),
                                                         1024,
                                                         int(anchors_size*5 + classes)], "f22"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
