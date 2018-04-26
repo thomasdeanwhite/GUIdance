@@ -13,6 +13,8 @@ anchors = [0.9817857382941845, 9.398278193098788,
 width = 416
 height = 416
 
+threshold = 0.1
+
 cudnn_on_gpu = False
 
 grid_shape = [13, 13]
@@ -37,11 +39,12 @@ labels_dir = "labels"
 learning_rate_start = 1.0
 learning_rate_min = 0.005
 learning_rate_decay = 0.9995
+object_detection_threshold = 0.5
 
 #maximum training epochs
 epochs = 5000000
 
-batch_size = 10000
+batch_size = 4
 
 # ------------------------
 # output locations       |
@@ -59,3 +62,12 @@ output_dir = "/home/thomas/work/gui_image_identification/public/output"
 results_dir = "results"
 log_file = "loss.log"
 
+
+# ------------------------
+# training weights       |
+# ------------------------
+
+iou_weight = 1.0
+obj_weight = 1.0
+noobj_weight = 1.0
+class_weight = 1.0

@@ -174,9 +174,9 @@ TRAIN_MODEL = True
 if TRAIN_MODEL:
     with tf.Session() as sess:
 
-
+        print("Initialising Vars")
         sess.run(tf.global_variables_initializer())
-
+        print("Done!")
 
         # Restore variables from disk.
         model_file = "model/model.ckpt"
@@ -226,7 +226,3 @@ if TRAIN_MODEL:
 
         save_path = saver.save(sess, model_file)
         print("Model saved in file: %s" % save_path)
-
-
-else:
-    # Auto-encoder
