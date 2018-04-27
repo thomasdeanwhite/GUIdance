@@ -39,6 +39,7 @@ labels_dir = "labels"
 learning_rate_start = 1.0
 learning_rate_min = 0.005
 learning_rate_decay = 0.9995
+momentum = 0.9
 object_detection_threshold = 0.5
 
 #maximum training epochs

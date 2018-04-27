@@ -12,6 +12,9 @@ class Yolo:
     train_object_recognition = None
     train_bounding_boxes = None
     input_var = None
+    best_iou = None
+    bool = None
+    d_best_iou = None
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -337,17 +340,75 @@ class Yolo:
 
         print("overlap:", overlap_op.shape)
 
-        v, indices = tf.nn.top_k(overlap_op, k=1)
+        overlap_op = tf.where(tf.is_finite(overlap_op), overlap_op, tf.zeros_like(overlap_op))
 
-        indices = tf.reshape(indices, [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 1])
+        v, indices = tf.nn.top_k(overlap_op)
+
+
+
+        #v = tf.tile(v, [1, 1, tf.shape(overlap_op)[2]])
+
+        #indices = tf.reshape(indices, [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 1])
 
         print("v:", v.shape)
 
-        bool = tf.greater_equal(overlap_op, v)
+        #bool_zeros = tf.zeros_like(overlap_op, dtype=tf.bool)
+
+        #bool_index = tf.scatter_update(bool_zeros, indices, True)
+
+        #bool = tf.cast(bool_index, dtype=tf.bool)
+
+        bool = overlap_op >= v
+
+
 
         print("bool:", bool.shape)
 
-        best_iou = tf.map_fn(lambda x: tf.boolean_mask(pred_boxes, x, name="gather_top_iou"), bool)
+        boxes_replicate = tf.expand_dims(pred_boxes, 1)
+
+        print("boxes_rep:", boxes_replicate.shape)
+
+        wlr_start = tf.constant(1)
+
+        i, x, y, boxes_replicate = tf.while_loop(
+            lambda i, x, y, b : i < tf.shape(x)[0],
+            lambda i, x, y, b: (tf.add(i, 1), x, y,
+                                tf.concat([b,
+            tf.reshape(tf.tile(y, [1, tf.shape(x)[0], 1]), [1, -1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 4])], 0)),
+            (wlr_start, bool, pred_boxes,
+            tf.reshape(tf.tile(pred_boxes[0], [tf.shape(bool[0])[0], 1]), [1, -1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 4])),
+            shape_invariants=(wlr_start.get_shape(),
+                              bool.get_shape(),
+                              pred_boxes.get_shape(),
+                              tf.TensorShape([None, None, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 4])))
+
+        #boxes_replicate = tf.map_fn(lambda x : tf.reshape(tf.tile(pred_boxes, [1, tf.shape(x)[0], 1]), [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 4]), bool)
+
+        print("boxes_rep:", boxes_replicate.shape)
+
+        #best_iou = tf.map_fn(lambda x: tf.boolean_mask(box es_replicate, x, name="gather_top_iou"), bool)
+
+        wlb_start = tf.constant(1)
+
+        default_best_iou = tf.expand_dims(tf.boolean_mask(boxes_replicate[0], bool[0], axis=0), 0)
+
+        print("d_best_iou:", default_best_iou.shape)
+
+        i, x, y, best_iou = tf.while_loop(
+            lambda i, x, y, b : i < tf.shape(x)[0],
+            lambda i, x, y, b: (tf.add(i, 1), x, y,
+                    tf.concat([b, tf.expand_dims(tf.boolean_mask(y[i], x[i]), 0)], 0)),
+                    (wlb_start, bool, boxes_replicate, default_best_iou),
+                    shape_invariants=(wlb_start.get_shape(),
+                                                bool.get_shape(),
+                                                boxes_replicate.get_shape(),
+                                                tf.TensorShape([None, None, 4])))
+
+        #best_iou = best_iou[:, :, 1]
+
+        self.best_iou = tf.shape(best_iou)
+        self.d_best_iou = overlap_op
+        self.bool = v
 
         print("best_iou:", best_iou.shape)
 
