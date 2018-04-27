@@ -15,6 +15,7 @@ class Yolo:
     best_iou = None
     bool = None
     d_best_iou = None
+    variables = []
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -51,7 +52,9 @@ class Yolo:
 
     def create_filter(self, size, name):
 
-        return tf.Variable(tf.truncated_normal(size, stddev=0.05), name=name)
+        var = tf.Variable(tf.truncated_normal(size, stddev=0.05), name=name)
+        self.variables.append(var)
+        return var
         #
         # return tf.get_variable(name, size, initializer=tf.truncated_normal_initializer(stddev=5e-2, dtype=tf.float32),
         #                    dtype=tf.float32)
@@ -75,8 +78,8 @@ class Yolo:
 
         #self.object_recognition = tf.placeholder(tf.float32, [None, cfg.height, cfg.width, 1], "obj-rec")
         self.network = self.leaky_relu(tf.nn.conv2d(self.x,
-                                    self.create_filter([height,
-                                                        width,
+                                    self.create_filter([3,
+                                                        3,
                                                         1,
                                                         32], "f1"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
@@ -85,8 +88,8 @@ class Yolo:
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/2),
-                                                        int(width/2),
+                                    self.create_filter([3,
+                                                        3,
                                                         32,
                                                         64], "f2"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
@@ -97,16 +100,16 @@ class Yolo:
 
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/4),
-                                                        int(width/4),
+                                    self.create_filter([3,
+                                                        3,
                                                         64,
                                                         128], "f3"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/4),
-                                                        int(width/4),
+                                    self.create_filter([3,
+                                                        3,
                                                         128,
                                                         64], "f4"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
@@ -114,8 +117,8 @@ class Yolo:
 
 
         self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/4),
-                                                        int(width/4),
+                                    self.create_filter([3,
+                                                        3,
                                                         64,
                                                         128], "f5"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
@@ -125,8 +128,8 @@ class Yolo:
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/8),
-                                                        int(width/8),
+                                    self.create_filter([3,
+                                                        3,
                                                         128,
                                                         256], "f6"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
@@ -134,16 +137,16 @@ class Yolo:
 
 
         self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/8),
-                                                        int(width/8),
+                                    self.create_filter([3,
+                                                        3,
                                                         256,
                                                         128], "f7"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
         print(self.network.shape)
 
         self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/8),
-                                                        int(width/8),
+                                    self.create_filter([3,
+                                                        3,
                                                         128,
                                                         256], "f8"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
@@ -153,40 +156,40 @@ class Yolo:
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/16),
-                                                        int(width/16),
+                                    self.create_filter([3,
+                                                        3,
                                                         256,
                                                         512], "f9"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/16),
-                                                        int(width/16),
+                                    self.create_filter([3,
+                                                        3,
                                                         512,
                                                         256], "f10"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/16),
-                                                        int(width/16),
+                                    self.create_filter([3,
+                                                        3,
                                                         256,
                                                         512], "f11"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/16),
-                                                        int(width/16),
+                                    self.create_filter([3,
+                                                        3,
                                                         512,
                                                         256], "f12"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/16),
-                                                        int(width/16),
+                                    self.create_filter([3,
+                                                        3,
                                                         256,
                                                         512], "f13"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
@@ -197,56 +200,56 @@ class Yolo:
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/32),
-                                                        int(width/32),
+                                    self.create_filter([3,
+                                                        3,
                                                         512,
                                                         1024], "f14"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/32),
-                                                        int(width/32),
+                                    self.create_filter([3,
+                                                        3,
                                                         1024,
                                                         512], "f15"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/32),
-                                                        int(width/32),
+                                    self.create_filter([3,
+                                                        3,
                                                         512,
                                                         1024], "f16"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/32),
-                                                        int(width/32),
+                                    self.create_filter([3,
+                                                        3,
                                                         1024,
                                                         512], "f17"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/32),
-                                                        int(width/32),
+                                    self.create_filter([3,
+                                                        3,
                                                         512,
                                                         1024], "f18"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/32),
-                                                        int(width/32),
+                                    self.create_filter([3,
+                                                        3,
                                                         1024,
                                                         1024], "f19"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/32),
-                                                        int(width/32),
+                                    self.create_filter([3,
+                                                        3,
                                                         1024,
                                                         1024], "f20"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
@@ -258,8 +261,8 @@ class Yolo:
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/32),
-                                                        int(width/32),
+                                    self.create_filter([3,
+                                                        3,
                                                         3072,
                                                         1024], "f21"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
@@ -267,8 +270,8 @@ class Yolo:
 
 
         self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([int(height/32),
-                                                        int(width/32),
+                                    self.create_filter([3,
+                                                        3,
                                                         1024,
                                                         int(anchors_size*5 + classes)], "f22"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
@@ -406,10 +409,6 @@ class Yolo:
 
         #best_iou = best_iou[:, :, 1]
 
-        self.best_iou = tf.shape(best_iou)
-        self.d_best_iou = overlap_op
-        self.bool = v
-
         print("best_iou:", best_iou.shape)
 
         slice_xy = best_iou[:, :, 0:2]
@@ -418,6 +417,10 @@ class Yolo:
         weighted_iou = tf.concat([slice_xy, slice_wh], axis=-1)
 
         print("weighted_iou:", weighted_iou.shape)
+
+        self.best_iou = tf.shape(best_iou)
+        self.d_best_iou = tf.shape(weighted_iou)
+        self.bool = tf.shape(truth)
 
         loss = tf.losses.mean_squared_error(truth, weighted_iou) * cfg.iou_weight
 
