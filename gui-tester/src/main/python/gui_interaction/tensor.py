@@ -56,8 +56,8 @@ if __name__ == '__main__':
 
     yolo.create_training()
 
-    train_step = tf.train.MomentumOptimizer(cfg.learning_rate_start, cfg.momentum).minimize(yolo.loss,
-                    var_list=yolo.variables)
+    train_step = tf.train.AdamOptimizer(0.01). \
+        minimize(yolo.loss, var_list=yolo.variables)
 
     with tf.Session() as sess:
 
@@ -66,48 +66,35 @@ if __name__ == '__main__':
         print("Initialising Memory Values")
         model = sess.run(init_op)
         print("!Finished Initialising Memory Values!")
+        image_length = len(training_images)
+        batches = int(image_length/cfg.batch_size)+1
+        print("Starting training:", image_length, "images in", batches, "batches.")
 
         for i in range(cfg.epochs):
-            for j in range(int(len(training_file)/cfg.batch_size)+1):
-
-                print("Loading data")
-
+            for j in range(batches):
                 imgs, labels, obj_detection = load_files(training_images[(j*cfg.batch_size):((j+1)*cfg.batch_size)])
 
                 imgs = np.array(imgs[0])
                 labels = np.array(labels)
                 obj_detection = np.array(obj_detection)
 
-
-                print("weighted:", sess.run(yolo.d_best_iou, feed_dict={
+                print("preds:", sess.run(yolo.d_best_iou, feed_dict={
                     yolo.train_bounding_boxes: labels,
                     yolo.train_object_recognition: obj_detection,
                     yolo.x: imgs
                 }))
 
-                print("best_iou:", sess.run(yolo.best_iou, feed_dict={
+                print("bestiou:", sess.run(yolo.best_iou, feed_dict={
                     yolo.train_bounding_boxes: labels,
                     yolo.train_object_recognition: obj_detection,
                     yolo.x: imgs
                 }))
 
-
-                print("truth:", sess.run(yolo.bool, feed_dict={
+                print("bool:", sess.run(yolo.bool, feed_dict={
                     yolo.train_bounding_boxes: labels,
                     yolo.train_object_recognition: obj_detection,
                     yolo.x: imgs
                 }))
-
-                loss = sess.run(yolo.loss, feed_dict={
-                    yolo.train_bounding_boxes: labels,
-                    yolo.train_object_recognition: obj_detection,
-                    yolo.x: imgs
-                })
-
-                print("loss:", loss)
-
-
-                print("Training...")
 
                 sess.run(train_step, feed_dict={
                     yolo.train_bounding_boxes: labels,
@@ -115,16 +102,14 @@ if __name__ == '__main__':
                     yolo.x: imgs
                 })
 
-                loss = sess.run(yolo.loss, feed_dict={
-                    yolo.train_bounding_boxes: labels,
-                    yolo.train_object_recognition: obj_detection,
-                    yolo.x: imgs
-                })
+            # loss = sess.run(yolo.loss, feed_dict={
+            #     yolo.train_bounding_boxes: labels,
+            #     yolo.train_object_recognition: obj_detection,
+            #     yolo.x: imgs
+            # })
+            #
+            # print("loss:", loss)
 
-                print("loss:", loss)
+        gc.collect()
 
-                print()
-
-                gc.collect()
-
-                sys.exit()
+        sys.exit()

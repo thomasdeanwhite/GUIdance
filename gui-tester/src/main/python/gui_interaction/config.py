@@ -43,7 +43,7 @@ momentum = 0.9
 object_detection_threshold = 0.5
 
 #maximum training epochs
-epochs = 5000000
+epochs = 5
 
 batch_size = 4
 

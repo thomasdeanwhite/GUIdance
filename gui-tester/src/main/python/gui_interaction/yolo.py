@@ -412,15 +412,15 @@ class Yolo:
         print("best_iou:", best_iou.shape)
 
         slice_xy = best_iou[:, :, 0:2]
-        slice_wh = best_iou[:, :, 2:4]
+        slice_wh = tf.square(best_iou[:, :, 2:4])
 
         weighted_iou = tf.concat([slice_xy, slice_wh], axis=-1)
 
         print("weighted_iou:", weighted_iou.shape)
 
-        self.best_iou = tf.shape(best_iou)
-        self.d_best_iou = tf.shape(weighted_iou)
-        self.bool = tf.shape(truth)
+        self.best_iou = tf.shape(default_best_iou)
+        self.d_best_iou = tf.shape(predictions)
+        self.bool = tf.shape(bool)
 
         loss = tf.losses.mean_squared_error(truth, weighted_iou) * cfg.iou_weight
 
