@@ -39,7 +39,7 @@ class Yolo:
         xI2 = tf.minimum(x12, tf.transpose(x22))
         yI2 = tf.minimum(y12, tf.transpose(y22))
 
-        inter_area = (xI2 - xI1) * (yI2 - yI1)
+        inter_area = tf.maximum((xI2 - xI1 + 1), 0) * tf.maximum((yI2 - yI1 + 1), 0)
 
         bboxes1_area = (x12 - x11) * (y12 - y11)
         bboxes2_area = (x22 - x21) * (y22 - y21)
@@ -52,7 +52,7 @@ class Yolo:
 
     def create_filter(self, size, name):
 
-        var = tf.Variable(tf.truncated_normal(size, stddev=0.05), name=name)
+        var = tf.Variable(tf.truncated_normal(size, stddev=0.02), name=name)
         self.variables.append(var)
         return var
         #
@@ -61,7 +61,7 @@ class Yolo:
 
     def leaky_relu(self, layer):
         return tf.nn.leaky_relu(
-            tf.nn.batch_normalization(layer, 0, 2, None, None, 0.000001),
+            tf.nn.batch_normalization(layer, 0, 1, None, None, 0.0001),
             0.1)
 
     def create_network(self):
@@ -286,9 +286,9 @@ class Yolo:
         print("anchors:", anchors)
 
         self.train_object_recognition = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 1], "train_obj_rec")
-        self.train_bounding_boxes = tf.placeholder(tf.float32, [None, None, 4], "train_bb")
+        self.train_bounding_boxes = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 4], "train_bb")
 
-        truth = self.train_bounding_boxes
+        #truth = tf.reshape(self.train_bounding_boxes, [-1, 13*13, 4])
 
         predictions = tf.reshape(self.network, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], int(anchors*5 + classes)])
         print("pred:", predictions.shape)
@@ -314,17 +314,16 @@ class Yolo:
 
 
         pred_boxes = tf.reshape(pred_boxes_c[:, :, 0:4, :],
-                                 [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 4]
+                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors, 4]
         )
+
+        pred_boxes_xy = pred_boxes[:, :, 0:2]
+        pred_boxes_wh = tf.square(pred_boxes[:, :, 2:4])
+
+        pred_boxes = tf.concat([pred_boxes_xy, pred_boxes_wh], axis=-1)
 
         print("p_boxes:", pred_boxes.shape)
         print("truth:", truth.shape)
-
-        #stack = tf.stack([truth, pred_boxes], axis=1)
-
-        #print("stack:", stack.shape)
-
-        #overlap_op = tf.foldr(lambda x: self.bbox_overlap_iou(x[0], x[1]), (truth, pred_boxes))
 
 
         wl_start = tf.constant(1)
@@ -354,6 +353,7 @@ class Yolo:
         #indices = tf.reshape(indices, [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 1])
 
         print("v:", v.shape)
+        print("indices:", indices.shape)
 
         #bool_zeros = tf.zeros_like(overlap_op, dtype=tf.bool)
 
@@ -363,7 +363,7 @@ class Yolo:
 
         bool = overlap_op >= v
 
-
+        #bool = tf.reshape(bool, [tf.shape(bool)[0], tf.shape(bool)[1], 1, tf.shape(bool)[2]])
 
         print("bool:", bool.shape)
 
@@ -387,42 +387,46 @@ class Yolo:
 
         #boxes_replicate = tf.map_fn(lambda x : tf.reshape(tf.tile(pred_boxes, [1, tf.shape(x)[0], 1]), [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 4]), bool)
 
+        # boxes_replicate = tf.reshape(boxes_replicate, [tf.shape(boxes_replicate)[0], tf.shape(boxes_replicate)[1],
+        #                                                tf.shape(boxes_replicate)[2], 1, tf.shape(boxes_replicate)[3]])
         print("boxes_rep:", boxes_replicate.shape)
 
         #best_iou = tf.map_fn(lambda x: tf.boolean_mask(box es_replicate, x, name="gather_top_iou"), bool)
 
         wlb_start = tf.constant(1)
 
-        default_best_iou = tf.expand_dims(tf.boolean_mask(boxes_replicate[0], bool[0], axis=0), 0)
+        #bool_test = tf.boolean_mask(boxes_replicate[0], bool[0], axis=-1)
+
+
+
+
+        #default_best_iou = tf.boolean_mask(boxes_replicate, bool, axis=0)
+
+        default_best_iou = tf.expand_dims(tf.gather_nd(pred_boxes[0], indices[0]), 0)
+
+        #default_best_iou = tf.where(overlap_op >= v, boxes_replicate, tf.zeros_like(boxes_replicate))
 
         print("d_best_iou:", default_best_iou.shape)
 
         i, x, y, best_iou = tf.while_loop(
             lambda i, x, y, b : i < tf.shape(x)[0],
             lambda i, x, y, b: (tf.add(i, 1), x, y,
-                    tf.concat([b, tf.expand_dims(tf.boolean_mask(y[i], x[i]), 0)], 0)),
-                    (wlb_start, bool, boxes_replicate, default_best_iou),
+                    tf.concat([b, tf.expand_dims(tf.gather_nd(y[i], x[i]), 0)], 0)),
+                    (wlb_start, indices, pred_boxes, default_best_iou),
                     shape_invariants=(wlb_start.get_shape(),
-                                                bool.get_shape(),
-                                                boxes_replicate.get_shape(),
+                                                indices.get_shape(),
+                                                pred_boxes.get_shape(),
                                                 tf.TensorShape([None, None, 4])))
 
         #best_iou = best_iou[:, :, 1]
 
         print("best_iou:", best_iou.shape)
 
-        slice_xy = best_iou[:, :, 0:2]
-        slice_wh = tf.square(best_iou[:, :, 2:4])
+        self.best_iou = best_iou
+        #self.d_best_iou = tf.shape(default_best_iou)
+        self.bool = tf.reduce_max(overlap_op)
 
-        weighted_iou = tf.concat([slice_xy, slice_wh], axis=-1)
-
-        print("weighted_iou:", weighted_iou.shape)
-
-        self.best_iou = tf.shape(default_best_iou)
-        self.d_best_iou = tf.shape(predictions)
-        self.bool = tf.shape(bool)
-
-        loss = tf.losses.mean_squared_error(truth, weighted_iou) * cfg.iou_weight
+        loss = tf.reduce_sum(tf.square(truth - best_iou)) * cfg.iou_weight
 
         # object_recognition = tf.nn.relu(tf.ceil(pred_confidence - cfg.object_detection_threshold)) \
         #                      - tf.minimum(self.train_object_recognition, tf.zeros_like(self.train_object_recognition))

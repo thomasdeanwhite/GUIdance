@@ -23,15 +23,16 @@ def load_files(files):
     for f in label_files:
         # read in format [c, x, y, width, height]
         # store in format [c], [x, y, width, height]
-        imglabs = []
         with open(f, "r") as l:
             obj_detect = [[[0]]*cfg.grid_shape[0]]*cfg.grid_shape[1]
+            imglabs = [[[-1]*4]*cfg.grid_shape[0]]*cfg.grid_shape[1]
             for line in l:
 
                 list = line.split(" ")
-                imglabs.append([float(list[1]), float(list[2]), float(list[3]), float(list[4])])
+
                 x = int(float(list[1])*cfg.grid_shape[0])
                 y = int(float(list[2])*cfg.grid_shape[1])
+                imglabs[y][x] = ([float(list[1]), float(list[2]), float(list[3]), float(list[4])])
                 obj_detect[y][x] = [int(list[0])]
 
             object_detection.append(obj_detect)
@@ -56,8 +57,8 @@ if __name__ == '__main__':
 
     yolo.create_training()
 
-    train_step = tf.train.AdamOptimizer(0.01). \
-        minimize(yolo.loss, var_list=yolo.variables)
+    train_step = tf.train.MomentumOptimizer(0.001, 0.9). \
+        minimize(yolo.loss)
 
     with tf.Session() as sess:
 
@@ -78,11 +79,14 @@ if __name__ == '__main__':
                 labels = np.array(labels)
                 obj_detection = np.array(obj_detection)
 
-                print("preds:", sess.run(yolo.d_best_iou, feed_dict={
-                    yolo.train_bounding_boxes: labels,
-                    yolo.train_object_recognition: obj_detection,
-                    yolo.x: imgs
-                }))
+                # print("d_iou:", sess.run(yolo.d_best_iou, feed_dict={
+                #     yolo.train_bounding_boxes: labels,
+                #     yolo.train_object_recognition: obj_detection,
+                #     yolo.x: imgs
+                # }))
+                #
+
+                print(labels)
 
                 print("bestiou:", sess.run(yolo.best_iou, feed_dict={
                     yolo.train_bounding_boxes: labels,
@@ -102,13 +106,13 @@ if __name__ == '__main__':
                     yolo.x: imgs
                 })
 
-            # loss = sess.run(yolo.loss, feed_dict={
-            #     yolo.train_bounding_boxes: labels,
-            #     yolo.train_object_recognition: obj_detection,
-            #     yolo.x: imgs
-            # })
-            #
-            # print("loss:", loss)
+            loss = sess.run(yolo.loss, feed_dict={
+                yolo.train_bounding_boxes: labels,
+                yolo.train_object_recognition: obj_detection,
+                yolo.x: imgs
+            })
+
+            print("loss:", loss)
 
         gc.collect()
 
