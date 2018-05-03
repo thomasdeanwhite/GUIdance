@@ -9,14 +9,14 @@ import math
 
 def normalise_point(point, val):
     v = point*val
-    return (v - np.round(v))/v
+    return (v - np.round(v))/float(int(v)+1)
 
 def normalise_label(label):
     return([
-        normalise_point(label[0], cfg.grid_shape[0]),
-        normalise_point(label[1], cfg.grid_shape[1]),
-        label[2],
-        label[3],
+        normalise_point(max(0, min(1, label[0])), cfg.grid_shape[0]),
+        normalise_point(max(0, min(1, label[1])), cfg.grid_shape[1]),
+        max(0, min(1, label[2])),
+        max(0, min(1, label[3])),
         label[4]
     ])
 
