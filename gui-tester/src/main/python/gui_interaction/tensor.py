@@ -107,7 +107,7 @@ if __name__ == '__main__':
             anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
             print("anchors", anchors.shape)
 
-            training_images = random.shuffle(training_images)
+            random.shuffle(training_images)
 
             for i in range(cfg.epochs):
                 learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
