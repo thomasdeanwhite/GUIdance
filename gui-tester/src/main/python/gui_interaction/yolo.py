@@ -89,9 +89,8 @@ class Yolo:
         #                    dtype=tf.float32)
 
     def leaky_relu(self, layer):
-        return tf.nn.leaky_relu(
-            tf.layers.batch_normalization(layer, training=self.is_training),
-            0.1)
+        x = tf.layers.batch_normalization(layer, training=self.is_training)
+        return tf.maximum(x, 0.1 * x)
 
     def create_network(self):
 
