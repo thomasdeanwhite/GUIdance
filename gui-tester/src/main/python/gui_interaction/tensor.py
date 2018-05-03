@@ -6,6 +6,7 @@ import tensorflow as tf
 import sys
 import gc
 import math
+import random
 
 def normalise_point(point, val):
     v = point*val
@@ -106,6 +107,8 @@ if __name__ == '__main__':
             anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
             print("anchors", anchors.shape)
 
+            training_images = random.shuffle(training_images)
+
             for i in range(cfg.epochs):
                 learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
                 print("Learning rate:", learning_r)
@@ -115,7 +118,7 @@ if __name__ == '__main__':
                     imgs, labels, obj_detection = load_files(
                         training_images[lower_index:upper_index])
 
-                    imgs = np.array(imgs)/255
+                    imgs = (np.array(imgs)/127.5)-1
 
                     labels = np.array(labels)
 

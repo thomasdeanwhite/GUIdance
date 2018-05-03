@@ -45,7 +45,7 @@ object_detection_threshold = 0.5
 #maximum training epochs
 epochs = 100000
 
-batch_size = 16
+batch_size = 32
 
 var_sd = 0.001
 
