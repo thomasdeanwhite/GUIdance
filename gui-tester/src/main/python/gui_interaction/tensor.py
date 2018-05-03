@@ -71,6 +71,16 @@ if __name__ == '__main__':
         for l in tfile:
             training_images.append(l.strip())
 
+    valid_file = cfg.data_dir + "/" + cfg.validate_file
+
+    valid_images = []
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            valid_images.append(l.strip())
+
+    valid_images = random.sample(valid_images, cfg.batch_size)
+
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
 
@@ -93,6 +103,15 @@ if __name__ == '__main__':
 
         model_file = "model/model.ckpt"
 
+        v_imgs, v_labels, v_obj_detection = load_files(valid_images)
+
+        v_imgs = (np.array(v_imgs)/127.5)-1
+
+        v_labels = np.array(v_labels)
+
+
+        v_obj_detection = np.array(v_obj_detection)
+
         with tf.Session() as sess:
 
             init_op = tf.global_variables_initializer()
@@ -110,9 +129,22 @@ if __name__ == '__main__':
             random.shuffle(training_images)
 
             for i in range(cfg.epochs):
+
+                yolo.set_training(False)
+                loss = sess.run(yolo.loss, feed_dict={
+                    yolo.train_bounding_boxes: v_labels,
+                    yolo.train_object_recognition: v_obj_detection,
+                    yolo.x: v_imgs,
+                    yolo.anchors: anchors
+                })
+
+                print(i, "loss:", loss)
+
                 learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
                 print("Learning rate:", learning_r)
+                yolo.set_training(True)
                 for j in range(batches):
+                    gc.collect()
                     lower_index = j*cfg.batch_size
                     upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
                     imgs, labels, obj_detection = load_files(
@@ -133,33 +165,12 @@ if __name__ == '__main__':
                         learning_rate: learning_r
                     })
 
-                    # print("bool:", sess.run(yolo.bool, feed_dict={
-                    #     yolo.train_bounding_boxes: labels,
-                    #     yolo.train_object_recognition: obj_detection,
-                    #     yolo.x: imgs,
-                    #     yolo.anchors: anchors
-                    # }))
 
-                    # sess.run(train_step, feed_dict={
-                    #     yolo.train_bounding_boxes: labels,
-                    #     yolo.train_object_recognition: obj_detection,
-                    #     yolo.x: imgs,
-                    #     yolo.anchors: anchors,
-                    #     learning_rate: learning_r
-                    # })
-
-                    loss = sess.run(yolo.loss, feed_dict={
-                        yolo.train_bounding_boxes: labels,
-                        yolo.train_object_recognition: obj_detection,
-                        yolo.x: imgs,
-                        yolo.anchors: anchors
-                    })
 
                     del(imgs)
                     del(labels)
                     del(obj_detection)
 
-                    print("loss:", loss)
 
                 if i % 10 == 0:
                     save_path = saver.save(sess, str(i) + model_file)
