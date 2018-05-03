@@ -65,6 +65,8 @@ output_dir = "/home/thomas/work/gui_image_identification/public/output"
 results_dir = "results"
 log_file = "loss.log"
 
+gpu = "/job:localhost/replica:0/task:0/device:CPU:0"
+
 
 # ------------------------
 # training weights       |
