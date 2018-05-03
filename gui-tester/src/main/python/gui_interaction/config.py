@@ -36,16 +36,18 @@ labels_dir = "labels"
 # ------------------------
 # training variables     |
 # ------------------------
-learning_rate_start = 0.01
-learning_rate_min = 0.005
-learning_rate_decay = 0.9995
+learning_rate_start = 0.0001
+learning_rate_min = 0.00001
+learning_rate_decay = 0.95
 momentum = 0.9
 object_detection_threshold = 0.5
 
 #maximum training epochs
-epochs = 100
+epochs = 100000
 
-batch_size = 4
+batch_size = 16
+
+var_sd = 0.001
 
 # ------------------------
 # output locations       |
@@ -68,7 +70,7 @@ log_file = "loss.log"
 # training weights       |
 # ------------------------
 
-iou_weight = 1.0
-obj_weight = 1.0
+coord_weight = 1.0
+obj_weight = 5.0
 noobj_weight = 1.0
 class_weight = 1.0

@@ -16,6 +16,16 @@ class Yolo:
     bool = None
     d_best_iou = None
     variables = []
+    anchors = None
+    is_training = False
+    update_ops = None
+    loss_position = None
+    loss_dimension = None
+    loss_obj = None
+    loss_noobj = None
+    loss_class = None
+    epsilon = 0.00001
+
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -27,32 +37,51 @@ class Yolo:
         print(self.names)
         return
 
+    def set_training(self, training):
+        self.is_training = training
+
+    def set_update_ops(self, update_ops):
+        self.update_ops = update_ops
+
     def bbox_overlap_iou(self, bboxes1, bboxes2):
         print(bboxes1.shape, bboxes2.shape)
 
-        x11, y11, x12, y12 = tf.split(bboxes1, 4, axis=1)
-        x21, y21, x22, y22 = tf.split(bboxes2, 4, axis=1)
+        # x11, y11, x12, y12 = tf.split(bboxes1, 4, axis=1)
+        # x21, y21, x22, y22 = tf.split(bboxes2, 4, axis=1)
+        x11 = bboxes1[:,:,:,:,0]
+        y11 = bboxes1[:,:,:,:,1]
+        x12 = bboxes1[:,:,:,:,2]
+        y12 = bboxes1[:,:,:,:,3]
 
-        xI1 = tf.maximum(x11, tf.transpose(x21))
-        yI1 = tf.maximum(y11, tf.transpose(y21))
 
-        xI2 = tf.minimum(x12, tf.transpose(x22))
-        yI2 = tf.minimum(y12, tf.transpose(y22))
+        x21 = bboxes2[:,:,:,:,0]
+        y21 = bboxes2[:,:,:,:,1]
+        x22 = bboxes2[:,:,:,:,2]
+        y22 = bboxes2[:,:,:,:,3]
 
-        inter_area = tf.maximum((xI2 - xI1 + 1), 0) * tf.maximum((yI2 - yI1 + 1), 0)
+        xI1 = tf.maximum(x11, x21)
+        yI1 = tf.maximum(y11, y21)
+
+        xI2 = tf.minimum(x12, x22)
+        yI2 = tf.minimum(y12, y22)
+
+        inter_area = tf.maximum((xI2 - xI1), 0) * tf.maximum((yI2 - yI1), 0)
 
         bboxes1_area = (x12 - x11) * (y12 - y11)
         bboxes2_area = (x22 - x21) * (y22 - y21)
 
-        union = (bboxes1_area + tf.transpose(bboxes2_area)) - inter_area
+        union = (bboxes1_area + bboxes2_area) - inter_area
 
         ret_value = inter_area / union
+
+        ret_value = tf.where(tf.logical_or(
+            tf.is_inf(ret_value), tf.is_nan(ret_value)), tf.zeros_like(ret_value), ret_value)
 
         return ret_value
 
     def create_filter(self, size, name):
 
-        var = tf.Variable(tf.truncated_normal(size, stddev=0.02), name=name)
+        var = tf.Variable(tf.random_normal(size, stddev=cfg.var_sd), name=name)
         self.variables.append(var)
         return var
         #
@@ -61,7 +90,7 @@ class Yolo:
 
     def leaky_relu(self, layer):
         return tf.nn.leaky_relu(
-            tf.nn.batch_normalization(layer, 0, 1, None, None, 0.0001),
+            tf.layers.batch_normalization(layer, training=self.is_training),
             0.1)
 
     def create_network(self):
@@ -73,6 +102,8 @@ class Yolo:
         width = int(cfg.width/cfg.grid_shape[0]*anchors_size)
 
         self.x = tf.placeholder(tf.float32, [None, cfg.height, cfg.width, 1], "input")
+
+        self.anchors = tf.placeholder(tf.float32, [anchors_size, 2], "anchors")
 
         #self.input_var = tf.Variable(self.x)
 
@@ -285,13 +316,15 @@ class Yolo:
         anchors = int(len(cfg.anchors)/2)
         print("anchors:", anchors)
 
-        self.train_object_recognition = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 1], "train_obj_rec")
-        self.train_bounding_boxes = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 4], "train_bb")
+        self.train_object_recognition = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], classes], "train_obj_rec")
+        self.train_bounding_boxes = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 5], "train_bb")
 
-        #truth = tf.reshape(self.train_bounding_boxes, [-1, 13*13, 4])
+        truth = tf.reshape(self.train_bounding_boxes, [-1, 13, 13, 1, 5])
 
         predictions = tf.reshape(self.network, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], int(anchors*5 + classes)])
         print("pred:", predictions.shape)
+
+        predictions += self.epsilon
 
         raw_boxes = tf.slice(predictions, [0,0,0], [-1,-1,(anchors*5)])
         print("raw:", raw_boxes.shape)
@@ -307,140 +340,187 @@ class Yolo:
 
         print("conf:", pred_confidence.shape)
 
-        pred_classes = predictions[:,:, anchors*5:anchors*5+classes]
+        pred_classes = tf.reshape(
+            predictions[:,:, anchors*5:anchors*5+classes],
+            [-1, cfg.grid_shape[0], cfg.grid_shape[1], classes])
 
         print("p_classes:", pred_classes.shape)
 
 
 
-        pred_boxes = tf.reshape(pred_boxes_c[:, :, 0:4, :],
-                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors, 4]
+        pred_boxes = tf.reshape(pred_boxes_c[:, :, 0:5, :],
+                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors, 5]
         )
 
-        pred_boxes_xy = pred_boxes[:, :, 0:2]
-        pred_boxes_wh = tf.square(pred_boxes[:, :, 2:4])
+        pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
+        pred_boxes_wh = pred_boxes[:, :, :, :, 2:4]
+
+        anchors_weight = tf.tile(
+            tf.reshape(self.anchors, [1, 1, 1, anchors, 2]),
+            [tf.shape(pred_boxes)[0], cfg.grid_shape[0], cfg.grid_shape[1],
+             1, 1])
+
+
+        pred_boxes_wh = tf.square(tf.multiply(pred_boxes_wh, anchors_weight))
+
+        confidence = (tf.reshape(pred_boxes[:, :, :, :, 4],
+                                [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors, 1]))
 
         pred_boxes = tf.concat([pred_boxes_xy, pred_boxes_wh], axis=-1)
+        pred_boxes = tf.concat([pred_boxes, confidence], axis=-1)
 
-        print("p_boxes:", pred_boxes.shape)
-        print("truth:", truth.shape)
+        print("pred_boxes", pred_boxes.shape)
 
+        bounding = tf.concat([pred_boxes_xy-pred_boxes_wh,
+                              pred_boxes_xy+pred_boxes_wh],
+                             axis=-1)
+
+        truth_boxes_xy = truth[:, :, :, :, 0:2]
+        truth_boxes_wh = truth[:, :, :, :, 2:4]
+
+        truth_bounding = tf.concat([truth_boxes_xy-truth_boxes_wh,
+                              truth_boxes_xy+truth_boxes_wh],
+                             axis=-1)
+
+
+        iou = self.bbox_overlap_iou(truth_bounding, bounding)
+
+        # boxes_combined = tf.reshape(tf.concat([truth_bounding, bounding], axis=3),
+        #                             [-1, cfg.grid_shape[0]*cfg.grid_shape[1], anchors+1, 4])
+
+
+
+        print("bounding", bounding.shape)
+        print("t_bounding", truth_bounding.shape)
+        print("iou", iou.shape)
+
+
+        shaped_iou = tf.reshape(iou, [-1, cfg.grid_shape[0]*cfg.grid_shape[1], anchors])
+
+        indices = tf.reshape(
+            tf.argmax(shaped_iou, axis=-1),
+            [-1, cfg.grid_shape[0]*cfg.grid_shape[1], 1])
+
+        print("indices", indices.shape)
+
+        shaped_boxes = tf.reshape(pred_boxes, [-1, cfg.grid_shape[0]*cfg.grid_shape[1], anchors, 5])
+
+        print("shaped_boxes", shaped_boxes.shape)
+
+        one_axis_indices = \
+            tf.reshape(tf.range(0, tf.shape(shaped_boxes)[1]), [cfg.grid_shape[0]*cfg.grid_shape[1], 1])
+
+        new_indices = tf.map_fn(lambda x: tf.concat([
+            #zero_axis_indices,
+            one_axis_indices,
+            x
+
+        ], axis=-1), tf.cast(indices, tf.int32))
+
+        new_indices = tf.reshape(new_indices, [-1, 169, 2])
+
+        iou_reshaped = tf.reshape(iou, [-1, 169, 5, 1])
+
+        print("reshaped_iou", iou_reshaped.shape)
+
+        print("new_indices", new_indices.shape)
+
+        top_boxes = tf.expand_dims(tf.gather_nd(shaped_boxes[0], new_indices[0]), 0)
 
         wl_start = tf.constant(1)
+        c = lambda i, x, y, r: i < tf.shape(x)[0]
+        b = lambda i, x, y, r: (tf.add(i, 1),
+                                x, y, tf.concat([r,
+                                                 tf.expand_dims(tf.gather_nd(x[i], y[i]), 0)], axis=0))
+
+        i, x, y, top_boxes = tf.while_loop(c, b, (wl_start, shaped_boxes, new_indices, top_boxes),
+                                           shape_invariants=(wl_start.get_shape(),
+                                                             shaped_boxes.get_shape(),
+                                                             new_indices.get_shape(),
+                                                             tf.TensorShape([None, cfg.grid_shape[0] * cfg.grid_shape[1], 5])))
+
+        print("top_boxes", top_boxes.shape)
+
+        top_iou = tf.expand_dims(tf.gather_nd(iou_reshaped[0], new_indices[0]), 0)
 
         c = lambda i, x, y, r: i < tf.shape(x)[0]
-        b = lambda i, x, y, r: (tf.add(i, 1), x, y, tf.concat([r, tf.expand_dims(self.bbox_overlap_iou(x[i], y[i]), 0)], axis=0))
-        i, x, y, overlap_op = tf.while_loop(c, b, (wl_start, truth, pred_boxes,
-                                             tf.expand_dims(self.bbox_overlap_iou(truth[0], pred_boxes[0]), 0)),
-                                            shape_invariants=(wl_start.get_shape(),
-                                                              truth.get_shape(),
-                                                              pred_boxes.get_shape(),
-                                                              tf.TensorShape([None, None, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors])))
+        b = lambda i, x, y, r: (tf.add(i, 1),
+                                x, y, tf.concat([r,
+                                                 tf.expand_dims(tf.gather_nd(x[i], y[i]), 0)], axis=0))
 
+        i, x, y, top_iou = tf.while_loop(c, b, (wl_start, iou_reshaped, new_indices, top_iou),
+                                           shape_invariants=(wl_start.get_shape(),
+                                                             iou_reshaped.get_shape(),
+                                                             new_indices.get_shape(),
+                                                             tf.TensorShape([None, cfg.grid_shape[0] * cfg.grid_shape[1], 1])))
 
-        #overlap_op = tf.reshape(overlap_op, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors])
+        print("top_iou", top_iou.shape)
 
-        print("overlap:", overlap_op.shape)
+        top_iou = tf.reshape(top_iou, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 1])
 
-        overlap_op = tf.where(tf.is_finite(overlap_op), overlap_op, tf.zeros_like(overlap_op))
+        matching_boxes = tf.reshape(top_boxes, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 5])
+        print("matching_boxes", matching_boxes.shape)
+        print("truth_boxes", truth.shape)
 
-        v, indices = tf.nn.top_k(overlap_op)
+        self.best_iou = matching_boxes
 
+        obj = tf.equal(truth[:,:,:,:,4], 1)
+        noobj = tf.equal(truth[:,:,:,:,4], 0)
 
+        obj_xy = tf.reshape(tf.tile(obj,[ 1, 1, 1, 2]),
+                            [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 2])
 
-        #v = tf.tile(v, [1, 1, tf.shape(overlap_op)[2]])
+        iou_losses_xy = tf.square(tf.subtract(truth[:,:,:,:,0:2],
+                                                         matching_boxes[:,:,:,:,0:2]))
 
-        #indices = tf.reshape(indices, [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 1])
+        iou_losses_xy = tf.where(obj_xy,
+                                 iou_losses_xy, tf.zeros_like(iou_losses_xy))
 
-        print("v:", v.shape)
-        print("indices:", indices.shape)
+        iou_losses_wh = tf.square(tf.subtract(tf.sqrt(truth[:,:,:,:,2:4]),
+                                       tf.sqrt(matching_boxes[:,:,:,:,2:4])))
 
-        #bool_zeros = tf.zeros_like(overlap_op, dtype=tf.bool)
+        iou_losses_wh = tf.where(obj_xy, iou_losses_wh, tf.zeros_like(iou_losses_wh))
 
-        #bool_index = tf.scatter_update(bool_zeros, indices, True)
+        self.loss_position = tf.reduce_sum(iou_losses_xy) *  cfg.coord_weight
+        self.loss_dimension = tf.reduce_sum(iou_losses_wh) * cfg.coord_weight
 
-        #bool = tf.cast(bool_index, dtype=tf.bool)
+        pred_conf = tf.multiply(top_iou[:,:,:,:,0], truth[:,:,:,:,4])
 
-        bool = overlap_op >= v
+        confidence_loss = tf.square(tf.subtract(truth[:,:,:,:,4], matching_boxes[:,:,:,:,4]))
 
-        #bool = tf.reshape(bool, [tf.shape(bool)[0], tf.shape(bool)[1], 1, tf.shape(bool)[2]])
+        print("conf_loss", confidence_loss.shape)
 
-        print("bool:", bool.shape)
+        object_recognition = tf.cast(obj, tf.float32) * confidence_loss
 
-        boxes_replicate = tf.expand_dims(pred_boxes, 1)
+        self.loss_obj = cfg.obj_weight * tf.reduce_sum(object_recognition)
 
-        print("boxes_rep:", boxes_replicate.shape)
+        noobject_recognition = cfg.noobj_weight * tf.reduce_sum(
+            tf.multiply(tf.cast(noobj, tf.float32), confidence_loss)
+        )
 
-        wlr_start = tf.constant(1)
+        self.loss_noobj = noobject_recognition
 
-        i, x, y, boxes_replicate = tf.while_loop(
-            lambda i, x, y, b : i < tf.shape(x)[0],
-            lambda i, x, y, b: (tf.add(i, 1), x, y,
-                                tf.concat([b,
-            tf.reshape(tf.tile(y, [1, tf.shape(x)[0], 1]), [1, -1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 4])], 0)),
-            (wlr_start, bool, pred_boxes,
-            tf.reshape(tf.tile(pred_boxes[0], [tf.shape(bool[0])[0], 1]), [1, -1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 4])),
-            shape_invariants=(wlr_start.get_shape(),
-                              bool.get_shape(),
-                              pred_boxes.get_shape(),
-                              tf.TensorShape([None, None, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 4])))
+        #true_classes = tf.argmax(self.train_object_recognition, -1)
 
-        #boxes_replicate = tf.map_fn(lambda x : tf.reshape(tf.tile(pred_boxes, [1, tf.shape(x)[0], 1]), [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 4]), bool)
+        class_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_classes,
+                                                labels=self.train_object_recognition)
 
-        # boxes_replicate = tf.reshape(boxes_replicate, [tf.shape(boxes_replicate)[0], tf.shape(boxes_replicate)[1],
-        #                                                tf.shape(boxes_replicate)[2], 1, tf.shape(boxes_replicate)[3]])
-        print("boxes_rep:", boxes_replicate.shape)
+        print("class_loss", class_loss.shape)
 
-        #best_iou = tf.map_fn(lambda x: tf.boolean_mask(box es_replicate, x, name="gather_top_iou"), bool)
+        obj_classes = tf.tile(obj,
+                            [1, 1, 1, 10])
 
-        wlb_start = tf.constant(1)
+        class_loss = tf.multiply(tf.cast(obj_classes, tf.float32), class_loss)
 
-        #bool_test = tf.boolean_mask(boxes_replicate[0], bool[0], axis=-1)
+        self.loss_class = (tf.reduce_sum(class_loss) * cfg.class_weight)
 
+        self.loss = self.loss_position + \
+                    self.loss_dimension + \
+                    self.loss_obj + \
+                    self.loss_noobj + \
+                    self.loss_class
 
-
-
-        #default_best_iou = tf.boolean_mask(boxes_replicate, bool, axis=0)
-
-        default_best_iou = tf.expand_dims(tf.gather_nd(pred_boxes[0], indices[0]), 0)
-
-        #default_best_iou = tf.where(overlap_op >= v, boxes_replicate, tf.zeros_like(boxes_replicate))
-
-        print("d_best_iou:", default_best_iou.shape)
-
-        i, x, y, best_iou = tf.while_loop(
-            lambda i, x, y, b : i < tf.shape(x)[0],
-            lambda i, x, y, b: (tf.add(i, 1), x, y,
-                    tf.concat([b, tf.expand_dims(tf.gather_nd(y[i], x[i]), 0)], 0)),
-                    (wlb_start, indices, pred_boxes, default_best_iou),
-                    shape_invariants=(wlb_start.get_shape(),
-                                                indices.get_shape(),
-                                                pred_boxes.get_shape(),
-                                                tf.TensorShape([None, None, 4])))
-
-        #best_iou = best_iou[:, :, 1]
-
-        print("best_iou:", best_iou.shape)
-
-        self.best_iou = best_iou
-        #self.d_best_iou = tf.shape(default_best_iou)
-        self.bool = tf.reduce_max(overlap_op)
-
-        loss = tf.reduce_sum(tf.square(truth - best_iou)) * cfg.iou_weight
-
-        # object_recognition = tf.nn.relu(tf.ceil(pred_confidence - cfg.object_detection_threshold)) \
-        #                      - tf.minimum(self.train_object_recognition, tf.zeros_like(self.train_object_recognition))
-        #
-        # loss = loss + (tf.reduce_sum(object_recognition)*cfg.obj_weight)
-        #
-        # class_onehot = tf.one_hot(tf.cast(self.train_object_recognition, dtype=tf.int32), classes)
-        #
-        # class_cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=pred_classes, logits=class_onehot)
-        #
-        # loss = loss + (tf.reduce_sum(class_cross_entropy) * cfg.class_weight)
-
-        self.loss = loss
-
+        self.bool = self.loss_obj
 
     def get_network(self):
         return self.network
