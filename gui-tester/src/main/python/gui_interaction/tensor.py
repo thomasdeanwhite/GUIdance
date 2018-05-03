@@ -63,120 +63,121 @@ def load_files(files):
 
 
 if __name__ == '__main__':
-    training_file = cfg.data_dir + "/" + cfg.train_file
+    with tf.device('/gpu:0'):
+        training_file = cfg.data_dir + "/" + cfg.train_file
 
-    training_images = []
+        training_images = []
 
-    with open(training_file, "r") as tfile:
-        for l in tfile:
-            training_images.append(l.strip())
+        with open(training_file, "r") as tfile:
+            for l in tfile:
+                training_images.append(l.strip())
 
-    valid_file = cfg.data_dir + "/" + cfg.validate_file
+        valid_file = cfg.data_dir + "/" + cfg.validate_file
 
-    valid_images = []
+        valid_images = []
 
-    with open(valid_file, "r") as tfile:
-        for l in tfile:
-            valid_images.append(l.strip())
+        with open(valid_file, "r") as tfile:
+            for l in tfile:
+                valid_images.append(l.strip())
 
-    valid_images = random.sample(valid_images, cfg.batch_size)
+        valid_images = random.sample(valid_images, cfg.batch_size)
 
-    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-    with tf.control_dependencies(update_ops):
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
 
-        yolo = Yolo()
+            yolo = Yolo()
 
-        yolo.create_network()
+            yolo.create_network()
 
-        yolo.set_training(True)
-        yolo.set_update_ops(update_ops)
+            yolo.set_training(True)
+            yolo.set_update_ops(update_ops)
 
-        yolo.create_training()
+            yolo.create_training()
 
-        learning_rate = tf.placeholder(tf.float64)
-        learning_r = cfg.learning_rate_start
+            learning_rate = tf.placeholder(tf.float64)
+            learning_r = cfg.learning_rate_start
 
-        train_step = tf.train.AdamOptimizer(learning_rate, epsilon=1e-4). \
-            minimize(yolo.loss)
+            train_step = tf.train.AdamOptimizer(learning_rate, epsilon=1e-4). \
+                minimize(yolo.loss)
 
-        saver = tf.train.Saver()
+            saver = tf.train.Saver()
 
-        model_file = "model/model.ckpt"
+            model_file = "model/model.ckpt"
 
-        v_imgs, v_labels, v_obj_detection = load_files(valid_images)
+            v_imgs, v_labels, v_obj_detection = load_files(valid_images)
 
-        v_imgs = (np.array(v_imgs)/127.5)-1
+            v_imgs = (np.array(v_imgs)/127.5)-1
 
-        v_labels = np.array(v_labels)
-
-
-        v_obj_detection = np.array(v_obj_detection)
-
-        with tf.Session() as sess:
-
-            init_op = tf.global_variables_initializer()
-
-            print("Initialising Memory Values")
-            model = sess.run(init_op)
-            print("!Finished Initialising Memory Values!")
-            image_length = len(training_images)
-            batches = math.ceil(image_length/cfg.batch_size)
-            print("Starting training:", image_length, "images in", batches, "batches.")
-
-            anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
-            print("anchors", anchors.shape)
-
-            random.shuffle(training_images)
-
-            for i in range(cfg.epochs):
-
-                yolo.set_training(False)
-                loss = sess.run(yolo.loss, feed_dict={
-                    yolo.train_bounding_boxes: v_labels,
-                    yolo.train_object_recognition: v_obj_detection,
-                    yolo.x: v_imgs,
-                    yolo.anchors: anchors
-                })
-
-                print(i, "loss:", loss)
-
-                learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
-                print("Learning rate:", learning_r)
-                yolo.set_training(True)
-                for j in range(batches):
-                    gc.collect()
-                    lower_index = j*cfg.batch_size
-                    upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
-                    imgs, labels, obj_detection = load_files(
-                        training_images[lower_index:upper_index])
-
-                    imgs = (np.array(imgs)/127.5)-1
-
-                    labels = np.array(labels)
+            v_labels = np.array(v_labels)
 
 
-                    obj_detection = np.array(obj_detection)
+            v_obj_detection = np.array(v_obj_detection)
 
-                    sess.run(train_step, feed_dict={
-                        yolo.train_bounding_boxes: labels,
-                        yolo.train_object_recognition: obj_detection,
-                        yolo.x: imgs,
-                        yolo.anchors: anchors,
-                        learning_rate: learning_r
+            with tf.Session() as sess:
+
+                init_op = tf.global_variables_initializer()
+
+                print("Initialising Memory Values")
+                model = sess.run(init_op)
+                print("!Finished Initialising Memory Values!")
+                image_length = len(training_images)
+                batches = math.ceil(image_length/cfg.batch_size)
+                print("Starting training:", image_length, "images in", batches, "batches.")
+
+                anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
+                print("anchors", anchors.shape)
+
+                random.shuffle(training_images)
+
+                for i in range(cfg.epochs):
+
+                    yolo.set_training(False)
+                    loss = sess.run(yolo.loss, feed_dict={
+                        yolo.train_bounding_boxes: v_labels,
+                        yolo.train_object_recognition: v_obj_detection,
+                        yolo.x: v_imgs,
+                        yolo.anchors: anchors
                     })
 
+                    print(i, "loss:", loss)
+
+                    learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
+                    print("Learning rate:", learning_r)
+                    yolo.set_training(True)
+                    for j in range(batches):
+                        gc.collect()
+                        lower_index = j*cfg.batch_size
+                        upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
+                        imgs, labels, obj_detection = load_files(
+                            training_images[lower_index:upper_index])
+
+                        imgs = (np.array(imgs)/127.5)-1
+
+                        labels = np.array(labels)
 
 
-                    del(imgs)
-                    del(labels)
-                    del(obj_detection)
+                        obj_detection = np.array(obj_detection)
+
+                        sess.run(train_step, feed_dict={
+                            yolo.train_bounding_boxes: labels,
+                            yolo.train_object_recognition: obj_detection,
+                            yolo.x: imgs,
+                            yolo.anchors: anchors,
+                            learning_rate: learning_r
+                        })
 
 
-                if i % 10 == 0:
-                    save_path = saver.save(sess, str(i) + model_file)
-                    print("Model saved in file: %s" % save_path)
+
+                        del(imgs)
+                        del(labels)
+                        del(obj_detection)
 
 
-            gc.collect()
+                    if i % 10 == 0:
+                        save_path = saver.save(sess, str(i) + model_file)
+                        print("Model saved in file: %s" % save_path)
 
-            sys.exit()
+
+                gc.collect()
+
+                sys.exit()
