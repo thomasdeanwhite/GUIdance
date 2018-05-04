@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
             config = tf.ConfigProto(allow_soft_placement = True)
 
-            with tf.Session(config) as sess:
+            with tf.Session(config=config) as sess:
 
                 init_op = tf.global_variables_initializer()
 
