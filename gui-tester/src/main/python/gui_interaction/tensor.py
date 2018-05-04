@@ -72,6 +72,8 @@ if __name__ == '__main__':
         for l in tfile:
             training_images.append(l.strip())
 
+
+
     valid_file = cfg.data_dir + "/" + cfg.validate_file
 
     valid_images = []
@@ -80,7 +82,7 @@ if __name__ == '__main__':
         for l in tfile:
             valid_images.append(l.strip())
 
-    valid_images = random.sample(valid_images, cfg.batch_size)
+    #valid_images = random.sample(valid_images, cfg.batch_size)
 
     with tf.device(cfg.gpu):
 
@@ -106,15 +108,7 @@ if __name__ == '__main__':
 
             model_file = "model/model.ckpt"
 
-            v_imgs, v_labels, v_obj_detection = load_files(valid_images)
-
-            v_imgs = (np.array(v_imgs)/127.5)-1
-
-            v_labels = np.array(v_labels)
-
-
-            v_obj_detection = np.array(v_obj_detection)
-
+            valid_batches = math.ceil(len(valid_images)/cfg.batch_size)
 
             config = tf.ConfigProto(allow_soft_placement = True)
 
@@ -133,23 +127,48 @@ if __name__ == '__main__':
                 print("anchors", anchors.shape)
 
                 random.shuffle(training_images)
+                with open("training.csv", "a") as file:
+                    file.write("epoch,loss,loss_poisiton,loss_dimension,loss_obj,loss_noobj,loss_class")
 
                 for i in range(cfg.epochs):
-
                     yolo.set_training(False)
-                    loss = sess.run(yolo.loss, feed_dict={
-                        yolo.train_bounding_boxes: v_labels,
-                        yolo.train_object_recognition: v_obj_detection,
-                        yolo.x: v_imgs,
-                        yolo.anchors: anchors
-                    })
 
-                    print(i, "loss:", loss)
+                    for j in range(valid_batches):
+                        gc.collect()
+                        print("\rValidating " + str(j) + "/" + str(valid_batches))
+                        lower_index = j*cfg.batch_size
+                        upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
+
+                        v_imgs, v_labels, v_obj_detection = load_files(
+                            valid_images[lower_index:upper_index])
+
+                        v_imgs = (np.array(v_imgs)/127.5)-1
+
+                        v_labels = np.array(v_labels)
+
+                        v_obj_detection = np.array(v_obj_detection)
+
+                        loss, lp, ld, lo, ln, lc = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
+                                         yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
+                            yolo.train_bounding_boxes: v_labels,
+                            yolo.train_object_recognition: v_obj_detection,
+                            yolo.x: v_imgs,
+                            yolo.anchors: anchors
+                        })
+
+                        print(i, "loss:", loss)
+
+                    with open("training.csv", "a") as file:
+                        file.write(str(i) + "," + str(loss) + ","
+                                   + str(lp) + "," + str(ld) + "," + str(lo) + "," + str(ln) + "," + str(lc))
+
+
 
                     learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
                     print("Learning rate:", learning_r)
                     yolo.set_training(True)
                     for j in range(batches):
+                        print("\rTraining " + str(j) + "/" + str(batches))
                         gc.collect()
                         lower_index = j*cfg.batch_size
                         upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
