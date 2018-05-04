@@ -127,8 +127,8 @@ if __name__ == '__main__':
                 print("anchors", anchors.shape)
 
                 random.shuffle(training_images)
-                with open("training.csv", "a") as file:
-                    file.write("epoch,loss,loss_poisiton,loss_dimension,loss_obj,loss_noobj,loss_class")
+                with open("training.csv", "w") as file:
+                    file.write("epoch,loss,loss_poisiton,loss_dimension,loss_obj,loss_noobj,loss_class\n")
 
                 for i in range(cfg.epochs):
                     yolo.set_training(False)
@@ -173,7 +173,7 @@ if __name__ == '__main__':
                         loss_string = loss_string + "," + str(losses[l])
 
                     with open("training.csv", "a") as file:
-                        file.write(loss_string)
+                        file.write(loss_string + "\n")
 
 
 
