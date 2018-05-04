@@ -133,6 +133,8 @@ if __name__ == '__main__':
                 for i in range(cfg.epochs):
                     yolo.set_training(False)
 
+                    losses = [0, 0, 0, 0, 0, 0]
+
                     for j in range(valid_batches):
                         gc.collect()
                         print("\rValidating " + str(j) + "/" + str(valid_batches), end="")
@@ -156,11 +158,22 @@ if __name__ == '__main__':
                             yolo.anchors: anchors
                         })
 
-                        print(i, "loss:", loss)
+                        losses[0] += loss
+                        losses[1] += lp
+                        losses[2] += ld
+                        losses[3] += lo
+                        losses[4] += ln
+                        losses[5] += lc
+
+                    print(i, "loss:", losses[0])
+
+                    loss_string = str(losses[0])
+
+                    for l in range(1, len(losses)):
+                        loss_string = loss_string + "," + str(losses[l])
 
                     with open("training.csv", "a") as file:
-                        file.write(str(i) + "," + str(loss) + ","
-                                   + str(lp) + "," + str(ld) + "," + str(lo) + "," + str(ln) + "," + str(lc))
+                        file.write(loss_string)
 
 
 
