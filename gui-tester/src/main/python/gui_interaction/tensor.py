@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
                 random.shuffle(training_images)
                 with open("training.csv", "w") as file:
-                    file.write("epoch,loss,loss_poisiton,loss_dimension,loss_obj,loss_noobj,loss_class\n")
+                    file.write("epoch,loss,loss_position,loss_dimension,loss_obj,loss_noobj,loss_class\n")
 
                 for i in range(cfg.epochs):
                     yolo.set_training(False)
