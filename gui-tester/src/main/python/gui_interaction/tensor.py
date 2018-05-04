@@ -135,7 +135,7 @@ if __name__ == '__main__':
 
                     for j in range(valid_batches):
                         gc.collect()
-                        print("\rValidating " + str(j) + "/" + str(valid_batches))
+                        print("\rValidating " + str(j) + "/" + str(valid_batches), end="")
                         lower_index = j*cfg.batch_size
                         upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
 
@@ -168,7 +168,7 @@ if __name__ == '__main__':
                     print("Learning rate:", learning_r)
                     yolo.set_training(True)
                     for j in range(batches):
-                        print("\rTraining " + str(j) + "/" + str(batches))
+                        print("\rTraining " + str(j) + "/" + str(batches), end="")
                         gc.collect()
                         lower_index = j*cfg.batch_size
                         upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
