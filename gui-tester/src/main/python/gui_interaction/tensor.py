@@ -115,7 +115,10 @@ if __name__ == '__main__':
 
             v_obj_detection = np.array(v_obj_detection)
 
-            with tf.Session() as sess:
+
+            config = tf.ConfigProto(allow_soft_placement = True)
+
+            with tf.Session(config) as sess:
 
                 init_op = tf.global_variables_initializer()
 
