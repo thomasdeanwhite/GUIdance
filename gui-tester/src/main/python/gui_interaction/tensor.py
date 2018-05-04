@@ -1,6 +1,6 @@
 import config as cfg
 from yolo import Yolo
-import cv2
+from cv2 import imread, resize
 import numpy as np
 import tensorflow as tf
 import sys
@@ -30,8 +30,8 @@ def load_files(files):
     object_detection = []
 
     for f in files:
-        image = cv2.imread(f, 0)
-        image = cv2.resize(image, (cfg.width, cfg.height))
+        image = imread(f, 0)
+        image = resize(image, (cfg.width, cfg.height))
         image = np.reshape(image, [cfg.width, cfg.height, 1])
         images.append(image)
 
@@ -47,14 +47,16 @@ def load_files(files):
                         range(5)]for i in
                        range(cfg.grid_shape[1])] for i in
                 range(cfg.grid_shape[0])]
+
             for line in l:
-                list = line.split(" ")
-                x = max(0, min(round(float(list[1])*cfg.grid_shape[0])-1, cfg.grid_shape[0]-1))
-                y = max(0, min(round(float(list[2])*cfg.grid_shape[1])-1, cfg.grid_shape[1]-1))
-                normalised_label = normalise_label([float(list[1]), float(list[2]), float(list[3]), float(list[4]), 1])
+                elements = line.split(" ")
+                x = max(0, min(round(float(elements[1])*cfg.grid_shape[0])-1, cfg.grid_shape[0]-1))
+                y = max(0, min(round(float(elements[2])*cfg.grid_shape[1])-1, cfg.grid_shape[1]-1))
+                normalised_label = normalise_label([float(elements[1]), float(elements[2]),
+                                                    float(elements[3]), float(elements[4]), 1])
                 imglabs[y][x] = normalised_label
                 obj_detect[y][x] = [0 for i in range(len(yolo.names))]
-                obj_detect[y][x][int(list[0])] = 1
+                obj_detect[y][x][int(elements[0])] = 1
 
             object_detection.append(obj_detect)
             labels.append(imglabs)
@@ -158,6 +160,8 @@ if __name__ == '__main__':
                             yolo.anchors: anchors
                         })
 
+                        del(v_imgs, v_labels, v_obj_detection)
+
                         losses[0] += loss
                         losses[1] += lp
                         losses[2] += ld
@@ -167,9 +171,9 @@ if __name__ == '__main__':
 
                     print(i, "loss:", losses[0])
 
-                    loss_string = str(losses[0])
+                    loss_string = str(i)
 
-                    for l in range(1, len(losses)):
+                    for l in range(len(losses)):
                         loss_string = loss_string + "," + str(losses[l])
 
                     with open("training.csv", "a") as file:
