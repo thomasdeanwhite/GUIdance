@@ -25,6 +25,9 @@ class Yolo:
     loss_noobj = None
     loss_class = None
     epsilon = 0.00001
+    output = None
+    pred_boxes = None
+    pred_classes = None
 
 
     def __init__(self):
@@ -94,7 +97,7 @@ class Yolo:
 
     def create_network(self):
 
-        anchors_size = len(cfg.anchors)/2
+        anchors_size = int(len(cfg.anchors)/2)
         classes = len(self.names)
 
         height = int(cfg.height/cfg.grid_shape[1]*anchors_size)
@@ -307,6 +310,50 @@ class Yolo:
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
         print(self.network.shape)
 
+        predictions = tf.reshape(self.network, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], int(anchors_size*5 + classes)])
+
+        predictions += self.epsilon
+
+        raw_boxes = tf.slice(predictions, [0,0,0], [-1,-1,(anchors_size*5)])
+
+        pred_boxes_c = tf.reshape(raw_boxes, [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors_size, 5, 1])
+
+
+        pred_boxes = tf.reshape(pred_boxes_c[:, :, 0:5, :],
+                                [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 5]
+                                )
+
+        pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
+        pred_boxes_wh = pred_boxes[:, :, :, :, 2:4]
+
+        anchors_weight = tf.tile(
+            tf.reshape(self.anchors, [1, 1, 1, anchors_size, 2]),
+            [tf.shape(pred_boxes)[0], cfg.grid_shape[0], cfg.grid_shape[1],
+             1, 1])
+
+
+        pred_boxes_wh = tf.square(tf.multiply(pred_boxes_wh, anchors_weight))
+
+        confidence = (tf.reshape(pred_boxes[:, :, :, :, 4],
+                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 1]))
+
+        pred_boxes = tf.concat([pred_boxes_xy, pred_boxes_wh], axis=-1)
+        pred_boxes = tf.concat([pred_boxes, confidence], axis=-1)
+
+        self.pred_boxes = pred_boxes
+
+        pred_classes = tf.reshape(
+            predictions[:,:, anchors_size*5:anchors_size*5+classes],
+            [-1, cfg.grid_shape[0], cfg.grid_shape[1], classes])
+
+        self.pred_classes = pred_classes
+
+        self.output = tf.concat([tf.reshape(pred_boxes,
+                                            [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size*5]
+                                 ),
+                                 pred_classes], axis=-1)
+        print("final network layer:", self.output.shape)
+
 
     def create_training(self):
 
@@ -381,8 +428,29 @@ class Yolo:
                               truth_boxes_xy+truth_boxes_wh],
                              axis=-1)
 
+        pred_wh_half = pred_boxes_wh/2
+        pred_min = pred_boxes_xy  - pred_wh_half
+        pred_max = pred_boxes_xy + pred_wh_half
 
-        iou = self.bbox_overlap_iou(truth_bounding, bounding)
+        true_wh_half = truth_boxes_wh / 2
+        true_min = truth_boxes_wh - true_wh_half
+        true_max = truth_boxes_wh + true_wh_half
+
+        intersect_mins  = tf.maximum(pred_min,  true_min)
+        intersect_maxes = tf.minimum(pred_max, true_max)
+        intersect_wh    = tf.maximum(intersect_maxes - intersect_mins, 0.)
+        intersect_areas = intersect_wh[..., 0] * intersect_wh[..., 1]
+
+        true_areas = truth_boxes_wh[..., 0] * truth_boxes_wh[..., 1]
+        pred_areas = pred_boxes_wh[..., 0] * pred_boxes_wh[..., 1]
+
+        union_areas = pred_areas + true_areas - intersect_areas
+        iou = tf.truediv(intersect_areas, union_areas)
+
+
+        #iou = self.bbox_overlap_iou(truth_bounding, bounding)
+
+
 
         # boxes_combined = tf.reshape(tf.concat([truth_bounding, bounding], axis=3),
         #                             [-1, cfg.grid_shape[0]*cfg.grid_shape[1], anchors+1, 4])
@@ -483,9 +551,9 @@ class Yolo:
         self.loss_position = tf.reduce_sum(iou_losses_xy) *  cfg.coord_weight
         self.loss_dimension = tf.reduce_sum(iou_losses_wh) * cfg.coord_weight
 
-        pred_conf = tf.multiply(top_iou[:,:,:,:,0], truth[:,:,:,:,4])
+        #pred_conf = tf.multiply(top_iou[:,:,:,:,0], truth[:,:,:,:,4])
 
-        confidence_loss = tf.square(tf.subtract(truth[:,:,:,:,4], matching_boxes[:,:,:,:,4]))
+        confidence_loss = tf.square(tf.subtract(top_iou[:,:,:,:,0], matching_boxes[:,:,:,:,4]))
 
         print("conf_loss", confidence_loss.shape)
 
@@ -494,7 +562,9 @@ class Yolo:
         self.loss_obj = cfg.obj_weight * tf.reduce_sum(object_recognition)
 
         noobject_recognition = cfg.noobj_weight * tf.reduce_sum(
-            tf.multiply(tf.cast(noobj, tf.float32), confidence_loss)
+            tf.cast(
+                tf.reshape(top_iou, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < 0.6,
+                tf.float32) * tf.multiply(tf.cast(noobj, tf.float32), confidence_loss)
         )
 
         self.loss_noobj = noobject_recognition
