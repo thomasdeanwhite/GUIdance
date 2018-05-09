@@ -392,32 +392,13 @@ class Yolo:
 
         print("p_classes:", pred_classes.shape)
 
+        pred_classes = self.pred_classes
 
-
-
-
-        pred_boxes = tf.reshape(pred_boxes_c[:, :, 0:5, :],
-                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors, 5]
-        )
+        pred_boxes = self.pred_boxes
 
         pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
         pred_boxes_wh = pred_boxes[:, :, :, :, 2:4]
 
-        anchors_weight = tf.tile(
-            tf.reshape(self.anchors, [1, 1, 1, anchors, 2]),
-            [tf.shape(pred_boxes)[0], cfg.grid_shape[0], cfg.grid_shape[1],
-             1, 1])
-
-
-        pred_boxes_wh = tf.square(tf.multiply(pred_boxes_wh, anchors_weight))
-
-        confidence = (tf.reshape(pred_boxes[:, :, :, :, 4],
-                                [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors, 1]))
-
-        pred_boxes = tf.concat([pred_boxes_xy, pred_boxes_wh], axis=-1)
-        pred_boxes = tf.concat([pred_boxes, confidence], axis=-1)
-
-        print("pred_boxes", pred_boxes.shape)
 
         bounding = tf.concat([pred_boxes_xy-pred_boxes_wh,
                               pred_boxes_xy+pred_boxes_wh],
