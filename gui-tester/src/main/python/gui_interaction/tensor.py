@@ -226,7 +226,8 @@ if __name__ == '__main__':
 
                     if i % 10 == 0:
                         save_path = saver.save(sess, str(i) + model_file)
-                        print("Model saved in file: %s" % save_path)
+
+                    save_path = saver.save(sess, "backup_" + model_file)
 
 
                 gc.collect()
