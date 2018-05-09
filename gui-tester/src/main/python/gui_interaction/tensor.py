@@ -137,47 +137,47 @@ if __name__ == '__main__':
 
                     losses = [0, 0, 0, 0, 0, 0]
 
-                    # for j in range(valid_batches):
-                    #     gc.collect()
-                    #     print("\rValidating " + str(j) + "/" + str(valid_batches), end="")
-                    #     lower_index = j*cfg.batch_size
-                    #     upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
-                    #
-                    #     v_imgs, v_labels, v_obj_detection = load_files(
-                    #         valid_images[lower_index:upper_index])
-                    #
-                    #     v_imgs = (np.array(v_imgs)/127.5)-1
-                    #
-                    #     v_labels = np.array(v_labels)
-                    #
-                    #     v_obj_detection = np.array(v_obj_detection)
-                    #
-                    #     loss, lp, ld, lo, ln, lc = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
-                    #                      yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
-                    #         yolo.train_bounding_boxes: v_labels,
-                    #         yolo.train_object_recognition: v_obj_detection,
-                    #         yolo.x: v_imgs,
-                    #         yolo.anchors: anchors
-                    #     })
-                    #
-                    #     del(v_imgs, v_labels, v_obj_detection)
-                    #
-                    #     losses[0] += loss
-                    #     losses[1] += lp
-                    #     losses[2] += ld
-                    #     losses[3] += lo
-                    #     losses[4] += ln
-                    #     losses[5] += lc
-                    #
-                    # print(i, "loss:", losses[0])
-                    #
-                    # loss_string = str(i)
-                    #
-                    # for l in range(len(losses)):
-                    #     loss_string = loss_string + "," + str(losses[l])
-                    #
-                    # with open("training.csv", "a") as file:
-                    #     file.write(loss_string + "\n")
+                    for j in range(valid_batches):
+                        gc.collect()
+                        print("\rValidating " + str(j) + "/" + str(valid_batches), end="")
+                        lower_index = j*cfg.batch_size
+                        upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
+
+                        v_imgs, v_labels, v_obj_detection = load_files(
+                            valid_images[lower_index:upper_index])
+
+                        v_imgs = (np.array(v_imgs)/127.5)-1
+
+                        v_labels = np.array(v_labels)
+
+                        v_obj_detection = np.array(v_obj_detection)
+
+                        loss, lp, ld, lo, ln, lc = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
+                                         yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
+                            yolo.train_bounding_boxes: v_labels,
+                            yolo.train_object_recognition: v_obj_detection,
+                            yolo.x: v_imgs,
+                            yolo.anchors: anchors
+                        })
+
+                        del(v_imgs, v_labels, v_obj_detection)
+
+                        losses[0] += loss
+                        losses[1] += lp
+                        losses[2] += ld
+                        losses[3] += lo
+                        losses[4] += ln
+                        losses[5] += lc
+
+                    print(i, "loss:", losses[0])
+
+                    loss_string = str(i)
+
+                    for l in range(len(losses)):
+                        loss_string = loss_string + "," + str(losses[l])
+
+                    with open("training.csv", "a") as file:
+                        file.write(loss_string + "\n")
 
 
 
@@ -196,18 +196,18 @@ if __name__ == '__main__':
 
                         labels = np.array(labels)
 
-                        loss, lp, ld, lo, ln, lc = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
-                                         yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
-                            yolo.train_bounding_boxes: labels,
-                            yolo.train_object_recognition: obj_detection,
-                            yolo.x: imgs,
-                            yolo.anchors: anchors
-                        })
-
-                        print("l,lp,ld,lo,ln,lc:",loss,lp,ld,lo,ln,lc)
-
-
                         obj_detection = np.array(obj_detection)
+
+                        # loss, lp, ld, lo, ln, lc = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
+                        #                  yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
+                        #     yolo.train_bounding_boxes: labels,
+                        #     yolo.train_object_recognition: obj_detection,
+                        #     yolo.x: imgs,
+                        #     yolo.anchors: anchors
+                        # })
+                        #
+                        # print("l,lp,ld,lo,ln,lc:",loss,lp,ld,lo,ln,lc)
+
 
                         sess.run(train_step, feed_dict={
                             yolo.train_bounding_boxes: labels,
