@@ -12,14 +12,8 @@ target/*
 *.log
 *.*~
 */*.*~
-NuiMimic
-NuiMimic/*
 *.csv
 */*.csv
-leap/NuiMimic
-leap/NuiMimic/*
-chrome/*
-leap/*.iml
-**.jar
-*.jar
-*/*.jar
+venv/
+*/*/__pycache__
+*/*/config.py

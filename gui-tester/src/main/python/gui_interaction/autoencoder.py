@@ -19,9 +19,8 @@ class AutoEncoder:
     input_features = 1024*1024
     image_size = 1024*1024
     network_width = 1024
-    hidden_layers_n = [[2048, 2048, 1], [32, 32, 4]]  # TODO: make this
-    # support a
-    #  CNN
+    hidden_layers_n = [[2048, 2048, 1], [32, 32, 4]]
+    # TODO: make this support a  CNN
     variables = []
     activation_functions = []
     image = None
