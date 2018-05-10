@@ -132,14 +132,26 @@ if __name__ == '__main__':
 
                                     height, width, channels = img.shape
 
+                                    avg_col = color[0] + color[1] + color[2]
+
+                                    text_col = (255, 255, 255)
+
+                                    if avg_col > 127:
+                                        text_col = (0, 0, 0)
+
                                     cv2.rectangle(img,
                                                   (int(width*(box[0]-box[2]/2)),int(height*(box[1]-box[3]/2))),
                                                   (int(width*((box[0]+box[2]/2))), int(height*(box[1]+box[3]/2))),
                                                   (color[0], color[1], color[2]), int(10*box[4]), 8)
+                                    cv2.rectangle(img,
+                                                  (int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4])-15),
+                                                  (int(width*(box[0]-box[2]/2)) + len(cls)*7,
+                                                   int(height*(box[1]-box[3]/2))),
+                                                  (color[0], color[1], color[2]), -1, 8)
                                     cv2.putText(img, cls,
-                                                ((int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4]))),
+                                                ((int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4])-2)),
                                                 cv2.FONT_HERSHEY_SIMPLEX,
-                                                0.4, (0, 0, 0), 1)
+                                                0.4, text_col, 1)
 
                 cv2.imshow('image',images[0][1])
                 cv2.waitKey(0)

@@ -323,9 +323,8 @@ class Yolo:
                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 5]
                                 )
 
-        pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
-        pred_boxes_wh = pred_boxes[:, :, :, :, 2:4]
-
+        pred_boxes_xy = tf.sigmoid(pred_boxes[:, :, :, :, 0:2])
+        pred_boxes_wh = tf.sigmoid(pred_boxes[:, :, :, :, 2:4])
         anchors_weight = tf.tile(
             tf.reshape(self.anchors, [1, 1, 1, anchors_size, 2]),
             [tf.shape(pred_boxes)[0], cfg.grid_shape[0], cfg.grid_shape[1],
@@ -334,7 +333,7 @@ class Yolo:
 
         pred_boxes_wh = tf.square(tf.multiply(pred_boxes_wh, anchors_weight))
 
-        confidence = (tf.reshape(pred_boxes[:, :, :, :, 4],
+        confidence = tf.sigmoid(tf.reshape(pred_boxes[:, :, :, :, 4],
                                  [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 1]))
 
         pred_boxes = tf.concat([pred_boxes_xy, pred_boxes_wh], axis=-1)
@@ -342,9 +341,9 @@ class Yolo:
 
         self.pred_boxes = pred_boxes
 
-        pred_classes = tf.reshape(
+        pred_classes = tf.nn.sigmoid(tf.reshape(
             predictions[:,:, anchors_size*5:anchors_size*5+classes],
-            [-1, cfg.grid_shape[0], cfg.grid_shape[1], classes])
+            [-1, cfg.grid_shape[0], cfg.grid_shape[1], classes]))
 
         self.pred_classes = pred_classes
 
