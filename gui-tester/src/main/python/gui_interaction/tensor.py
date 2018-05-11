@@ -198,15 +198,15 @@ if __name__ == '__main__':
 
                         obj_detection = np.array(obj_detection)
 
-                        # loss, lp, ld, lo, ln, lc = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
-                        #                  yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
+                        # loss, lp, ld, lo, ln, lc, out = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
+                        #                  yolo.loss_obj, yolo.loss_noobj, yolo.loss_class, yolo.output], feed_dict={
                         #     yolo.train_bounding_boxes: labels,
                         #     yolo.train_object_recognition: obj_detection,
                         #     yolo.x: imgs,
                         #     yolo.anchors: anchors
                         # })
                         #
-                        # print("l,lp,ld,lo,ln,lc:",loss,lp,ld,lo,ln,lc)
+                        # print("l,lp,ld,lo,ln,lc:",loss,lp,ld,lo,ln,lc,out)
 
 
                         sess.run(train_step, feed_dict={
