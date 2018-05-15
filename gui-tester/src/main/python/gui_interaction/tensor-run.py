@@ -93,7 +93,7 @@ if __name__ == '__main__':
                 if os.path.isfile(os.getcwd() + "/model/checkpoint"):
                     saver.restore(sess, model_file)
                     print("Restored model")
-
+                yolo.set_training(False)
                 image_length = len(training_images)
                 batches = math.ceil(image_length/cfg.batch_size)
 
