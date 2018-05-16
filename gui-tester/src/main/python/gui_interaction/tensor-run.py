@@ -38,26 +38,6 @@ def load_file(files):
 
 if __name__ == '__main__':
 
-    training_file = cfg.data_dir + "/" + cfg.train_file
-
-    training_images = []
-
-    with open(training_file, "r") as tfile:
-        for l in tfile:
-            training_images.append(l.strip())
-
-
-
-    valid_file = cfg.data_dir + "/" + cfg.validate_file
-
-    valid_images = []
-
-    with open(valid_file, "r") as tfile:
-        for l in tfile:
-            valid_images.append(l.strip())
-
-    #valid_images = random.sample(valid_images, cfg.batch_size)
-
     with tf.device(cfg.gpu):
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -80,9 +60,7 @@ if __name__ == '__main__':
 
             saver = tf.train.Saver()
 
-            model_file = os.getcwd() + "/model/model.ckpt"
-
-            valid_batches = math.ceil(len(valid_images)/cfg.batch_size)
+            model_file = os.getcwd() + "/backup_model/model.ckpt"
 
             config = tf.ConfigProto(allow_soft_placement = True)
 
@@ -90,12 +68,10 @@ if __name__ == '__main__':
 
                 init_op = tf.global_variables_initializer()
                 model = sess.run(init_op)
-                if os.path.isfile(os.getcwd() + "/model/checkpoint"):
+                if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
                     saver.restore(sess, model_file)
                     print("Restored model")
                 yolo.set_training(False)
-                image_length = len(training_images)
-                batches = math.ceil(image_length/cfg.batch_size)
 
                 anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
                 images = load_file(sys.argv[1:])
@@ -120,38 +96,46 @@ if __name__ == '__main__':
 
                             hex = cls.encode('utf-8').hex()[0:6]
 
-                            color = tuple(int(hex[i:i+2], 16) for i in (0, 2 ,4))
+                            color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
+
+                            plot_box = [0, 0, 0, 0, 0]
 
                             for k in range(int(len(cfg.anchors)/2)):
-                                box = cell
+                                box = cell[k*5:(k+1)*5]
+                                if (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
+                                    #plot_box = box[k:k+5]
+                                    plot_box = box
+                                    plot_box[0] = (0.5+i)*i_offset+plot_box[0]
+                                    plot_box[1] = (0.5+j)*j_offset+plot_box[1]
+                            box = plot_box
+                            if (box[4]>cfg.object_detection_threshold):
                                 img = images[image][1]
-                                if (box[k+4]>0.6):
-                                    box[0] = (0.5+i)*i_offset+box[0]
-                                    box[1] = (0.5+j)*j_offset+box[1]
-                                    print(image, box[k*5:(k+1)*5])
+                                print(image, box)
 
-                                    height, width, channels = img.shape
+                                height, width, channels = img.shape
 
-                                    avg_col = color[0] + color[1] + color[2]
+                                avg_col = color[0] + color[1] + color[2]
 
-                                    text_col = (255, 255, 255)
+                                text_col = (255, 255, 255)
 
-                                    if avg_col > 127:
-                                        text_col = (0, 0, 0)
+                                if avg_col > 127:
+                                    text_col = (0, 0, 0)
 
-                                    cv2.rectangle(img,
-                                                  (int(width*(box[0]-box[2]/2)),int(height*(box[1]-box[3]/2))),
-                                                  (int(width*((box[0]+box[2]/2))), int(height*(box[1]+box[3]/2))),
-                                                  (color[0], color[1], color[2]), int(10*box[4]), 8)
-                                    cv2.rectangle(img,
-                                                  (int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4])-15),
-                                                  (int(width*(box[0]-box[2]/2)) + len(cls)*7,
-                                                   int(height*(box[1]-box[3]/2))),
-                                                  (color[0], color[1], color[2]), -1, 8)
-                                    cv2.putText(img, cls,
-                                                ((int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4])-2)),
-                                                cv2.FONT_HERSHEY_SIMPLEX,
-                                                0.4, text_col, 1)
+                                cv2.rectangle(img,
+                                              (int(width*(box[0]-box[2]/2)),int(height*(box[1]-box[3]/2))),
+                                              (int(width*((box[0]+box[2]/2))), int(height*(box[1]+box[3]/2))),
+                                              (color[0], color[1], color[2]), int(10*box[4]), 8)
+
+                                cv2.rectangle(img,
+                                              (int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4])-15),
+                                              (int(width*(box[0]-box[2]/2)) + len(cls)*7,
+                                               int(height*(box[1]-box[3]/2))),
+                                              (color[0], color[1], color[2]), -1, 8)
+
+                                cv2.putText(img, cls,
+                                            ((int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4])-2)),
+                                            cv2.FONT_HERSHEY_SIMPLEX,
+                                            0.4, text_col, 1)
 
                 cv2.imshow('image',images[0][1])
                 cv2.waitKey(0)

@@ -120,6 +120,11 @@ if __name__ == '__main__':
 
                 print("Initialising Memory Values")
                 model = sess.run(init_op)
+
+                if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
+                    saver.restore(sess, "backup_" + model_file)
+                    print("Restored model")
+
                 print("!Finished Initialising Memory Values!")
                 image_length = len(training_images)
                 batches = math.ceil(image_length/cfg.batch_size)
@@ -193,7 +198,7 @@ if __name__ == '__main__':
                             training_images[lower_index:upper_index])
 
                         imgs = (np.array(imgs)/127.5)-1
-
+    
                         labels = np.array(labels)
 
                         obj_detection = np.array(obj_detection)
