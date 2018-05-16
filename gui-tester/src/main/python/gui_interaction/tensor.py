@@ -7,6 +7,7 @@ import sys
 import gc
 import math
 import random
+import os
 
 def normalise_point(point, val):
     v = point*val
@@ -198,7 +199,7 @@ if __name__ == '__main__':
                             training_images[lower_index:upper_index])
 
                         imgs = (np.array(imgs)/127.5)-1
-    
+
                         labels = np.array(labels)
 
                         obj_detection = np.array(obj_detection)
