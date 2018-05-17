@@ -24,7 +24,7 @@ class Yolo:
     loss_obj = None
     loss_noobj = None
     loss_class = None
-    epsilon = 0.00001
+    epsilon = 0.0001
     output = None
     pred_boxes = None
     pred_classes = None
@@ -312,8 +312,6 @@ class Yolo:
 
         predictions = tf.reshape(self.network, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], int(anchors_size*5 + classes)])
 
-        predictions += self.epsilon
-
         raw_boxes = tf.slice(predictions, [0,0,0], [-1,-1,(anchors_size*5)])
 
         pred_boxes_c = tf.reshape(raw_boxes, [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors_size, 5, 1])
@@ -323,8 +321,8 @@ class Yolo:
                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 5]
                                 )
 
-        pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
-        pred_boxes_wh = (pred_boxes[:, :, :, :, 2:4])
+        pred_boxes_xy = tf.tanh(pred_boxes[:, :, :, :, 0:2])
+        pred_boxes_wh = tf.sigmoid(pred_boxes[:, :, :, :, 2:4])
         anchors_weight = tf.tile(
             tf.reshape(self.anchors, [1, 1, 1, anchors_size, 2]),
             [tf.shape(pred_boxes)[0], cfg.grid_shape[0], cfg.grid_shape[1],
@@ -333,7 +331,7 @@ class Yolo:
 
         pred_boxes_wh = tf.square(tf.multiply(pred_boxes_wh, anchors_weight))
 
-        confidence = (tf.reshape(pred_boxes[:, :, :, :, 4],
+        confidence = tf.sigmoid(tf.reshape(pred_boxes[:, :, :, :, 4],
                                  [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 1]))
 
         pred_boxes = tf.concat([pred_boxes_xy, pred_boxes_wh], axis=-1)
@@ -341,7 +339,7 @@ class Yolo:
 
         self.pred_boxes = pred_boxes
 
-        pred_classes = (tf.reshape(
+        pred_classes = tf.nn.softmax(tf.reshape(
             predictions[:,:, anchors_size*5:anchors_size*5+classes],
             [-1, cfg.grid_shape[0], cfg.grid_shape[1], classes]))
 
@@ -366,57 +364,35 @@ class Yolo:
 
         truth = tf.reshape(self.train_bounding_boxes, [-1, 13, 13, 1, 5])
 
-        predictions = tf.reshape(self.network, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], int(anchors*5 + classes)])
-        print("pred:", predictions.shape)
-
-        predictions += self.epsilon
-
-        raw_boxes = tf.slice(predictions, [0,0,0], [-1,-1,(anchors*5)])
-        print("raw:", raw_boxes.shape)
-
-        pred_boxes_c = tf.reshape(raw_boxes, [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 5, 1])
-        print("p_boxes_c:", pred_boxes_c.shape)
-
+        pred_boxes = self.pred_boxes
+        print("pred:", pred_boxes.shape)
 
         pred_confidence = tf.reshape(
-            pred_boxes_c[:, :, 4, :],
+            pred_boxes[:, :, 4],
             [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 1]
         )
 
         print("conf:", pred_confidence.shape)
 
-        pred_classes = tf.reshape(
-            predictions[:,:, anchors*5:anchors*5+classes],
-            [-1, cfg.grid_shape[0], cfg.grid_shape[1], classes])
+        pred_classes = self.pred_classes
 
         print("p_classes:", pred_classes.shape)
 
-        pred_classes = self.pred_classes
 
-        pred_boxes = self.pred_boxes
 
         pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
-        pred_boxes_wh = pred_boxes[:, :, :, :, 2:4]
-
-
-        bounding = tf.concat([pred_boxes_xy-pred_boxes_wh,
-                              pred_boxes_xy+pred_boxes_wh],
-                             axis=-1)
+        pred_boxes_wh = pred_boxes[:, :, :, :, 2:4] + self.epsilon
 
         truth_boxes_xy = truth[:, :, :, :, 0:2]
-        truth_boxes_wh = truth[:, :, :, :, 2:4]
-
-        truth_bounding = tf.concat([truth_boxes_xy-truth_boxes_wh,
-                              truth_boxes_xy+truth_boxes_wh],
-                             axis=-1)
+        truth_boxes_wh = truth[:, :, :, :, 2:4] + self.epsilon
 
         pred_wh_half = pred_boxes_wh/2
-        pred_min = pred_boxes_xy  - pred_wh_half
+        pred_min = pred_boxes_xy - pred_wh_half
         pred_max = pred_boxes_xy + pred_wh_half
 
         true_wh_half = truth_boxes_wh / 2
-        true_min = truth_boxes_wh - true_wh_half
-        true_max = truth_boxes_wh + true_wh_half
+        true_min = truth_boxes_xy - true_wh_half
+        true_max = truth_boxes_xy + true_wh_half
 
         intersect_mins  = tf.maximum(pred_min,  true_min)
         intersect_maxes = tf.minimum(pred_max, true_max)
@@ -430,17 +406,6 @@ class Yolo:
         iou = tf.truediv(intersect_areas, union_areas)
 
 
-        #iou = self.bbox_overlap_iou(truth_bounding, bounding)
-
-
-
-        # boxes_combined = tf.reshape(tf.concat([truth_bounding, bounding], axis=3),
-        #                             [-1, cfg.grid_shape[0]*cfg.grid_shape[1], anchors+1, 4])
-
-
-
-        print("bounding", bounding.shape)
-        print("t_bounding", truth_bounding.shape)
         print("iou", iou.shape)
 
 
