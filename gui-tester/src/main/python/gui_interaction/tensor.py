@@ -122,9 +122,9 @@ if __name__ == '__main__':
                 print("Initialising Memory Values")
                 model = sess.run(init_op)
 
-                if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
-                    saver.restore(sess, "backup_" + model_file)
-                    print("Restored model")
+                # if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
+                #     saver.restore(sess, "backup_" + model_file)
+                #     print("Restored model")
 
                 print("!Finished Initialising Memory Values!")
                 image_length = len(training_images)
@@ -190,7 +190,7 @@ if __name__ == '__main__':
                     learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
                     print("Learning rate:", learning_r)
                     yolo.set_training(True)
-                    for j in range(batches):
+                    for j in range(1):
                         print("\rTraining " + str(j) + "/" + str(batches), end="")
                         gc.collect()
                         lower_index = j*cfg.batch_size

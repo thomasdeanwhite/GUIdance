@@ -329,7 +329,6 @@ class Yolo:
             [tf.shape(pred_boxes)[0], cfg.grid_shape[0], cfg.grid_shape[1],
              1, 1])
 
-
         pred_boxes_wh = tf.square(tf.multiply(pred_boxes_wh, anchors_weight))
 
         confidence = (tf.reshape(pred_boxes[:, :, :, :, 4],
