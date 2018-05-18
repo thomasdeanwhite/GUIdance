@@ -190,44 +190,43 @@ if __name__ == '__main__':
                     learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
                     print("Learning rate:", learning_r)
                     yolo.set_training(True)
-                    for j in range(1):
-                        print("\rTraining " + str(j) + "/" + str(batches), end="")
-                        gc.collect()
-                        lower_index = j*cfg.batch_size
-                        upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
-                        imgs, labels, obj_detection = load_files(
-                            training_images[lower_index:upper_index])
+                        #print("\rTraining " + str(j) + "/" + str(batches), end="")
+                    gc.collect()
+                    lower_index = 0
+                    upper_index = min(len(training_images), cfg.batch_size)
+                    imgs, labels, obj_detection = load_files(
+                        training_images[lower_index:upper_index])
 
-                        imgs = (np.array(imgs)/127.5)-1
+                    imgs = (np.array(imgs)/127.5)-1
 
-                        labels = np.array(labels)
+                    labels = np.array(labels)
 
-                        obj_detection = np.array(obj_detection)
+                    obj_detection = np.array(obj_detection)
 
-                        # loss, lp, ld, lo, ln, lc, out = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
-                        #                  yolo.loss_obj, yolo.loss_noobj, yolo.loss_class, yolo.output], feed_dict={
-                        #     yolo.train_bounding_boxes: labels,
-                        #     yolo.train_object_recognition: obj_detection,
-                        #     yolo.x: imgs,
-                        #     yolo.anchors: anchors
-                        # })
-                        #
-                        # print("l,lp,ld,lo,ln,lc:",loss,lp,ld,lo,ln,lc,out)
-
-
-                        sess.run(train_step, feed_dict={
-                            yolo.train_bounding_boxes: labels,
-                            yolo.train_object_recognition: obj_detection,
-                            yolo.x: imgs,
-                            yolo.anchors: anchors,
-                            learning_rate: learning_r
-                        })
+                    # loss, lp, ld, lo, ln, lc, out = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
+                    #                  yolo.loss_obj, yolo.loss_noobj, yolo.loss_class, yolo.output], feed_dict={
+                    #     yolo.train_bounding_boxes: labels,
+                    #     yolo.train_object_recognition: obj_detection,
+                    #     yolo.x: imgs,
+                    #     yolo.anchors: anchors
+                    # })
+                    #
+                    # print("l,lp,ld,lo,ln,lc:",loss,lp,ld,lo,ln,lc,out)
 
 
+                    sess.run(train_step, feed_dict={
+                        yolo.train_bounding_boxes: labels,
+                        yolo.train_object_recognition: obj_detection,
+                        yolo.x: imgs,
+                        yolo.anchors: anchors,
+                        learning_rate: learning_r
+                    })
 
-                        del(imgs)
-                        del(labels)
-                        del(obj_detection)
+
+
+                    del(imgs)
+                    del(labels)
+                    del(obj_detection)
 
 
                     if i % 10 == 0:
