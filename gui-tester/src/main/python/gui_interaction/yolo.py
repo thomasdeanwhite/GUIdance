@@ -28,7 +28,7 @@ class Yolo:
     output = None
     pred_boxes = None
     pred_classes = None
-    indices = None
+    loss_layers = {}
 
 
     def __init__(self):
@@ -387,8 +387,14 @@ class Yolo:
 
         pred_boxes_wh = pred_boxes[:, :, :, :, 2:4] + epsilon
 
+        self.loss_layers['pred_boxes_xy'] = pred_boxes_xy
+        self.loss_layers['pred_boxes_wh'] = pred_boxes_wh
+
         truth_boxes_xy = truth[:, :, :, :, 0:2]
         truth_boxes_wh = truth[:, :, :, :, 2:4] + epsilon
+
+        self.loss_layers['truth_boxes_xy'] = truth_boxes_xy
+        self.loss_layers['truth_boxes_wh'] = truth_boxes_wh
 
         pred_wh_half = pred_boxes_wh/2
         pred_min = pred_boxes_xy - pred_wh_half
@@ -447,7 +453,11 @@ class Yolo:
 
         ], axis=-1)
 
+
+
         new_indices = tf.reshape(new_indices, [-1, 169, 3])
+
+        self.loss_layers['new_indices'] = new_indices
 
         iou_reshaped = tf.reshape(iou, [-1, 169, 5, 1])
 
@@ -456,6 +466,8 @@ class Yolo:
         print("new_indices", new_indices.shape)
 
         top_boxes = tf.gather_nd(shaped_boxes, new_indices)
+
+        self.loss_layers['top_boxes'] = new_indices
 
         print("top_boxes", top_boxes.shape)
 
@@ -468,27 +480,41 @@ class Yolo:
         top_iou = tf.reshape(top_iou, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 1])
 
         matching_boxes = tf.reshape(top_boxes, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 5])
+
         print("matching_boxes", matching_boxes.shape)
         print("truth_boxes", truth.shape)
 
         self.best_iou = matching_boxes
 
-        obj = tf.equal(truth[:,:,:,:,4], 1)
+        self.loss_layers['top_iou'] = top_iou
+        self.loss_layers['best_iou'] = matching_boxes
+
+        obj = tf.cast(tf.equal(truth[:,:,:,:,4], 1), tf.float32)
+
+        self.loss_layers['obj'] = obj
+
         noobj = tf.equal(truth[:,:,:,:,4], 0)
+
+        self.loss_layers['noobj'] = noobj
 
         obj_xy = tf.reshape(tf.tile(obj,[ 1, 1, 1, 2]),
                             [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 2])
 
+        self.loss_layers['obj_xy'] = obj_xy
+
         iou_losses_xy = tf.square(tf.subtract(truth[:,:,:,:,0:2],
                                                          matching_boxes[:,:,:,:,0:2]))
 
-        iou_losses_xy = tf.where(obj_xy,
-                                 iou_losses_xy, tf.zeros_like(iou_losses_xy))
+        iou_losses_xy = obj_xy * iou_losses_xy
+
+        self.loss_layers['iou_losses_xy'] = iou_losses_xy
 
         iou_losses_wh = tf.square(tf.subtract(tf.sqrt(truth[:,:,:,:,2:4]),
                                        tf.sqrt(matching_boxes[:,:,:,:,2:4])))
 
-        iou_losses_wh = tf.where(obj_xy, iou_losses_wh, tf.zeros_like(iou_losses_wh))
+        iou_losses_wh = obj_xy * iou_losses_wh
+
+        self.loss_layers['iou_losses_wh'] = iou_losses_wh
 
         self.loss_position = tf.reduce_sum(iou_losses_xy) *  cfg.coord_weight
         self.loss_dimension = tf.reduce_sum(iou_losses_wh) * cfg.coord_weight
@@ -497,19 +523,23 @@ class Yolo:
 
         confidence_loss = tf.square(tf.subtract(top_iou[:,:,:,:,0], matching_boxes[:,:,:,:,4]))
 
+        self.loss_layers['confidence_loss'] = confidence_loss
+
         print("conf_loss", confidence_loss.shape)
 
-        object_recognition = tf.cast(obj, tf.float32) * confidence_loss
+        object_recognition = tf.multiply(tf.cast(obj, tf.float32), confidence_loss)
+
+        self.loss_layers['object_recognition'] = object_recognition
 
         self.loss_obj = cfg.obj_weight * tf.reduce_sum(object_recognition)
 
-        noobject_recognition = cfg.noobj_weight * tf.reduce_sum(
-            tf.cast(
-                tf.reshape(top_iou, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < 0.6,
-                tf.float32) * tf.multiply(tf.cast(noobj, tf.float32), confidence_loss)
-        )
+        noobject_recognition = tf.multiply(tf.cast(noobj, tf.float32), confidence_loss)
 
-        self.loss_noobj = noobject_recognition
+        self.loss_layers['noobject_recognition'] = noobject_recognition
+
+        self.loss_noobj = cfg.noobj_weight * tf.reduce_sum(
+            noobject_recognition
+        )
 
         #true_classes = tf.argmax(self.train_object_recognition, -1)
 

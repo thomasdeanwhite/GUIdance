@@ -100,11 +100,14 @@ if __name__ == '__main__':
 
                                 plot_box = [0, 0, 0, 0, 0]
 
+                                #get box with highest confidence value
                                 for k in range(int(len(cfg.anchors)/2)):
                                     box = cell[k*5:(k+1)*5]
                                     if (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
-                                        #plot_box = box[k:k+5]
+                                        #We detect an object here and it is of highest currently known confidence
                                         plot_box = box
+
+                                        #realign output from model with SxS grid
                                         plot_box[0] = (0.5+i)*i_offset+plot_box[0]
                                         plot_box[1] = (0.5+j)*j_offset+plot_box[1]
                                 box = plot_box
