@@ -28,6 +28,7 @@ class Yolo:
     output = None
     pred_boxes = None
     pred_classes = None
+    indices = None
 
 
     def __init__(self):
@@ -424,17 +425,29 @@ class Yolo:
 
         print("shaped_boxes", shaped_boxes.shape)
 
+        zero_axis_indices = \
+            tf.tile(tf.reshape(tf.range(0, tf.shape(shaped_boxes)[0]), [tf.shape(shaped_boxes)[0], 1, 1]),
+                    [1, cfg.grid_shape[0]*cfg.grid_shape[1], 1])
+
         one_axis_indices = \
-            tf.reshape(tf.range(0, tf.shape(shaped_boxes)[1]), [cfg.grid_shape[0]*cfg.grid_shape[1], 1])
+            tf.tile(tf.reshape(tf.range(0, tf.shape(shaped_boxes)[1]), [1, cfg.grid_shape[0]*cfg.grid_shape[1], 1]),
+                    [tf.shape(shaped_boxes)[0], 1, 1])
 
-        new_indices = tf.map_fn(lambda x: tf.concat([
-            #zero_axis_indices,
+        # new_indices = tf.map_fn(lambda x: tf.concat([
+        #     zero_axis_indices,
+        #     one_axis_indices,
+        #     x
+        #
+        # ], axis=-1), tf.cast(indices, tf.int32))
+
+        new_indices = tf.concat([
+            zero_axis_indices,
             one_axis_indices,
-            x
+            tf.cast(indices, tf.int32)
 
-        ], axis=-1), tf.cast(indices, tf.int32))
+        ], axis=-1)
 
-        new_indices = tf.reshape(new_indices, [-1, 169, 2])
+        new_indices = tf.reshape(new_indices, [-1, 169, 3])
 
         iou_reshaped = tf.reshape(iou, [-1, 169, 5, 1])
 
@@ -442,34 +455,13 @@ class Yolo:
 
         print("new_indices", new_indices.shape)
 
-        top_boxes = tf.expand_dims(tf.gather_nd(shaped_boxes[0], new_indices[0]), 0)
-
-        wl_start = tf.constant(1)
-        c = lambda i, x, y, r: i < tf.shape(x)[0]
-        b = lambda i, x, y, r: (tf.add(i, 1),
-                                x, y, tf.concat([r,
-                                                 tf.expand_dims(tf.gather_nd(x[i], y[i]), 0)], axis=0))
-
-        i, x, y, top_boxes = tf.while_loop(c, b, (wl_start, shaped_boxes, new_indices, top_boxes),
-                                           shape_invariants=(wl_start.get_shape(),
-                                                             shaped_boxes.get_shape(),
-                                                             new_indices.get_shape(),
-                                                             tf.TensorShape([None, cfg.grid_shape[0] * cfg.grid_shape[1], 5])))
+        top_boxes = tf.gather_nd(shaped_boxes, new_indices)
 
         print("top_boxes", top_boxes.shape)
 
-        top_iou = tf.expand_dims(tf.gather_nd(iou_reshaped[0], new_indices[0]), 0)
+        top_iou = tf.gather_nd(iou_reshaped, new_indices)
 
-        c = lambda i, x, y, r: i < tf.shape(x)[0]
-        b = lambda i, x, y, r: (tf.add(i, 1),
-                                x, y, tf.concat([r,
-                                                 tf.expand_dims(tf.gather_nd(x[i], y[i]), 0)], axis=0))
-
-        i, x, y, top_iou = tf.while_loop(c, b, (wl_start, iou_reshaped, new_indices, top_iou),
-                                           shape_invariants=(wl_start.get_shape(),
-                                                             iou_reshaped.get_shape(),
-                                                             new_indices.get_shape(),
-                                                             tf.TensorShape([None, cfg.grid_shape[0] * cfg.grid_shape[1], 1])))
+        self.indices = new_indices
 
         print("top_iou", top_iou.shape)
 
