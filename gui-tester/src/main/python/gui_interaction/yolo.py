@@ -381,10 +381,13 @@ class Yolo:
 
 
         pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
-        pred_boxes_wh = pred_boxes[:, :, :, :, 2:4] + self.epsilon
+
+        epsilon = tf.constant(self.epsilon)
+
+        pred_boxes_wh = pred_boxes[:, :, :, :, 2:4] + epsilon
 
         truth_boxes_xy = truth[:, :, :, :, 0:2]
-        truth_boxes_wh = truth[:, :, :, :, 2:4] + self.epsilon
+        truth_boxes_wh = truth[:, :, :, :, 2:4] + epsilon
 
         pred_wh_half = pred_boxes_wh/2
         pred_min = pred_boxes_xy - pred_wh_half

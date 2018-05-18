@@ -8,35 +8,22 @@ import gc
 import math
 import random
 import os
-
-def normalise_point(point, val):
-    v = point*val
-    return (v - np.round(v))/float(int(v)+1)
-
-def normalise_label(label):
-    return([
-        normalise_point(max(0, min(1, label[0])), cfg.grid_shape[0]),
-        normalise_point(max(0, min(1, label[1])), cfg.grid_shape[1]),
-        max(0, min(1, label[2])),
-        max(0, min(1, label[3])),
-        label[4]
-    ])
-
-def load_file(files):
-    images = []
-
-    for f in files:
-        image = cv2.imread(f, 0)
-        img_raw = cv2.imread(f)
-        image = cv2.resize(image, (cfg.width, cfg.height))
-        image = np.reshape(image, [cfg.width, cfg.height, 1])
-        images.append([image, img_raw])
-
-    return images
-
-
+import pyautogui
+from operator import itemgetter
+import time
 
 if __name__ == '__main__':
+
+    program_name = "Firefox"
+
+    #info = os.system("xwininfo -name \"" + program_name + "\" | grep Corners")
+
+    #info = info.trim()
+
+    #corners = info.split("[+-]*")
+
+    #print(corners)
+
 
     with tf.device(cfg.gpu):
 
@@ -74,69 +61,65 @@ if __name__ == '__main__':
                 yolo.set_training(False)
 
                 anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
-                images = load_file(sys.argv[1:])
 
-                imgs = (np.array([row[0] for row in images])/127.5)-1
+                start_time = time.time()
 
-                boxes = sess.run(yolo.output, feed_dict={
-                    yolo.x: imgs,
-                    yolo.anchors: anchors,
-                })
+                while (time.time() - start_time < 30):
+                    os.system("gnome-screenshot --file=/tmp/current_screen.png")
 
-                i_offset = 1/cfg.grid_shape[0]
-                j_offset = 1/cfg.grid_shape[1]
+                    image = cv2.imread("/tmp/current_screen.png", 0)
+                    image = cv2.resize(image, (cfg.width, cfg.height))
 
-                for image in range(boxes.shape[0]):
-                    for i in range(cfg.grid_shape[0]):
-                        for j in range(cfg.grid_shape[1]):
-                            cell = boxes[image][j][i]
-                            classes = cell[int((len(cfg.anchors)/2)*5):]
-                            amax = np.argmax(classes)
-                            cls = yolo.names[amax]
+                    images = np.reshape(image, [1, cfg.width, cfg.height, 1])
 
-                            hex = cls.encode('utf-8').hex()[0:6]
+                    #imgs = (np.array([row[0] for row in images])/127.5)-1
 
-                            color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
+                    boxes = sess.run(yolo.output, feed_dict={
+                        yolo.x: images,
+                        yolo.anchors: anchors,
+                    })
 
-                            plot_box = [0, 0, 0, 0, 0]
+                    i_offset = 1/cfg.grid_shape[0]
+                    j_offset = 1/cfg.grid_shape[1]
 
-                            for k in range(int(len(cfg.anchors)/2)):
-                                box = cell[k*5:(k+1)*5]
-                                if (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
-                                    #plot_box = box[k:k+5]
-                                    plot_box = box
-                                    plot_box[0] = (0.5+i)*i_offset+plot_box[0]
-                                    plot_box[1] = (0.5+j)*j_offset+plot_box[1]
-                            box = plot_box
-                            if (box[4]>cfg.object_detection_threshold):
-                                img = images[image][1]
-                                print(image, box)
+                    action = 0
 
-                                height, width, channels = img.shape
+                    proc_boxes = []
 
-                                avg_col = color[0] + color[1] + color[2]
+                    for image in range(boxes.shape[0]):
+                        for i in range(cfg.grid_shape[0]):
+                            for j in range(cfg.grid_shape[1]):
+                                cell = boxes[image][j][i]
+                                classes = cell[int((len(cfg.anchors)/2)*5):]
+                                amax = np.argmax(classes)
+                                cls = yolo.names[amax]
 
-                                text_col = (255, 255, 255)
+                                hex = cls.encode('utf-8').hex()[0:6]
 
-                                if avg_col > 127:
-                                    text_col = (0, 0, 0)
+                                color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
-                                cv2.rectangle(img,
-                                              (int(width*(box[0]-box[2]/2)),int(height*(box[1]-box[3]/2))),
-                                              (int(width*((box[0]+box[2]/2))), int(height*(box[1]+box[3]/2))),
-                                              (color[0], color[1], color[2]), int(10*box[4]), 8)
+                                plot_box = [0, 0, 0, 0, 0]
 
-                                cv2.rectangle(img,
-                                              (int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4])-15),
-                                              (int(width*(box[0]-box[2]/2)) + len(cls)*7,
-                                               int(height*(box[1]-box[3]/2))),
-                                              (color[0], color[1], color[2]), -1, 8)
+                                for k in range(int(len(cfg.anchors)/2)):
+                                    box = cell[k*5:(k+1)*5]
+                                    if (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
+                                        #plot_box = box[k:k+5]
+                                        plot_box = box
+                                        plot_box[0] = (0.5+i)*i_offset+plot_box[0]
+                                        plot_box[1] = (0.5+j)*j_offset+plot_box[1]
+                                box = plot_box
+                                proc_boxes.append(box)
 
-                                cv2.putText(img, cls,
-                                            ((int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4])-2)),
-                                            cv2.FONT_HERSHEY_SIMPLEX,
-                                            0.4, text_col, 1)
+                    highest_conf = proc_boxes[0][4]
+                    best_box = proc_boxes[0]
+                    for b in proc_boxes:
+                        if (b[4] > highest_conf):
+                            highest_conf = b[4]
+                            best_box = b
+                    x = b[0] * 1920
+                    y = b[1] * 1080
 
-                cv2.imshow('image',images[0][1])
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
+                    pyautogui.click(x, y)
+                    print("Clicking", "(", x, y, ")")
+
+
