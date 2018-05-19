@@ -323,7 +323,7 @@ class Yolo:
                                 )
 
         pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
-        pred_boxes_wh = (pred_boxes[:, :, :, :, 2:4])
+        pred_boxes_wh = tf.nn.relu(pred_boxes[:, :, :, :, 2:4])
         anchors_weight = tf.tile(
             tf.reshape(self.anchors, [1, 1, 1, anchors_size, 2]),
             [tf.shape(pred_boxes)[0], cfg.grid_shape[0], cfg.grid_shape[1],
