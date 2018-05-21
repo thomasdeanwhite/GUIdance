@@ -104,7 +104,7 @@ if __name__ == '__main__':
             learning_rate = tf.placeholder(tf.float64)
             learning_r = cfg.learning_rate_start
 
-            train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum, epsilon=1e-4). \
+            train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
                 minimize(yolo.loss)
 
             saver = tf.train.Saver()
