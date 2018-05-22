@@ -359,7 +359,7 @@ class Yolo:
         anchors = int(len(cfg.anchors)/2)
         print("anchors:", anchors)
 
-        self.train_object_recognition = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], classes], "train_obj_rec")
+        self.train_object_recognition = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1]], "train_obj_rec")
         self.train_bounding_boxes = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 5], "train_bb")
 
         truth = tf.reshape(self.train_bounding_boxes, [-1, 13, 13, 1, 5])
@@ -542,13 +542,12 @@ class Yolo:
 
         #true_classes = tf.argmax(self.train_object_recognition, -1)
 
-        class_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_classes,
-                                                labels=self.train_object_recognition)
+        class_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_classes,
+                                                labels=tf.cast(self.train_object_recognition, tf.int32))
 
         print("class_loss", class_loss.shape)
 
-        obj_classes = tf.tile(obj,
-                            [1, 1, 1, 10])
+        obj_classes = tf.reshape(obj, [-1, cfg.grid_shape[0], cfg.grid_shape[1]])#tf.tile(obj, [1, 1, 1, 10])
 
         class_loss = tf.multiply(tf.cast(obj_classes, tf.float32), class_loss)
 

@@ -40,8 +40,7 @@ def load_files(files):
         # read in format [c, x, y, width, height]
         # store in format [c], [x, y, width, height]
         with open(f, "r") as l:
-            obj_detect = [[[0 for i in
-                           range(len(yolo.names))] for i in
+            obj_detect = [[0 for i in
                           range(cfg.grid_shape[0])]for i in
                 range(cfg.grid_shape[1])]
             imglabs = [[[0 for i in
@@ -56,8 +55,8 @@ def load_files(files):
                 normalised_label = normalise_label([float(elements[1]), float(elements[2]),
                                                     float(elements[3]), float(elements[4]), 1])
                 imglabs[y][x] = normalised_label
-                obj_detect[y][x] = [0 for i in range(len(yolo.names))]
-                obj_detect[y][x][int(elements[0])] = 1
+                obj_detect[y][x] = int(elements[0])
+                #obj_detect[y][x][int(elements[0])] = 1
 
             object_detection.append(obj_detect)
             labels.append(imglabs)
@@ -104,7 +103,7 @@ if __name__ == '__main__':
             learning_rate = tf.placeholder(tf.float64)
             learning_r = cfg.learning_rate_start
 
-            train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum, epsilon=1e-4). \
+            train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
                 minimize(yolo.loss)
 
             saver = tf.train.Saver()
@@ -195,6 +194,8 @@ if __name__ == '__main__':
                         #print("\rTraining " + str(j) + "/" + str(batches), end="")
                     for j in range(batches):
                         gc.collect()
+                        print("\rTraining " + str(j) + "/" + str(batches), end="")
+
                         lower_index = j * cfg.batch_size
                         upper_index = min(len(training_images), (j+1)*cfg.batch_size)
                         imgs, labels, obj_detection = load_files(
