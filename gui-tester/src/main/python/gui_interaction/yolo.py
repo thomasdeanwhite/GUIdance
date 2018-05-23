@@ -24,7 +24,7 @@ class Yolo:
     loss_obj = None
     loss_noobj = None
     loss_class = None
-    epsilon = 0.0001
+    epsilon = 1E-8
     output = None
     pred_boxes = None
     pred_classes = None
@@ -403,17 +403,23 @@ class Yolo:
         true_min = truth_boxes_xy - true_wh_half
         true_max = truth_boxes_xy + true_wh_half
 
-        intersect_mins  = tf.maximum(pred_min,  true_min)
+        intersect_mins = tf.maximum(pred_min,  true_min)
         intersect_maxes = tf.minimum(pred_max, true_max)
-        intersect_wh    = tf.maximum(intersect_maxes - intersect_mins, 0.)
+        intersect_wh = tf.maximum(intersect_maxes - intersect_mins, 0)
         intersect_areas = intersect_wh[..., 0] * intersect_wh[..., 1]
 
         true_areas = truth_boxes_wh[..., 0] * truth_boxes_wh[..., 1]
         pred_areas = pred_boxes_wh[..., 0] * pred_boxes_wh[..., 1]
 
-        union_areas = pred_areas + true_areas - intersect_areas
-        iou = tf.truediv(intersect_areas + 1, union_areas + 1)
+        union_areas = pred_areas + true_areas - intersect_areas + 1
 
+        self.loss_layers['intersect_areas'] = intersect_areas
+        self.loss_layers['union_areas'] = union_areas
+        self.loss_layers['true_areas'] = true_areas
+        self.loss_layers['pred_areas'] = pred_areas
+
+        iou = tf.truediv(intersect_areas, union_areas)
+        self.loss_layers['raw_iou'] = iou
 
         print("iou", iou.shape)
 
@@ -501,15 +507,14 @@ class Yolo:
 
         self.loss_layers['obj_xy'] = obj_xy
 
-        iou_losses_xy = tf.square(tf.subtract(truth[:,:,:,:,0:2],
-                                                         matching_boxes[:,:,:,:,0:2]))
+        iou_losses_xy = tf.square(tf.subtract(truth[...,0:2],
+                                                         matching_boxes[...,0:2]))
 
         iou_losses_xy = obj_xy * iou_losses_xy
 
         self.loss_layers['iou_losses_xy'] = iou_losses_xy
 
-        iou_losses_wh = tf.square(tf.subtract(tf.sqrt(truth[:,:,:,:,2:4]),
-                                       tf.sqrt(matching_boxes[:,:,:,:,2:4])))
+        iou_losses_wh = tf.square((tf.sqrt(truth[...,2:4]) + epsilon) - (tf.sqrt(matching_boxes[...,2:4]) + epsilon))
 
         iou_losses_wh = obj_xy * iou_losses_wh
 
@@ -520,7 +525,7 @@ class Yolo:
 
         #pred_conf = tf.multiply(top_iou[:,:,:,:,0], truth[:,:,:,:,4])
 
-        confidence_loss = tf.square(tf.subtract(top_iou[:,:,:,:,0], matching_boxes[:,:,:,:,4]))
+        confidence_loss = tf.losses.mean_squared_error(top_iou[:,:,:,:,0], matching_boxes[:,:,:,:,4])
 
         self.loss_layers['confidence_loss'] = confidence_loss
 
@@ -553,11 +558,8 @@ class Yolo:
 
         self.loss_class = (tf.reduce_sum(class_loss) * cfg.class_weight)
 
-        self.loss = self.loss_position + \
-                    self.loss_dimension + \
-                    self.loss_obj + \
-                    self.loss_noobj + \
-                    self.loss_class
+        self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_noobj + self.loss_class
+
 
         self.bool = self.loss_obj
 

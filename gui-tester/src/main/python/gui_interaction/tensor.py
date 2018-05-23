@@ -103,7 +103,7 @@ if __name__ == '__main__':
             learning_rate = tf.placeholder(tf.float64)
             learning_r = cfg.learning_rate_start
 
-            train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
+            train_step = tf.train.AdamOptimizer(learning_rate). \
                 minimize(yolo.loss)
 
             saver = tf.train.Saver()
@@ -158,8 +158,27 @@ if __name__ == '__main__':
 
                         v_obj_detection = np.array(v_obj_detection)
 
-                        loss, lp, ld, lo, ln, lc = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
-                                         yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
+                        # ia, ua, riou, truea, preda, loss, lp, ld, lo, ln, lc = sess.run([yolo.loss_layers['intersect_areas'], yolo.loss_layers['union_areas'], yolo.loss_layers['true_areas'], yolo.loss_layers['pred_areas'] , yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
+                        #                                                                  yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
+                        #     yolo.train_bounding_boxes: v_labels,
+                        #     yolo.train_object_recognition: v_obj_detection,
+                        #     yolo.x: v_imgs,
+                        #     yolo.anchors: anchors
+                        # })
+                        #
+                        # counter = 0
+                        #
+                        # while True:
+                        #     r = int(counter / 169)
+                        #     p = counter % 13
+                        #     q = int((counter%169)/13)
+                        #     if (np.sum(v_labels[r, p, q]) > 0):
+                        #         print(ua[r,p,q], "\n",  ia[r,p,q], "\n", riou[r, p, q], "\n", truea[r, p, q], "\n", preda[r, p, q], "\n", v_labels[r, p, q])
+                        #         break
+                        #     counter = counter+1
+
+                        loss, lp, ld, lo, ln, lc = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension ,
+                                                                                         yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
                             yolo.train_bounding_boxes: v_labels,
                             yolo.train_object_recognition: v_obj_detection,
                             yolo.x: v_imgs,
@@ -191,7 +210,6 @@ if __name__ == '__main__':
                     learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
                     print("Learning rate:", learning_r)
                     yolo.set_training(True)
-                        #print("\rTraining " + str(j) + "/" + str(batches), end="")
                     for j in range(batches):
                         gc.collect()
                         print("\rTraining " + str(j) + "/" + str(batches), end="")
