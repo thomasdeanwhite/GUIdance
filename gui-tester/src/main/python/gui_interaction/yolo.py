@@ -313,23 +313,20 @@ class Yolo:
 
         predictions = tf.reshape(self.network, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], int(anchors_size*5 + classes)])
 
-        raw_boxes = tf.slice(predictions, [0,0,0], [-1,-1,(anchors_size*5)])
+        raw_boxes = predictions[:, :, 0:(anchors_size*5)]
 
-        pred_boxes_c = tf.reshape(raw_boxes, [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors_size, 5, 1])
+        pred_boxes = tf.reshape(raw_boxes, [-1,  cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 5])
 
+        pred_boxes_xy = (pred_boxes[..., 0:2])
+        pred_boxes_wh = (pred_boxes[..., 2:4])
 
-        pred_boxes = tf.reshape(pred_boxes_c[:, :, 0:5, :],
-                                [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 5]
-                                )
-
-        pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
-        pred_boxes_wh = (pred_boxes[:, :, :, :, 2:4])
         anchors_weight = tf.tile(
             tf.reshape(self.anchors, [1, 1, 1, anchors_size, 2]),
             [tf.shape(pred_boxes)[0], cfg.grid_shape[0], cfg.grid_shape[1],
              1, 1])
 
-        pred_boxes_wh = tf.square(tf.multiply(pred_boxes_wh, anchors_weight))
+        pred_boxes_wh = tf.square(pred_boxes_wh) * anchors_weight
+
 
         confidence = (tf.reshape(pred_boxes[:, :, :, :, 4],
                                  [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 1]))
@@ -384,13 +381,17 @@ class Yolo:
 
         epsilon = tf.constant(self.epsilon)
 
-        pred_boxes_wh = pred_boxes[:, :, :, :, 2:4] + epsilon
+        pred_boxes_wh = pred_boxes[:, :, :, :, 2:4]
+
+        truth_tiled = tf.tile(truth, [1, 1, 1, anchors, 1])
+
+        print("truth tiled:", truth_tiled.shape)
 
         self.loss_layers['pred_boxes_xy'] = pred_boxes_xy
         self.loss_layers['pred_boxes_wh'] = pred_boxes_wh
 
-        truth_boxes_xy = truth[:, :, :, :, 0:2]
-        truth_boxes_wh = truth[:, :, :, :, 2:4] + epsilon
+        truth_boxes_xy = truth_tiled[..., 0:2]
+        truth_boxes_wh = truth_tiled[..., 2:4]
 
         self.loss_layers['truth_boxes_xy'] = truth_boxes_xy
         self.loss_layers['truth_boxes_wh'] = truth_boxes_wh
@@ -411,7 +412,7 @@ class Yolo:
         true_areas = truth_boxes_wh[..., 0] * truth_boxes_wh[..., 1]
         pred_areas = pred_boxes_wh[..., 0] * pred_boxes_wh[..., 1]
 
-        union_areas = pred_areas + true_areas - intersect_areas + 1
+        union_areas = pred_areas + true_areas - intersect_areas + tf.ones_like(intersect_areas)
 
         self.loss_layers['intersect_areas'] = intersect_areas
         self.loss_layers['union_areas'] = union_areas
@@ -460,7 +461,7 @@ class Yolo:
 
 
 
-        new_indices = tf.reshape(new_indices, [-1, 169, 3])
+        new_indices = tf.reshape(new_indices, [-1, 3])
 
         self.loss_layers['new_indices'] = new_indices
 
@@ -498,46 +499,56 @@ class Yolo:
 
         self.loss_layers['obj'] = obj
 
+        print("obj:", obj.shape)
+
         noobj = tf.equal(truth[:,:,:,:,4], 0)
 
         self.loss_layers['noobj'] = noobj
 
-        obj_xy = tf.reshape(tf.tile(obj,[ 1, 1, 1, 2]),
-                            [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 2])
+        obj_xy = tf.reshape(tf.tile(tf.expand_dims(obj, axis=3),[ 1, 1, 1, anchors, 2]),
+                            [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 2])
+
+        print("obj_xy:", obj_xy.shape)
 
         self.loss_layers['obj_xy'] = obj_xy
 
-        iou_losses_xy = tf.square(tf.subtract(truth[...,0:2],
-                                                         matching_boxes[...,0:2]))
+        total_pos_loss = tf.reshape(tf.square(pred_boxes[...,0:2] - truth_tiled[...,0:2]), [-1, 169, 5, 2])
+        total_dim_loss = tf.reshape(tf.square(tf.sqrt(pred_boxes[...,2:4]) - tf.sqrt(truth_tiled[...,2:4])), [-1, 169, 5, 2])
+        total_conf_loss = tf.reshape(tf.square(pred_boxes[...,4] - truth_tiled[...,4]), [-1, 169, 5, 1])
 
-        iou_losses_xy = obj_xy * iou_losses_xy
+        print("total pos loss:", total_pos_loss.shape)
 
-        self.loss_layers['iou_losses_xy'] = iou_losses_xy
+        pos_loss = tf.gather_nd(total_pos_loss, new_indices)
+        dim_loss = tf.gather_nd(total_dim_loss, new_indices)
+        conf_loss = tf.gather_nd(total_conf_loss, new_indices)
 
-        iou_losses_wh = tf.square((tf.sqrt(truth[...,2:4]) + epsilon) - (tf.sqrt(matching_boxes[...,2:4]) + epsilon))
+        print("top pos loss:", pos_loss.shape)
 
-        iou_losses_wh = obj_xy * iou_losses_wh
+        self.loss_position = tf.reduce_sum(obj_xy * total_pos_loss) *  cfg.coord_weight
 
-        self.loss_layers['iou_losses_wh'] = iou_losses_wh
-
-        self.loss_position = tf.reduce_sum(iou_losses_xy) *  cfg.coord_weight
-        self.loss_dimension = tf.reduce_sum(iou_losses_wh) * cfg.coord_weight
+        self.loss_dimension = tf.reduce_sum(obj_xy * total_dim_loss) * cfg.coord_weight
 
         #pred_conf = tf.multiply(top_iou[:,:,:,:,0], truth[:,:,:,:,4])
 
-        confidence_loss = tf.losses.mean_squared_error(top_iou[:,:,:,:,0], matching_boxes[:,:,:,:,4])
+        obj_conf = tf.reshape(tf.tile(tf.expand_dims(obj, axis=3),[ 1, 1, 1, anchors, 1]),
+                            [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 1])
+
+        noobj_conf = tf.reshape(tf.tile(tf.expand_dims(noobj, axis=3),[ 1, 1, 1, anchors, 1]),
+                              [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 1])
+
+        confidence_loss = total_conf_loss
 
         self.loss_layers['confidence_loss'] = confidence_loss
 
         print("conf_loss", confidence_loss.shape)
 
-        object_recognition = tf.multiply(tf.cast(obj, tf.float32), confidence_loss)
+        object_recognition = tf.multiply(tf.cast(obj_conf, tf.float32), confidence_loss)
 
         self.loss_layers['object_recognition'] = object_recognition
 
         self.loss_obj = cfg.obj_weight * tf.reduce_sum(object_recognition)
 
-        noobject_recognition = tf.multiply(tf.cast(noobj, tf.float32), confidence_loss)
+        noobject_recognition = tf.multiply(tf.cast(noobj_conf, tf.float32), confidence_loss)
 
         self.loss_layers['noobject_recognition'] = noobject_recognition
 
