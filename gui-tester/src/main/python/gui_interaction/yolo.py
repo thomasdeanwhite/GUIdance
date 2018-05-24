@@ -317,8 +317,8 @@ class Yolo:
 
         pred_boxes = tf.reshape(raw_boxes, [-1,  cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 5])
 
-        pred_boxes_xy = (pred_boxes[..., 0:2])
-        pred_boxes_wh = (pred_boxes[..., 2:4])
+        pred_boxes_xy = tf.sigmoid(pred_boxes[..., 0:2])
+        pred_boxes_wh = tf.exp(pred_boxes[..., 2:4])
 
         anchors_weight = tf.tile(
             tf.reshape(self.anchors, [1, 1, 1, anchors_size, 2]),
@@ -328,7 +328,7 @@ class Yolo:
         pred_boxes_wh = tf.square(pred_boxes_wh) * anchors_weight
 
 
-        confidence = (tf.reshape(pred_boxes[:, :, :, :, 4],
+        confidence = tf.sigmoid(tf.reshape(pred_boxes[:, :, :, :, 4],
                                  [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 1]))
 
         pred_boxes = tf.concat([pred_boxes_xy, pred_boxes_wh], axis=-1)
@@ -336,7 +336,7 @@ class Yolo:
 
         self.pred_boxes = pred_boxes
 
-        pred_classes = (tf.reshape(
+        pred_classes = tf.nn.softmax(tf.reshape(
             predictions[:,:, anchors_size*5:anchors_size*5+classes],
             [-1, cfg.grid_shape[0], cfg.grid_shape[1], classes]))
 
@@ -524,9 +524,9 @@ class Yolo:
 
         print("top pos loss:", pos_loss.shape)
 
-        self.loss_position = tf.reduce_sum(obj_xy * total_pos_loss) *  cfg.coord_weight
+        self.loss_position = tf.reduce_mean(obj_xy * total_pos_loss) *  cfg.coord_weight
 
-        self.loss_dimension = tf.reduce_sum(obj_xy * total_dim_loss) * cfg.coord_weight
+        self.loss_dimension = tf.reduce_mean(obj_xy * total_dim_loss) * cfg.coord_weight
 
         #pred_conf = tf.multiply(top_iou[:,:,:,:,0], truth[:,:,:,:,4])
 
@@ -546,13 +546,13 @@ class Yolo:
 
         self.loss_layers['object_recognition'] = object_recognition
 
-        self.loss_obj = cfg.obj_weight * tf.reduce_sum(object_recognition)
+        self.loss_obj = cfg.obj_weight * tf.reduce_mean(object_recognition)
 
         noobject_recognition = tf.multiply(tf.cast(noobj_conf, tf.float32), confidence_loss)
 
         self.loss_layers['noobject_recognition'] = noobject_recognition
 
-        self.loss_noobj = cfg.noobj_weight * tf.reduce_sum(
+        self.loss_noobj = cfg.noobj_weight * tf.reduce_mean(
             noobject_recognition
         )
 
@@ -567,7 +567,7 @@ class Yolo:
 
         class_loss = tf.multiply(tf.cast(obj_classes, tf.float32), class_loss)
 
-        self.loss_class = (tf.reduce_sum(class_loss) * cfg.class_weight)
+        self.loss_class = (tf.reduce_mean(class_loss) * cfg.class_weight)
 
         self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_noobj + self.loss_class
 
