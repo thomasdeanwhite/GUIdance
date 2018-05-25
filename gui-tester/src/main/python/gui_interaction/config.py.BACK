@@ -85,3 +85,8 @@ coord_weight = 1.0
 obj_weight = 5.0
 noobj_weight = 1.0
 class_weight = 1.0
+
+# ------------------------
+# testing properties     |
+# ------------------------
+window_name = "Firefox"

@@ -27,8 +27,8 @@ def get_window_size(window_name):
         if isinstance(name, str) and window_name in name:
             wid = windowID
             win = window
-            # prop = window.get_full_property(display.intern_atom('_NET_WM_PID'), Xlib.X.AnyPropertyType)
-            # pid = prop.value[0] # PID
+            #prop = window.get_full_property(display.intern_atom('_NET_WM_PID'), Xlib.X.AnyPropertyType)
+            #pid = prop.value[0] # PID
             break;
 
     geom = win.get_geometry()
@@ -97,7 +97,16 @@ if __name__ == '__main__':
                     os.system("gnome-screenshot --file=/tmp/current_screen.png")
 
                     image = cv2.imread("/tmp/current_screen.png", 0)
+
+                    image = image[app_y:app_y+app_h, app_x:app_x+app_w]
+
                     image = cv2.resize(image, (cfg.width, cfg.height))
+
+                    # cv2.imshow('image',image)
+                    # cv2.waitKey(0)
+                    # cv2.destroyAllWindows()
+
+
 
                     images = np.reshape(image, [1, cfg.width, cfg.height, 1])
 
@@ -110,34 +119,35 @@ if __name__ == '__main__':
 
                     proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=False)
 
-                    print(proc_boxes.shape)
+                    for box_num in range(10):
 
-                    highest_conf = proc_boxes[0][5]
-                    best_box = proc_boxes[0]
-                    for b in proc_boxes:
-                        if (b[5] > highest_conf):
-                            highest_conf = b[5]
-                            best_box = b
+                        highest_conf = proc_boxes[0][5]
+                        best_box = proc_boxes[0]
+                        for b in proc_boxes:
+                            if (b[5] > highest_conf):
+                                highest_conf = b[5]
+                                best_box = b
 
-                    x = app_x + (best_box[1]*app_w)
-                    y = app_y + (best_box[2]*app_h)
+                        x = max(10, app_x + (best_box[1]*app_w))
+                        y = max(10, app_y + (best_box[2]*app_h))
 
-                    print("Clicking", "(", x, y, ")")
+                        print("Clicking", "(", x, y, ")")
 
-                    # handle widget type:
-                    widget = yolo.names[int(best_box[0])]
+                        # handle widget type:
+                        widget = yolo.names[int(best_box[0])]
 
-                    print("interacting with", widget)
+                        print("interacting with", widget)
+                        print("BBox:", best_box)
+                        if widget == "button" or widget == "combo_box" or widget == "list" or widget == "tree" or \
+                                widget == "scroll_bar" or widget == "tabs" or widget == "menu" or widget == "menu_item":
+                            pyautogui.click(x, y)
+                        elif widget == "text_field":
+                            pyautogui.click(x, y)
+                            pyautogui.typewrite('Hello world!', interval=0.01)
+                        else:
+                            print(widget, "unrecognised")
 
-                    if widget == "button" or widget == "combo_box" or widget == "list" or widget == "tree" or \
-                            widget == "scroll_bar" or widget == "tabs" or widget == "menu" or widget == "menu_item":
-                        pyautogui.click(x, y)
-                    elif widget == "text_field":
-                        pyautogui.click(x, y)
-                        pyautogui.typewrite('Hello world!\n', interval=0.01)
-                    else:
-                        print(widget, "unrecognised")
 
-                    print("BBox:", best_box)
+                        del(best_box)
 
 
