@@ -10,8 +10,8 @@ import random
 import os
 
 def normalise_point(point, val):
-    v = point*val
-    return (v - np.round(v))/float(int(v)+1)
+    centre_point = 0.5/val + (np.floor(point*val)/val)
+    return point-centre_point
 
 def normalise_label(label):
     return([
@@ -121,9 +121,9 @@ if __name__ == '__main__':
                 print("Initialising Memory Values")
                 model = sess.run(init_op)
 
-                if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
-                    saver.restore(sess, "backup_" + model_file)
-                    print("Restored model")
+                # if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
+                #     saver.restore(sess, "backup_" + model_file)
+                #     print("Restored model")
 
                 print("!Finished Initialising Memory Values!")
                 image_length = len(training_images)
@@ -143,7 +143,7 @@ if __name__ == '__main__':
 
                     losses = [0, 0, 0, 0, 0, 0]
 
-                    for j in range(valid_batches):
+                    for j in range(1):
                         gc.collect()
                         print("\rValidating " + str(j) + "/" + str(valid_batches), end="")
                         lower_index = j*cfg.batch_size
@@ -210,7 +210,7 @@ if __name__ == '__main__':
                     learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
                     print("Learning rate:", learning_r)
                     yolo.set_training(True)
-                    for j in range(valid_batches):
+                    for j in range(1):
                         gc.collect()
                         print("\rTraining " + str(j) + "/" + str(batches), end="")
 

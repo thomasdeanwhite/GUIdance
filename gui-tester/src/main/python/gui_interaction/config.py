@@ -49,18 +49,18 @@ labels_dir = "labels"
 # ------------------------
 learning_rate_start = 0.0001
 learning_rate_min = 0.00001
-learning_rate_decay = 0.95
+learning_rate_decay = 0.9
 momentum = 0.9
-object_detection_threshold = 0.5
+object_detection_threshold = 0.9
 
 # maximum training epochs
 epochs = 100000
 
 # Amount of images to train on in parallel
-batch_size = 32
+batch_size = 16
 
 # standard deviation of variables when initialised
-var_sd = 0.001
+var_sd = 0.1
 
 
 # ------------------------

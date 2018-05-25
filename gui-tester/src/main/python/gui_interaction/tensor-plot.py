@@ -105,12 +105,13 @@ if __name__ == '__main__':
                                 if (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
                                     #plot_box = box[k:k+5]
                                     plot_box = box
+                                    print(plot_box)
                                     plot_box[0] = (0.5+i)*i_offset+plot_box[0]
                                     plot_box[1] = (0.5+j)*j_offset+plot_box[1]
                             box = plot_box
                             if (box[4]>cfg.object_detection_threshold):
                                 img = images[image][1]
-                                print(image, box)
+                                print(cls, box)
 
                                 height, width, channels = img.shape
 
