@@ -33,14 +33,12 @@ def load_files(files):
     object_detection = []
 
     for f in files:
-        f = str.replace(f, "/data/acp15tdw", "/home/thomas")
         image = imread(f, 0)
         image = resize(image, (cfg.width, cfg.height))
         image = np.reshape(image, [cfg.width, cfg.height, 1])
         images.append(image)
 
     for f in label_files:
-        f = str.replace(f, "/data/acp15tdw", "/home/thomas")
         # read in format [c, x, y, width, height]
         # store in format [c], [x, y, width, height]
         with open(f, "r") as l:
