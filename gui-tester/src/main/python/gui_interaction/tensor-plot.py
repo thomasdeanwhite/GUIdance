@@ -121,19 +121,22 @@ if __name__ == '__main__':
                                 if avg_col > 127:
                                     text_col = (0, 0, 0)
 
-                                cv2.rectangle(img,
-                                              (int(width*(box[0]-box[2]/2)),int(height*(box[1]-box[3]/2))),
-                                              (int(width*((box[0]+box[2]/2))), int(height*(box[1]+box[3]/2))),
+                                x1 = max(int(width*(box[0]-box[2]/2)), 0)
+                                y1 = max(int(height*(box[1]-box[3]/2)), 0)
+                                x2 = int(width*((box[0]+box[2]/2)))
+                                y2 = int(height*(box[1]+box[3]/2))
+
+                                cv2.rectangle(img, (x1, y1),
+                                              (x2, y2),
                                               (color[0], color[1], color[2]), int(10*box[4]), 8)
 
                                 cv2.rectangle(img,
-                                              (int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4])-15),
-                                              (int(width*(box[0]-box[2]/2)) + len(cls)*7,
-                                               int(height*(box[1]-box[3]/2))),
+                                              (x1, y1-int(10*box[4])-15),
+                                              (x1 + len(cls)*7, y1),
                                               (color[0], color[1], color[2]), -1, 8)
 
                                 cv2.putText(img, cls,
-                                            ((int(width*(box[0]-box[2]/2)), int(height*(box[1]-box[3]/2))-int(10*box[4])-2)),
+                                            (x1, y1-int(10*box[4])-2),
                                             cv2.FONT_HERSHEY_SIMPLEX,
                                             0.4, text_col, 1)
 
