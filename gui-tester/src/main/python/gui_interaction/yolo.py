@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import config as cfg
+import numpy as np
 
 class Yolo:
 
@@ -327,7 +328,6 @@ class Yolo:
 
         pred_boxes_wh = tf.square(pred_boxes_wh) * anchors_weight
 
-
         confidence = (tf.reshape(pred_boxes[:, :, :, :, 4],
                                  [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 1]))
 
@@ -577,3 +577,36 @@ class Yolo:
     def get_network(self):
         return self.network
 
+    def convert_net_to_bb(self, boxes, filter_top=True):
+        b_boxes = []
+
+        i_offset = 1/cfg.grid_shape[0]
+        j_offset = 1/cfg.grid_shape[1]
+
+        for image in range(boxes.shape[0]):
+            for i in range(cfg.grid_shape[0]):
+                for j in range(cfg.grid_shape[1]):
+                    cell = boxes[image][j][i]
+                    classes = cell[int((len(cfg.anchors)/2)*5):]
+                    amax = np.array([np.argmax(classes)])
+
+                    plot_box = [0, 0, 0, 0, 0]
+
+                    for k in range(int(len(cfg.anchors)/2)):
+                        box = cell[k*5:(k+1)*5]
+
+                        if not filter_top:
+                            box[0] = (0.5+i)*i_offset+box[0]
+                            box[1] = (0.5+j)*j_offset+box[1]
+                            box = np.append(amax, box)
+                            b_boxes.append(box)
+                        elif (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
+                            plot_box = box
+                            plot_box[0] = (0.5+i)*i_offset+plot_box[0]
+                            plot_box[1] = (0.5+j)*j_offset+plot_box[1]
+
+                    if filter_top:
+                        plot_box = np.append(amax, plot_box)
+                        b_boxes.append(plot_box)
+
+        return np.array(b_boxes)
