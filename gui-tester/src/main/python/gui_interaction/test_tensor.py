@@ -1,9 +1,20 @@
-import gui_interaction.config
+import config
 import tensor as ten
+import unittest
 
-assert 0.5 == ten.normalise_point(0.5, 5)
+class TestTensor(unittest.TestCase):
 
+    def test_centre(self):
+        self.assertAlmostEqual(0, ten.normalise_point(0.5, 3))
 
-assert 0.6 == ten.normalise_point(0.5, 5)
+    def test_above(self):
+        self.assertAlmostEqual(0.1, ten.normalise_point(0.6, 3))
 
-assert 0.7 == ten.normalise_point(0.5, 5)
+    def test_boundary(self):
+        self.assertAlmostEqual(0.16666666, ten.normalise_point(0.66666666, 3))
+
+    def test_below(self):
+        self.assertAlmostEqual(-0.1, ten.normalise_point(0.4, 3))
+
+if __name__ == '__main__':
+    unittest.main()
