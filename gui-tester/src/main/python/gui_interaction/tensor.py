@@ -9,6 +9,8 @@ import math
 import random
 import os
 
+tf.logging.set_verbosity(tf.logging.INFO)
+
 def normalise_point(point, val):
     centre_point = 0.5/val + (np.floor(point*val)/val)
     return point-centre_point
@@ -31,12 +33,14 @@ def load_files(files):
     object_detection = []
 
     for f in files:
+        f = str.replace(f, "/data/acp15tdw", "/home/thomas")
         image = imread(f, 0)
         image = resize(image, (cfg.width, cfg.height))
         image = np.reshape(image, [cfg.width, cfg.height, 1])
         images.append(image)
 
     for f in label_files:
+        f = str.replace(f, "/data/acp15tdw", "/home/thomas")
         # read in format [c, x, y, width, height]
         # store in format [c], [x, y, width, height]
         with open(f, "r") as l:
@@ -125,6 +129,8 @@ if __name__ == '__main__':
                 #     saver.restore(sess, "backup_" + model_file)
                 #     print("Restored model")
 
+                train_writer = tf.summary.FileWriter( './logs/1/train ', sess.graph)
+
                 print("!Finished Initialising Memory Values!")
                 image_length = len(training_images)
                 batches = math.ceil(image_length/cfg.batch_size)
@@ -143,7 +149,7 @@ if __name__ == '__main__':
 
                     losses = [0, 0, 0, 0, 0, 0]
 
-                    for j in range(1):
+                    for j in range(valid_batches):
                         gc.collect()
                         print("\rValidating " + str(j) + "/" + str(valid_batches), end="")
                         lower_index = j*cfg.batch_size
@@ -177,7 +183,7 @@ if __name__ == '__main__':
                         #         break
                         #     counter = counter+1
 
-                        loss, lp, ld, lo, ln, lc = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension ,
+                        predictions, loss, lp, ld, lo, ln, lc = sess.run([yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
                                                                                          yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
                             yolo.train_bounding_boxes: v_labels,
                             yolo.train_object_recognition: v_obj_detection,
@@ -194,7 +200,6 @@ if __name__ == '__main__':
                         losses[4] += ln
                         losses[5] += lc
 
-
                     print(i, "loss:", losses)
 
                     loss_string = str(i)
@@ -210,8 +215,12 @@ if __name__ == '__main__':
                     learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
                     print("Learning rate:", learning_r)
                     yolo.set_training(True)
-                    for j in range(1):
+
+                    for j in range(batches):
                         gc.collect()
+
+                        merge = tf.summary.merge_all()
+
                         print("\rTraining " + str(j) + "/" + str(batches), end="")
 
                         lower_index = j * cfg.batch_size
@@ -236,13 +245,15 @@ if __name__ == '__main__':
                         # print("l,lp,ld,lo,ln,lc:",loss,lp,ld,lo,ln,lc,out)
 
 
-                        sess.run(train_step, feed_dict={
+                        summary, _ = sess.run([merge, train_step], feed_dict={
                             yolo.train_bounding_boxes: labels,
                             yolo.train_object_recognition: obj_detection,
                             yolo.x: imgs,
                             yolo.anchors: anchors,
                             learning_rate: learning_r
                         })
+
+                        train_writer.add_summary(summary, i)
 
 
 

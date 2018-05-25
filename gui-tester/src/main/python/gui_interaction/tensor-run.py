@@ -11,6 +11,39 @@ import os
 import pyautogui
 from operator import itemgetter
 import time
+import subprocess
+import Xlib
+
+def get_window_size(window_name):
+    display = Xlib.display.Display()
+    root = display.screen().root
+
+    windowIDs = root.get_full_property(display.intern_atom('_NET_CLIENT_LIST'), Xlib.X.AnyPropertyType).value
+    wid = 0
+    win = None
+    for windowID in windowIDs:
+        window = display.create_resource_object('window', windowID)
+        name = window.get_wm_name() # Title
+        if isinstance(name, str) and window_name in name:
+            wid = windowID
+            win = window
+            #prop = window.get_full_property(display.intern_atom('_NET_WM_PID'), Xlib.X.AnyPropertyType)
+            #pid = prop.value[0] # PID
+            break;
+
+    geom = win.get_geometry()
+
+    app_x, app_y, app_w, app_h = (geom.x, geom.y, geom.width, geom.height)
+
+    parent_win = win.query_tree().parent
+
+    while parent_win != 0:
+        #print(parent_win)
+        p_geom = parent_win.get_geometry()
+        app_x += p_geom.x
+        app_y += p_geom.y
+        parent_win = parent_win.query_tree().parent
+    return app_x, app_y, app_w, app_h
 
 if __name__ == '__main__':
 
@@ -37,13 +70,9 @@ if __name__ == '__main__':
             yolo.set_training(True)
             yolo.set_update_ops(update_ops)
 
-            yolo.create_training()
+            app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
 
-            learning_rate = tf.placeholder(tf.float64)
-            learning_r = cfg.learning_rate_start
-
-            train_step = tf.train.AdamOptimizer(learning_rate, epsilon=1e-4). \
-                minimize(yolo.loss)
+            print("App data: (",app_x,app_y,")","(",app_w,app_h,")")
 
             saver = tf.train.Saver()
 
@@ -68,7 +97,16 @@ if __name__ == '__main__':
                     os.system("gnome-screenshot --file=/tmp/current_screen.png")
 
                     image = cv2.imread("/tmp/current_screen.png", 0)
+
+                    image = image[app_y:app_y+app_h, app_x:app_x+app_w]
+
                     image = cv2.resize(image, (cfg.width, cfg.height))
+
+                    # cv2.imshow('image',image)
+                    # cv2.waitKey(0)
+                    # cv2.destroyAllWindows()
+
+
 
                     images = np.reshape(image, [1, cfg.width, cfg.height, 1])
 
@@ -79,50 +117,37 @@ if __name__ == '__main__':
                         yolo.anchors: anchors,
                     })
 
-                    i_offset = 1/cfg.grid_shape[0]
-                    j_offset = 1/cfg.grid_shape[1]
+                    proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=False)
 
-                    action = 0
+                    for box_num in range(10):
 
-                    proc_boxes = []
+                        highest_conf = proc_boxes[0][5]
+                        best_box = proc_boxes[0]
+                        for b in proc_boxes:
+                            if (b[5] > highest_conf):
+                                highest_conf = b[5]
+                                best_box = b
 
-                    for image in range(boxes.shape[0]):
-                        for i in range(cfg.grid_shape[0]):
-                            for j in range(cfg.grid_shape[1]):
-                                cell = boxes[image][j][i]
-                                classes = cell[int((len(cfg.anchors)/2)*5):]
-                                amax = np.argmax(classes)
-                                cls = yolo.names[amax]
+                        x = max(10, app_x + (best_box[1]*app_w))
+                        y = max(10, app_y + (best_box[2]*app_h))
 
-                                hex = cls.encode('utf-8').hex()[0:6]
+                        print("Clicking", "(", x, y, ")")
 
-                                color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
+                        # handle widget type:
+                        widget = yolo.names[int(best_box[0])]
 
-                                plot_box = [0, 0, 0, 0, 0]
+                        print("interacting with", widget)
+                        print("BBox:", best_box)
+                        if widget == "button" or widget == "combo_box" or widget == "list" or widget == "tree" or \
+                                widget == "scroll_bar" or widget == "tabs" or widget == "menu" or widget == "menu_item":
+                            pyautogui.click(x, y)
+                        elif widget == "text_field":
+                            pyautogui.click(x, y)
+                            pyautogui.typewrite('Hello world!', interval=0.01)
+                        else:
+                            print(widget, "unrecognised")
 
-                                #get box with highest confidence value
-                                for k in range(int(len(cfg.anchors)/2)):
-                                    box = cell[k*5:(k+1)*5]
-                                    if (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
-                                        #We detect an object here and it is of highest currently known confidence
-                                        plot_box = box
 
-                                        #realign output from model with SxS grid
-                                        plot_box[0] = (0.5+i)*i_offset+plot_box[0]
-                                        plot_box[1] = (0.5+j)*j_offset+plot_box[1]
-                                box = plot_box
-                                proc_boxes.append(box)
-
-                    highest_conf = proc_boxes[0][4]
-                    best_box = proc_boxes[0]
-                    for b in proc_boxes:
-                        if (b[4] > highest_conf):
-                            highest_conf = b[4]
-                            best_box = b
-                    x = b[0] * 1920
-                    y = b[1] * 1080
-
-                    pyautogui.click(x, y)
-                    print("Clicking", "(", x, y, ")")
+                        del(best_box)
 
 

@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import config as cfg
+import numpy as np
 
 class Yolo:
 
@@ -317,7 +318,7 @@ class Yolo:
 
         pred_boxes = tf.reshape(raw_boxes, [-1,  cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 5])
 
-        pred_boxes_xy = tf.sigmoid(pred_boxes[..., 0:2])
+        pred_boxes_xy = tf.tanh(pred_boxes[..., 0:2]) 
         pred_boxes_wh = tf.exp(pred_boxes[..., 2:4])
 
         anchors_weight = tf.tile(
@@ -326,7 +327,6 @@ class Yolo:
              1, 1])
 
         pred_boxes_wh = tf.square(pred_boxes_wh) * anchors_weight
-
 
         confidence = tf.sigmoid(tf.reshape(pred_boxes[:, :, :, :, 4],
                                  [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 1]))
@@ -571,9 +571,51 @@ class Yolo:
 
         self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_noobj + self.loss_class
 
+        #tf.summary.histogram("loss", self.loss)
+        tf.summary.histogram("loss_position", total_pos_loss)
+        tf.summary.histogram("loss_dimension", total_dim_loss)
+        tf.summary.histogram("loss_obj", object_recognition)
+        tf.summary.histogram("loss_noobj", noobject_recognition)
+        tf.summary.histogram("loss_class", class_loss)
+        tf.summary.histogram("predictions_boxes", self.pred_boxes)
+        tf.summary.histogram("predictions_classes", self.pred_classes)
+
 
         self.bool = self.loss_obj
 
     def get_network(self):
         return self.network
 
+    def convert_net_to_bb(self, boxes, filter_top=True):
+        b_boxes = []
+
+        i_offset = 1/cfg.grid_shape[0]
+        j_offset = 1/cfg.grid_shape[1]
+
+        for image in range(boxes.shape[0]):
+            for i in range(cfg.grid_shape[0]):
+                for j in range(cfg.grid_shape[1]):
+                    cell = boxes[image][j][i]
+                    classes = cell[int((len(cfg.anchors)/2)*5):]
+                    amax = np.array([np.argmax(classes)])
+
+                    plot_box = [0, 0, 0, 0, 0]
+
+                    for k in range(int(len(cfg.anchors)/2)):
+                        box = cell[k*5:(k+1)*5]
+
+                        if not filter_top:
+                            box[0] = (0.5+i)*i_offset+box[0]
+                            box[1] = (0.5+j)*j_offset+box[1]
+                            box = np.append(amax, box)
+                            b_boxes.append(box)
+                        elif (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
+                            plot_box = box
+                            plot_box[0] = (0.5+i)*i_offset+plot_box[0]
+                            plot_box[1] = (0.5+j)*j_offset+plot_box[1]
+
+                    if filter_top:
+                        plot_box = np.append(amax, plot_box)
+                        b_boxes.append(plot_box)
+
+        return np.array(b_boxes)
