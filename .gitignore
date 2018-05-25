@@ -16,4 +16,4 @@ target/*
 */*.csv
 venv/
 */*/__pycache__
-*/*/config.py
+config.py
