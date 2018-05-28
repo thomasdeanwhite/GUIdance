@@ -234,7 +234,7 @@ if __name__ == '__main__':
 
                             train_writer.add_summary(summary, i)
                         else:
-                            summary, _ = sess.run(train_step, feed_dict={
+                            sess.run(train_step, feed_dict={
                                 yolo.train_bounding_boxes: labels,
                                 yolo.train_object_recognition: obj_detection,
                                 yolo.x: imgs,
