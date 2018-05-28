@@ -572,13 +572,14 @@ class Yolo:
         self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_noobj + self.loss_class
 
         #tf.summary.histogram("loss", self.loss)
-        tf.summary.histogram("loss_position", total_pos_loss)
-        tf.summary.histogram("loss_dimension", total_dim_loss)
-        tf.summary.histogram("loss_obj", object_recognition)
-        tf.summary.histogram("loss_noobj", noobject_recognition)
-        tf.summary.histogram("loss_class", class_loss)
-        tf.summary.histogram("predictions_boxes", self.pred_boxes)
-        tf.summary.histogram("predictions_classes", self.pred_classes)
+        if (cfg.enable_logging):
+            tf.summary.histogram("loss_position", total_pos_loss)
+            tf.summary.histogram("loss_dimension", total_dim_loss)
+            tf.summary.histogram("loss_obj", object_recognition)
+            tf.summary.histogram("loss_noobj", noobject_recognition)
+            tf.summary.histogram("loss_class", class_loss)
+            tf.summary.histogram("predictions_boxes", self.pred_boxes)
+            tf.summary.histogram("predictions_classes", self.pred_classes)
 
 
         self.bool = self.loss_obj

@@ -126,8 +126,8 @@ if __name__ == '__main__':
                 # if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
                 #     saver.restore(sess, "backup_" + model_file)
                 #     print("Restored model")
-
-                train_writer = tf.summary.FileWriter( './logs/1/train ', sess.graph)
+                if (cfg.enable_logging):
+                    train_writer = tf.summary.FileWriter( './logs/1/train ', sess.graph)
 
                 print("!Finished Initialising Memory Values!")
                 image_length = len(training_images)
@@ -162,25 +162,6 @@ if __name__ == '__main__':
 
                         v_obj_detection = np.array(v_obj_detection)
 
-                        # ia, ua, riou, truea, preda, loss, lp, ld, lo, ln, lc = sess.run([yolo.loss_layers['intersect_areas'], yolo.loss_layers['union_areas'], yolo.loss_layers['true_areas'], yolo.loss_layers['pred_areas'] , yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
-                        #                                                                  yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
-                        #     yolo.train_bounding_boxes: v_labels,
-                        #     yolo.train_object_recognition: v_obj_detection,
-                        #     yolo.x: v_imgs,
-                        #     yolo.anchors: anchors
-                        # })
-                        #
-                        # counter = 0
-                        #
-                        # while True:
-                        #     r = int(counter / 169)
-                        #     p = counter % 13
-                        #     q = int((counter%169)/13)
-                        #     if (np.sum(v_labels[r, p, q]) > 0):
-                        #         print(ua[r,p,q], "\n",  ia[r,p,q], "\n", riou[r, p, q], "\n", truea[r, p, q], "\n", preda[r, p, q], "\n", v_labels[r, p, q])
-                        #         break
-                        #     counter = counter+1
-
                         predictions, loss, lp, ld, lo, ln, lc = sess.run([yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
                                                                                          yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
                             yolo.train_bounding_boxes: v_labels,
@@ -189,7 +170,7 @@ if __name__ == '__main__':
                             yolo.anchors: anchors
                         })
 
-                        del(v_imgs, v_labels, v_obj_detection)
+                        del(v_imgs, v_labels, v_obj_detection, predictions)
 
                         losses[0] += loss
                         losses[1] += lp
@@ -216,8 +197,8 @@ if __name__ == '__main__':
 
                     for j in range(batches):
                         gc.collect()
-
-                        merge = tf.summary.merge_all()
+                        if (cfg.enable_logging):
+                            merge = tf.summary.merge_all()
 
                         print("\rTraining " + str(j) + "/" + str(batches), end="")
 
@@ -242,16 +223,25 @@ if __name__ == '__main__':
                         #
                         # print("l,lp,ld,lo,ln,lc:",loss,lp,ld,lo,ln,lc,out)
 
+                        if (cfg.enable_logging):
+                            summary, _ = sess.run([merge, train_step], feed_dict={
+                                yolo.train_bounding_boxes: labels,
+                                yolo.train_object_recognition: obj_detection,
+                                yolo.x: imgs,
+                                yolo.anchors: anchors,
+                                learning_rate: learning_r
+                            })
 
-                        summary, _ = sess.run([merge, train_step], feed_dict={
-                            yolo.train_bounding_boxes: labels,
-                            yolo.train_object_recognition: obj_detection,
-                            yolo.x: imgs,
-                            yolo.anchors: anchors,
-                            learning_rate: learning_r
-                        })
+                            train_writer.add_summary(summary, i)
+                        else:
+                            summary, _ = sess.run(train_step, feed_dict={
+                                yolo.train_bounding_boxes: labels,
+                                yolo.train_object_recognition: obj_detection,
+                                yolo.x: imgs,
+                                yolo.anchors: anchors,
+                                learning_rate: learning_r
+                            })
 
-                        train_writer.add_summary(summary, i)
 
 
 

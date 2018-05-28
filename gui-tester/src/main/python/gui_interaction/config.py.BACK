@@ -63,6 +63,8 @@ batch_size = 32
 # standard deviation of variables when initialised
 var_sd = 0.001
 
+enable_logging = False
+
 
 # ------------------------
 # output locations       |
