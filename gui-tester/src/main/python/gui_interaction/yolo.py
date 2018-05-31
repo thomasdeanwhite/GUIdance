@@ -501,7 +501,7 @@ class Yolo:
 
         print("obj:", obj.shape)
 
-        noobj = tf.equal(truth[:,:,:,:,4], 0)
+        noobj = tf.cast(tf.reshape(top_iou, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < cfg.object_detection_threshold, tf.float32) * (1 - truth[:,:,:,:,4])
 
         self.loss_layers['noobj'] = noobj
 
@@ -518,11 +518,11 @@ class Yolo:
 
         print("total pos loss:", total_pos_loss.shape)
 
-        pos_loss = tf.gather_nd(total_pos_loss, new_indices)
-        dim_loss = tf.gather_nd(total_dim_loss, new_indices)
-        conf_loss = tf.gather_nd(total_conf_loss, new_indices)
+        # pos_loss = tf.gather_nd(total_pos_loss, new_indices)
+        # dim_loss = tf.gather_nd(total_dim_loss, new_indices)
+        # conf_loss = tf.gather_nd(total_conf_loss, new_indices)
 
-        print("top pos loss:", pos_loss.shape)
+        #print("top pos loss:", pos_loss.shape)
 
         self.loss_position = tf.reduce_mean(obj_xy * total_pos_loss) *  cfg.coord_weight
 
