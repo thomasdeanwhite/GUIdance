@@ -566,8 +566,8 @@ class Yolo:
                         if not filter_top:
                             box[0] = (0.5+i)*i_offset+box[0]
                             box[1] = (0.5+j)*j_offset+box[1]
-                            box = np.append(amax, box)
-                            b_boxes.append(box)
+                            box_p = np.append(amax, box)
+                            b_boxes.append(box_p)
                         elif (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
                             plot_box = box
                             plot_box[0] = (0.5+i)*i_offset+plot_box[0]

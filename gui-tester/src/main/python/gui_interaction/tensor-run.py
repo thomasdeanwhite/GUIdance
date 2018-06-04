@@ -94,9 +94,13 @@ if __name__ == '__main__':
                 start_time = time.time()
 
                 while (time.time() - start_time < 30):
-                    os.system("gnome-screenshot --file=/tmp/current_screen.png")
+                    #os.system("gnome-screenshot --file=/tmp/current_screen.png")
 
-                    image = cv2.imread("/tmp/current_screen.png", 0)
+                    image = pyautogui.screenshot().convert("L") # cv2.imread("/tmp/current_screen.png", 0)
+
+                    image = np.array(image)
+
+                    #image = image[:, :, ::-1].copy()
 
                     image = image[app_y:app_y+app_h, app_x:app_x+app_w]
 
@@ -128,8 +132,8 @@ if __name__ == '__main__':
                                 highest_conf = b[5]
                                 best_box = b
 
-                        x = max(10, app_x + (best_box[1]*app_w))
-                        y = max(10, app_y + (best_box[2]*app_h))
+                        x = max(10, min(app_x + app_w - 10, app_x + (best_box[1]*app_w)))
+                        y = max(10, min(app_y + app_h - 10, app_y + (best_box[2]*app_h)))
 
                         print("Clicking", "(", x, y, ")")
 

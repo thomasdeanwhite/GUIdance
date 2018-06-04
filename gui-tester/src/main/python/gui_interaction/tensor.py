@@ -56,8 +56,8 @@ def load_files(files):
                 elements = line.split(" ")
                 normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
                                                             float(elements[3]), float(elements[4]), 1])
-                x = max(0, min(round(float(centre[0])*cfg.grid_shape[0])-1, cfg.grid_shape[0]-1))
-                y = max(0, min(round(float(centre[1])*cfg.grid_shape[1])-1, cfg.grid_shape[1]-1))
+                x = max(0, min(int(float(centre[0])*cfg.grid_shape[0])-1, cfg.grid_shape[0]-1))
+                y = max(0, min(int(float(centre[1])*cfg.grid_shape[1])-1, cfg.grid_shape[1]-1))
 
                 imglabs[y][x] = normalised_label
                 obj_detect[y][x] = int(elements[0])

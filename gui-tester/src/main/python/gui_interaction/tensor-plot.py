@@ -9,19 +9,6 @@ import math
 import random
 import os
 
-def normalise_point(point, val):
-    v = point*val
-    return (v - np.round(v))/float(int(v)+1)
-
-def normalise_label(label):
-    return([
-        normalise_point(max(0, min(1, label[0])), cfg.grid_shape[0]),
-        normalise_point(max(0, min(1, label[1])), cfg.grid_shape[1]),
-        max(0, min(1, label[2])),
-        max(0, min(1, label[3])),
-        label[4]
-    ])
-
 def load_file(files):
     images = []
 
@@ -80,63 +67,46 @@ if __name__ == '__main__':
                     yolo.anchors: anchors,
                 })
 
-                i_offset = 1/cfg.grid_shape[0]
-                j_offset = 1/cfg.grid_shape[1]
+                proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True)
 
-                for image in range(boxes.shape[0]):
-                    for i in range(cfg.grid_shape[0]):
-                        for j in range(cfg.grid_shape[1]):
-                            cell = boxes[image][j][i]
-                            classes = cell[int((len(cfg.anchors)/2)*5):]
-                            amax = np.argmax(classes)
-                            cls = yolo.names[amax]
 
-                            hex = cls.encode('utf-8').hex()[0:6]
+                for box in proc_boxes:
+                    cls = yolo.names[int(box[0])]
 
-                            color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
+                    hex = cls.encode('utf-8').hex()[0:6]
 
-                            plot_box = [0, 0, 0, 0, 0]
+                    color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
-                            for k in range(int(len(cfg.anchors)/2)):
-                                box = cell[k*5:(k+1)*5]
-                                if (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
-                                    #plot_box = box[k:k+5]
-                                    plot_box = box
-                                    print(plot_box)
-                                    plot_box[0] = (0.5+i)*i_offset+plot_box[0]
-                                    plot_box[1] = (0.5+j)*j_offset+plot_box[1]
-                            box = plot_box
-                            if (box[4]>cfg.object_detection_threshold):
-                                img = images[image][1]
-                                print(cls, box)
+                    if (box[5]>cfg.object_detection_threshold):
+                        img = images[0][1]
 
-                                height, width, channels = img.shape
+                        height, width, channels = img.shape
 
-                                avg_col = color[0] + color[1] + color[2]
+                        avg_col = color[0] + color[1] + color[2]
 
-                                text_col = (255, 255, 255)
+                        text_col = (255, 255, 255)
 
-                                if avg_col > 127:
-                                    text_col = (0, 0, 0)
+                        if avg_col > 127:
+                            text_col = (0, 0, 0)
 
-                                x1 = max(int(width*(box[0]-box[2]/2)), 0)
-                                y1 = max(int(height*(box[1]-box[3]/2)), 0)
-                                x2 = int(width*((box[0]+box[2]/2)))
-                                y2 = int(height*(box[1]+box[3]/2))
+                        x1 = max(int(width*(box[1]-box[3]/2)), 0)
+                        y1 = max(int(height*(box[2]-box[4]/2)), 0)
+                        x2 = int(width*((box[1]+box[3]/2)))
+                        y2 = int(height*(box[2]+box[4]/2))
 
-                                cv2.rectangle(img, (x1, y1),
-                                              (x2, y2),
-                                              (color[0], color[1], color[2]), int(10*box[4]), 8)
+                        cv2.rectangle(img, (x1, y1),
+                                      (x2, y2),
+                                      (color[0], color[1], color[2]), int(10*box[4]), 8)
 
-                                cv2.rectangle(img,
-                                              (x1, y1-int(10*box[4])-15),
-                                              (x1 + len(cls)*7, y1),
-                                              (color[0], color[1], color[2]), -1, 8)
+                        cv2.rectangle(img,
+                                      (x1, y1-int(10*box[4])-15),
+                                      (x1 + len(cls)*7, y1),
+                                      (color[0], color[1], color[2]), -1, 8)
 
-                                cv2.putText(img, cls,
-                                            (x1, y1-int(10*box[4])-2),
-                                            cv2.FONT_HERSHEY_SIMPLEX,
-                                            0.4, text_col, 1)
+                        cv2.putText(img, cls,
+                                    (x1, y1-int(10*box[4])-2),
+                                    cv2.FONT_HERSHEY_SIMPLEX,
+                                    0.4, text_col, 1)
 
                 cv2.imshow('image',images[0][1])
                 cv2.waitKey(0)
