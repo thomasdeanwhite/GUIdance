@@ -48,42 +48,6 @@ class Yolo:
     def set_update_ops(self, update_ops):
         self.update_ops = update_ops
 
-    def bbox_overlap_iou(self, bboxes1, bboxes2):
-        print(bboxes1.shape, bboxes2.shape)
-
-        # x11, y11, x12, y12 = tf.split(bboxes1, 4, axis=1)
-        # x21, y21, x22, y22 = tf.split(bboxes2, 4, axis=1)
-        x11 = bboxes1[:,:,:,:,0]
-        y11 = bboxes1[:,:,:,:,1]
-        x12 = bboxes1[:,:,:,:,2]
-        y12 = bboxes1[:,:,:,:,3]
-
-
-        x21 = bboxes2[:,:,:,:,0]
-        y21 = bboxes2[:,:,:,:,1]
-        x22 = bboxes2[:,:,:,:,2]
-        y22 = bboxes2[:,:,:,:,3]
-
-        xI1 = tf.maximum(x11, x21)
-        yI1 = tf.maximum(y11, y21)
-
-        xI2 = tf.minimum(x12, x22)
-        yI2 = tf.minimum(y12, y22)
-
-        inter_area = tf.maximum((xI2 - xI1), 0) * tf.maximum((yI2 - yI1), 0)
-
-        bboxes1_area = (x12 - x11) * (y12 - y11)
-        bboxes2_area = (x22 - x21) * (y22 - y21)
-
-        union = (bboxes1_area + bboxes2_area) - inter_area
-
-        ret_value = inter_area / union
-
-        ret_value = tf.where(tf.logical_or(
-            tf.is_inf(ret_value), tf.is_nan(ret_value)), tf.zeros_like(ret_value), ret_value)
-
-        return ret_value
-
     def create_filter(self, size, name):
 
         var = tf.Variable(tf.random_normal(size, stddev=cfg.var_sd), name=name)
@@ -102,19 +66,13 @@ class Yolo:
         anchors_size = int(len(cfg.anchors)/2)
         classes = len(self.names)
 
-        height = int(cfg.height/cfg.grid_shape[1]*anchors_size)
-        width = int(cfg.width/cfg.grid_shape[0]*anchors_size)
-
         self.x = tf.placeholder(tf.float32, [None, cfg.height, cfg.width, 1], "input")
 
         self.anchors = tf.placeholder(tf.float32, [anchors_size, 2], "anchors")
 
-        #self.input_var = tf.Variable(self.x)
-
-        #self.object_recognition = tf.placeholder(tf.float32, [None, cfg.height, cfg.width, 1], "obj-rec")
         self.network = self.leaky_relu(tf.nn.conv2d(self.x,
-                                    self.create_filter([3,
-                                                        3,
+                                    self.create_filter([7,
+                                                        7,
                                                         1,
                                                         32], "f1"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))

@@ -55,9 +55,6 @@ if __name__ == '__main__':
             learning_rate = tf.placeholder(tf.float64)
             learning_r = cfg.learning_rate_start
 
-            train_step = tf.train.AdamOptimizer(learning_rate, epsilon=1e-4). \
-                minimize(yolo.loss)
-
             saver = tf.train.Saver()
 
             model_file = os.getcwd() + "/backup_model/model.ckpt"

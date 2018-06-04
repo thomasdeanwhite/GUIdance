@@ -13,16 +13,18 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 def normalise_point(point, val):
     centre_point = 0.5/val + (np.floor(point*val)/val)
-    return point-centre_point
+    return point-centre_point, centre_point
 
 def normalise_label(label):
-    return([
-        normalise_point(max(0, min(1, label[0])), cfg.grid_shape[0]),
-        normalise_point(max(0, min(1, label[1])), cfg.grid_shape[1]),
+    px, cx = normalise_point(max(0, min(1, label[0])), cfg.grid_shape[0])
+    py, cy = normalise_point(max(0, min(1, label[1])), cfg.grid_shape[1])
+    return [
+        px,
+        py,
         max(0, min(1, label[2])),
         max(0, min(1, label[3])),
         label[4]
-    ])
+    ], (cx, cy)
 
 def load_files(files):
     label_files = [f.replace("/images/", "/labels/") for f in files]
@@ -52,10 +54,11 @@ def load_files(files):
 
             for line in l:
                 elements = line.split(" ")
-                x = max(0, min(round(float(elements[1])*cfg.grid_shape[0])-1, cfg.grid_shape[0]-1))
-                y = max(0, min(round(float(elements[2])*cfg.grid_shape[1])-1, cfg.grid_shape[1]-1))
-                normalised_label = normalise_label([float(elements[1]), float(elements[2]),
-                                                    float(elements[3]), float(elements[4]), 1])
+                normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
+                                                            float(elements[3]), float(elements[4]), 1])
+                x = max(0, min(round(float(centre[0])*cfg.grid_shape[0])-1, cfg.grid_shape[0]-1))
+                y = max(0, min(round(float(centre[1])*cfg.grid_shape[1])-1, cfg.grid_shape[1]-1))
+
                 imglabs[y][x] = normalised_label
                 obj_detect[y][x] = int(elements[0])
                 #obj_detect[y][x][int(elements[0])] = 1

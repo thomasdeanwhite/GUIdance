@@ -53,8 +53,8 @@ if __name__ == '__main__':
 
     while (time.time() - start_time < 30):
 
-        x = app_x + (random.random()*app_w)
-        y = app_y + (random.random()*app_h)
+        x = int(max(app_x+10, min(app_x + app_w - 10, app_x + (random.random()*app_w))))
+        y = int(max(app_y+10, min(app_y + app_h - 10, app_y + (random.random()*app_h))))
 
         print("Clicking", "(", x, y, ")")
 
