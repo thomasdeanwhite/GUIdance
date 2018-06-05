@@ -126,9 +126,10 @@ if __name__ == '__main__':
                 print("Initialising Memory Values")
                 model = sess.run(init_op)
 
-                # if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
-                #     saver.restore(sess, "backup_" + model_file)
-                #     print("Restored model")
+                if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
+                    saver.restore(sess, "backup_" + model_file)
+                    print("Restored model")
+                    
                 if (cfg.enable_logging):
                     train_writer = tf.summary.FileWriter( './logs/1/train ', sess.graph)
 
