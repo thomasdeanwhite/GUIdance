@@ -276,7 +276,7 @@ class Yolo:
 
         pred_boxes = tf.reshape(raw_boxes, [-1,  cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 5])
 
-        pred_boxes_xy = tf.tanh(pred_boxes[..., 0:2]) 
+        pred_boxes_xy = tf.sigmoid(pred_boxes[..., 0:2])
         pred_boxes_wh = tf.exp(pred_boxes[..., 2:4])
 
         anchors_weight = tf.tile(
