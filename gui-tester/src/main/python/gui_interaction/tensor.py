@@ -12,8 +12,8 @@ import os
 tf.logging.set_verbosity(tf.logging.INFO)
 
 def normalise_point(point, val):
-    centre_point = 0.5/val + (np.floor(point*val)/val)
-    return point-centre_point, centre_point
+    grid_point = np.floor(point*val)/val
+    return (point-grid_point)*val, grid_point
 
 def normalise_label(label):
     px, cx = normalise_point(max(0, min(1, label[0])), cfg.grid_shape[0])
@@ -21,8 +21,8 @@ def normalise_label(label):
     return [
         px,
         py,
-        max(0, min(1, label[2])),
-        max(0, min(1, label[3])),
+        max(0, min(1, label[2]*cfg.grid_shape[0])),
+        max(0, min(1, label[3]*cfg.grid_shape[1])),
         label[4]
     ], (cx, cy)
 
