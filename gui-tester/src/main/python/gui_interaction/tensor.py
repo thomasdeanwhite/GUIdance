@@ -162,7 +162,7 @@ if __name__ == '__main__':
                         v_imgs, v_labels, v_obj_detection = load_files(
                             valid_images[lower_index:upper_index])
 
-                        v_imgs = (np.array(v_imgs)/127.5)-1
+                        v_imgs = (np.array(v_imgs)/255)
 
                         v_labels = np.array(v_labels)
 
