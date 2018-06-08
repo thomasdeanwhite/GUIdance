@@ -23,7 +23,6 @@ class Yolo:
     loss_position = None
     loss_dimension = None
     loss_obj = None
-    loss_noobj = None
     loss_class = None
     epsilon = 1E-8
     output = None
@@ -71,8 +70,8 @@ class Yolo:
         self.anchors = tf.placeholder(tf.float32, [anchors_size, 2], "anchors")
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.x,
-                                    self.create_filter([7,
-                                                        7,
+                                    self.create_filter([3,
+                                                        3,
                                                         1,
                                                         32], "f1"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
@@ -101,8 +100,8 @@ class Yolo:
         print(self.network.shape)
 
         self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
+                                    self.create_filter([1,
+                                                        1,
                                                         128,
                                                         64], "f4"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
@@ -130,8 +129,8 @@ class Yolo:
 
 
         self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
+                                    self.create_filter([1,
+                                                        1,
                                                         256,
                                                         128], "f7"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
@@ -149,8 +148,8 @@ class Yolo:
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
+                                    self.create_filter([1,
+                                                        1,
                                                         256,
                                                         512], "f9"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
@@ -165,8 +164,8 @@ class Yolo:
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
+                                    self.create_filter([1,
+                                                        1,
                                                         256,
                                                         512], "f11"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
@@ -181,8 +180,8 @@ class Yolo:
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
+                                    self.create_filter([1,
+                                                        1,
                                                         256,
                                                         512], "f13"),
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
@@ -314,6 +313,12 @@ class Yolo:
         anchors = int(len(cfg.anchors)/2)
         print("anchors:", anchors)
 
+        cell_x = tf.to_float(tf.reshape(tf.tile(tf.range(cfg.grid_shape[0]), [cfg.grid_shape[1]]),
+                                        (1, cfg.grid_shape[1], cfg.grid_shape[0], 1, 1)))
+        cell_y = tf.transpose(cell_x, (0,2,1,3,4))
+
+        cell_grid = tf.tile(tf.concat([cell_x,cell_y], -1), [tf.shape(self.pred_boxes)[0], 1, 1, anchors, 1])
+
         self.train_object_recognition = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1]], "train_obj_rec")
         self.train_bounding_boxes = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 5], "train_bb")
 
@@ -335,7 +340,7 @@ class Yolo:
 
 
 
-        pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
+        pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2]) + cell_grid
 
         epsilon = tf.constant(self.epsilon)
 
@@ -381,7 +386,6 @@ class Yolo:
         self.loss_layers['raw_iou'] = iou
 
         print("iou", iou.shape)
-
 
         shaped_iou = tf.reshape(iou, [-1, cfg.grid_shape[0]*cfg.grid_shape[1], anchors])
 
@@ -453,26 +457,25 @@ class Yolo:
         self.loss_layers['top_iou'] = top_iou
         self.loss_layers['best_iou'] = matching_boxes
 
-        obj = tf.cast(tf.equal(truth[:,:,:,:,4], 1), tf.float32)
+        obj = tf.cast(truth[..., 4], tf.float32)
 
         self.loss_layers['obj'] = obj
 
         print("obj:", obj.shape)
 
-        noobj = tf.cast(tf.reshape(top_iou, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < cfg.object_detection_threshold, tf.float32) * (1 - truth[:,:,:,:,4])
-
-        self.loss_layers['noobj'] = noobj
-
-        obj_xy = tf.reshape(tf.tile(tf.expand_dims(obj, axis=3),[ 1, 1, 1, anchors, 2]),
+        obj_xy = tf.reshape(tf.tile(tf.expand_dims(obj * cfg.coord_weight, axis=3),[ 1, 1, 1, anchors, 2]),
                             [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 2])
 
         print("obj_xy:", obj_xy.shape)
 
         self.loss_layers['obj_xy'] = obj_xy
 
-        total_pos_loss = tf.reshape(tf.square(pred_boxes[...,0:2] - truth_tiled[...,0:2]), [-1, 169, 5, 2])
-        total_dim_loss = tf.reshape(tf.square(tf.sqrt(pred_boxes[...,2:4]) - tf.sqrt(truth_tiled[...,2:4])), [-1, 169, 5, 2])
-        total_conf_loss = tf.reshape(tf.square(pred_boxes[...,4] - truth_tiled[...,4]), [-1, 169, 5, 1])
+        pos_mask_count = tf.reduce_sum(tf.cast(obj_xy>0, tf.float32)) + epsilon
+
+        total_pos_loss = tf.reshape(tf.square(pred_boxes[...,0:2] - truth_tiled[...,0:2]), [-1, 169, 5, 2]) \
+                         / pos_mask_count
+        total_dim_loss = tf.reshape(tf.square(tf.sqrt(pred_boxes[...,2:4]) - tf.sqrt(truth_tiled[...,2:4])), [-1, 169, 5, 2]) \
+                         / pos_mask_count
 
         print("total pos loss:", total_pos_loss.shape)
 
@@ -482,37 +485,33 @@ class Yolo:
 
         #print("top pos loss:", pos_loss.shape)
 
-        self.loss_position = tf.reduce_mean(obj_xy * total_pos_loss) *  cfg.coord_weight
+        self.loss_position = tf.reduce_sum(obj_xy * total_pos_loss)
 
-        self.loss_dimension = tf.reduce_mean(obj_xy * total_dim_loss) * cfg.coord_weight
+        self.loss_dimension = tf.reduce_sum(obj_xy * total_dim_loss)
 
         #pred_conf = tf.multiply(top_iou[:,:,:,:,0], truth[:,:,:,:,4])
 
-        obj_conf = tf.reshape(tf.tile(tf.expand_dims(obj, axis=3),[ 1, 1, 1, anchors, 1]),
+        obj_conf = tf.cast(tf.reshape(top_iou,
+                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < cfg.object_detection_threshold, tf.float32) * \
+              (1 - truth[...,4]) * cfg.noobj_weight
+
+        obj_conf = obj_conf + truth[...,4] * cfg.obj_weight
+
+        obj_conf = tf.reshape(tf.tile(tf.expand_dims(obj_conf, axis=3),[ 1, 1, 1, anchors, 1]),
                             [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 1])
 
-        noobj_conf = tf.reshape(tf.tile(tf.expand_dims(noobj, axis=3),[ 1, 1, 1, anchors, 1]),
-                              [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 1])
+        total_conf_loss = tf.reshape(tf.square(pred_boxes[...,4] - truth_tiled[...,4]), [-1, 169, 5, 1]) \
+                          / (tf.reduce_sum(tf.cast(obj_conf>0, tf.float32)) + epsilon)
 
-        confidence_loss = total_conf_loss
+        self.loss_layers['confidence_loss'] = total_conf_loss
 
-        self.loss_layers['confidence_loss'] = confidence_loss
+        print("conf_loss", total_conf_loss.shape)
 
-        print("conf_loss", confidence_loss.shape)
-
-        object_recognition = tf.multiply(tf.cast(obj_conf, tf.float32), confidence_loss)
+        object_recognition = tf.multiply(tf.cast(obj_conf, tf.float32), total_conf_loss)
 
         self.loss_layers['object_recognition'] = object_recognition
 
-        self.loss_obj = cfg.obj_weight * tf.reduce_mean(object_recognition)
-
-        noobject_recognition = tf.multiply(tf.cast(noobj_conf, tf.float32), confidence_loss)
-
-        self.loss_layers['noobject_recognition'] = noobject_recognition
-
-        self.loss_noobj = cfg.noobj_weight * tf.reduce_mean(
-            noobject_recognition
-        )
+        self.loss_obj = tf.reduce_sum(object_recognition)
 
         #true_classes = tf.argmax(self.train_object_recognition, -1)
 
@@ -521,26 +520,23 @@ class Yolo:
 
         print("class_loss", class_loss.shape)
 
-        obj_classes = tf.reshape(obj, [-1, cfg.grid_shape[0], cfg.grid_shape[1]])#tf.tile(obj, [1, 1, 1, 10])
+        obj_classes = tf.reshape(obj * cfg.class_weight, [-1, cfg.grid_shape[0], cfg.grid_shape[1]])#tf.tile(obj, [1, 1, 1, 10])
 
-        class_loss = tf.multiply(tf.cast(obj_classes, tf.float32), class_loss)
+        class_loss = tf.multiply(tf.cast(obj_classes, tf.float32), class_loss) \
+                     / (tf.reduce_sum(tf.cast(obj_classes>0, tf.float32))+epsilon)
 
-        self.loss_class = (tf.reduce_mean(class_loss) * cfg.class_weight)
+        self.loss_class = tf.reduce_mean(class_loss)
 
-        self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_noobj + self.loss_class
+        self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_class
 
         #tf.summary.histogram("loss", self.loss)
         if (cfg.enable_logging):
             tf.summary.histogram("loss_position", total_pos_loss)
             tf.summary.histogram("loss_dimension", total_dim_loss)
             tf.summary.histogram("loss_obj", object_recognition)
-            tf.summary.histogram("loss_noobj", noobject_recognition)
             tf.summary.histogram("loss_class", class_loss)
             tf.summary.histogram("predictions_boxes", self.pred_boxes)
             tf.summary.histogram("predictions_classes", self.pred_classes)
-
-
-        self.bool = self.loss_obj
 
     def get_network(self):
         return self.network
@@ -564,14 +560,19 @@ class Yolo:
                         box = cell[k*5:(k+1)*5]
 
                         if not filter_top:
-                            box[0] = (0.5+i)*i_offset+box[0]
-                            box[1] = (0.5+j)*j_offset+box[1]
+                            box[0] = i*i_offset+(box[0]/cfg.grid_shape[0])
+                            box[1] = j*j_offset+(box[1]/cfg.grid_shape[1])
+                            box[2] = box[2]/cfg.grid_shape[0]
+                            box[3] = box[3]/cfg.grid_shape[1]
                             box_p = np.append(amax, box)
                             b_boxes.append(box_p)
                         elif (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
                             plot_box = box
-                            plot_box[0] = (0.5+i)*i_offset+plot_box[0]
-                            plot_box[1] = (0.5+j)*j_offset+plot_box[1]
+                            plot_box[0] = i*i_offset+(plot_box[0]/cfg.grid_shape[0])
+                            plot_box[1] = j*j_offset+(plot_box[1]/cfg.grid_shape[1])
+                            plot_box[2] = plot_box[2]/cfg.grid_shape[0]
+                            plot_box[3] = plot_box[3]/cfg.grid_shape[1]
+
 
                     if filter_top:
                         plot_box = np.append(amax, plot_box)

@@ -143,13 +143,13 @@ if __name__ == '__main__':
 
                 random.shuffle(training_images)
                 with open("training.csv", "w") as file:
-                    file.write("epoch,loss,loss_position,loss_dimension,loss_obj,loss_noobj,loss_class\n")
+                    file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class\n")
 
                 for i in range(cfg.epochs):
                     random.shuffle(training_images)
                     yolo.set_training(False)
 
-                    losses = [0, 0, 0, 0, 0, 0]
+                    losses = [0, 0, 0, 0, 0]
 
                     for j in range(valid_batches):
                         gc.collect()
@@ -166,8 +166,8 @@ if __name__ == '__main__':
 
                         v_obj_detection = np.array(v_obj_detection)
 
-                        predictions, loss, lp, ld, lo, ln, lc = sess.run([yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
-                                                                                         yolo.loss_obj, yolo.loss_noobj, yolo.loss_class], feed_dict={
+                        predictions, loss, lp, ld, lo, lc = sess.run([yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
+                                                                                         yolo.loss_obj, yolo.loss_class], feed_dict={
                             yolo.train_bounding_boxes: v_labels,
                             yolo.train_object_recognition: v_obj_detection,
                             yolo.x: v_imgs,
@@ -180,12 +180,11 @@ if __name__ == '__main__':
                         losses[1] += lp
                         losses[2] += ld
                         losses[3] += lo
-                        losses[4] += ln
-                        losses[5] += lc
+                        losses[4] += lc
 
                     print(i, "loss:", losses)
 
-                    loss_string = str(i)
+                    loss_string = str(i) + "," + "Validation"
 
                     for l in range(len(losses)):
                         loss_string = loss_string + "," + str(losses[l])
@@ -193,11 +192,13 @@ if __name__ == '__main__':
                     with open("training.csv", "a") as file:
                         file.write(loss_string + "\n")
 
-
+                    print(loss_string)
 
                     learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
                     print("Learning rate:", learning_r)
                     yolo.set_training(True)
+
+                    losses = [0, 0, 0, 0, 0]
 
                     for j in range(batches):
                         gc.collect()
@@ -228,17 +229,25 @@ if __name__ == '__main__':
                         # print("l,lp,ld,lo,ln,lc:",loss,lp,ld,lo,ln,lc,out)
 
                         if (cfg.enable_logging):
-                            summary, _ = sess.run([merge, train_step], feed_dict={
-                                yolo.train_bounding_boxes: labels,
-                                yolo.train_object_recognition: obj_detection,
-                                yolo.x: imgs,
+                            summary, _, predictions, loss, lp, ld, lo, lc = sess.run([merge, train_step, yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
+                                                                                 yolo.loss_obj, yolo.loss_class], feed_dict={
+                                yolo.train_bounding_boxes: v_labels,
+                                yolo.train_object_recognition: v_obj_detection,
+                                yolo.x: v_imgs,
                                 yolo.anchors: anchors,
                                 learning_rate: learning_r
                             })
+
+                            losses[0] += loss
+                            losses[1] += lp
+                            losses[2] += ld
+                            losses[3] += lo
+                            losses[4] += lc
 
                             train_writer.add_summary(summary, i)
                         else:
-                            sess.run(train_step, feed_dict={
+                            _, predictions, loss, lp, ld, lo, lc = sess.run([train_step, yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
+                                                                                     yolo.loss_obj, yolo.loss_class], feed_dict={
                                 yolo.train_bounding_boxes: labels,
                                 yolo.train_object_recognition: obj_detection,
                                 yolo.x: imgs,
@@ -246,12 +255,29 @@ if __name__ == '__main__':
                                 learning_rate: learning_r
                             })
 
+                            losses[0] += loss
+                            losses[1] += lp
+                            losses[2] += ld
+                            losses[3] += lo
+                            losses[4] += lc
 
 
 
                         del(imgs)
                         del(labels)
                         del(obj_detection)
+
+
+                    loss_string = str(i) + "," + "Test"
+
+                    for l in range(len(losses)):
+                        loss_string = loss_string + "," + str(losses[l])
+
+
+                    with open("training.csv", "a") as file:
+                        file.write(loss_string + "\n")
+
+                    print(loss_string)
 
 
                     if i % 10 == 0:
