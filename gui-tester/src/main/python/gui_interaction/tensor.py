@@ -12,8 +12,9 @@ import os
 tf.logging.set_verbosity(tf.logging.INFO)
 
 def normalise_point(point, val):
-    grid_point = np.floor(point*val)/val
-    return (point-grid_point)*val, grid_point
+    index = np.floor(point*val)
+    grid_point = index/val
+    return index + (point-grid_point)*val, grid_point
 
 def normalise_label(label):
     px, cx = normalise_point(max(0, min(1, label[0])), cfg.grid_shape[0])
@@ -27,6 +28,7 @@ def normalise_label(label):
     ], (cx, cy)
 
 def load_files(files):
+    files = [f.replace("/data/acp15tdw", "/home/thomas") for f in files]
     label_files = [f.replace("/images/", "/labels/") for f in files]
     label_files = [f.replace(".png", ".txt") for f in label_files]
 
@@ -54,11 +56,11 @@ def load_files(files):
 
             for line in l:
                 elements = line.split(" ")
+                #print(elements[1:3])
                 normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
                                                             float(elements[3]), float(elements[4]), 1])
                 x = max(0, min(int(float(centre[0])*cfg.grid_shape[0])-1, cfg.grid_shape[0]-1))
                 y = max(0, min(int(float(centre[1])*cfg.grid_shape[1])-1, cfg.grid_shape[1]-1))
-
                 imglabs[y][x] = normalised_label
                 obj_detect[y][x] = int(elements[0])
                 #obj_detect[y][x][int(elements[0])] = 1
