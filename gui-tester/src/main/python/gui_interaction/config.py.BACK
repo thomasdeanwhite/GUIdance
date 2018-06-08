@@ -92,3 +92,7 @@ class_weight = 1.0
 # testing properties     |
 # ------------------------
 window_name = "Firefox"
+
+enable_logging = False
+
+run_all_batches = True

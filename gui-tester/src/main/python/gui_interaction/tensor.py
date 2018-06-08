@@ -69,6 +69,20 @@ def load_files(files):
             labels.append(imglabs)
     return images, labels, object_detection
 
+def modify_learning_rate(epoch):
+    # return learning rate in accordance to YOLO paper
+    if epoch == 0:
+        return 0.001
+    if epoch < 10:
+        return 0.001+(0.01-0.001)/((10-epoch-1))
+
+    if epoch < 85:
+        return 0.01
+
+    if epoch < 115:
+        return 0.001
+
+    return 0.0001
 
 
 if __name__ == '__main__':
@@ -117,7 +131,7 @@ if __name__ == '__main__':
 
             model_file = "model/model.ckpt"
 
-            valid_batches = math.ceil(len(valid_images)/cfg.batch_size)
+            valid_batches = math.ceil(len(valid_images)/cfg.batch_size) if cfg.run_all_batches else 1
 
             config = tf.ConfigProto(allow_soft_placement = True)
 
@@ -137,7 +151,7 @@ if __name__ == '__main__':
 
                 print("!Finished Initialising Memory Values!")
                 image_length = len(training_images)
-                batches = math.ceil(image_length/cfg.batch_size)
+                batches = math.ceil(image_length/cfg.batch_size) if cfg.run_all_batches else 1
                 print("Starting training:", image_length, "images in", batches, "batches.")
 
                 anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
@@ -196,7 +210,10 @@ if __name__ == '__main__':
 
                     print(loss_string)
 
-                    learning_r = max(cfg.learning_rate_min, cfg.learning_rate_start*pow(cfg.learning_rate_decay, i))
+                    #learning_r = (cfg.learning_rate_start-cfg.learning_rate_min)*pow(cfg.learning_rate_decay, i) \
+                    #             + cfg.learning_rate_min
+
+                    learning_r = modify_learning_rate(i)
                     print("Learning rate:", learning_r)
                     yolo.set_training(True)
 
