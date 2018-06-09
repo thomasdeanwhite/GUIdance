@@ -74,7 +74,7 @@ def modify_learning_rate(epoch):
     if epoch == 0:
         return 0.001
     if epoch < 10:
-        return 0.001+(0.01-0.001)/((10-epoch-1))
+        return 0.001+(0.01-0.001)/((10-epoch))
 
     if epoch < 85:
         return 0.01
