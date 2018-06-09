@@ -29,7 +29,7 @@ class Yolo:
     pred_boxes = None
     pred_classes = None
     loss_layers = {}
-
+    cell_grid = None
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -269,13 +269,19 @@ class Yolo:
                                     [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
         print(self.network.shape)
 
+        cell_x = tf.to_float(tf.reshape(tf.tile(tf.range(cfg.grid_shape[0]), [cfg.grid_shape[1]]),
+                                        (1, cfg.grid_shape[1], cfg.grid_shape[0], 1, 1)))
+        cell_y = tf.transpose(cell_x, (0,2,1,3,4))
+
         predictions = tf.reshape(self.network, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], int(anchors_size*5 + classes)])
 
         raw_boxes = predictions[:, :, 0:(anchors_size*5)]
 
         pred_boxes = tf.reshape(raw_boxes, [-1,  cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 5])
 
-        pred_boxes_xy = tf.sigmoid(pred_boxes[..., 0:2])
+        self.cell_grid = tf.tile(tf.concat([cell_x,cell_y], -1), [tf.shape(pred_boxes)[0], 1, 1, anchors_size, 1])
+
+        pred_boxes_xy = tf.sigmoid(pred_boxes[..., 0:2]) + self.cell_grid
         pred_boxes_wh = tf.exp(pred_boxes[..., 2:4])
 
         anchors_weight = tf.tile(
@@ -313,12 +319,6 @@ class Yolo:
         anchors = int(len(cfg.anchors)/2)
         print("anchors:", anchors)
 
-        cell_x = tf.to_float(tf.reshape(tf.tile(tf.range(cfg.grid_shape[0]), [cfg.grid_shape[1]]),
-                                        (1, cfg.grid_shape[1], cfg.grid_shape[0], 1, 1)))
-        cell_y = tf.transpose(cell_x, (0,2,1,3,4))
-
-        cell_grid = tf.tile(tf.concat([cell_x,cell_y], -1), [tf.shape(self.pred_boxes)[0], 1, 1, anchors, 1])
-
         self.train_object_recognition = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1]], "train_obj_rec")
         self.train_bounding_boxes = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 5], "train_bb")
 
@@ -340,7 +340,7 @@ class Yolo:
 
 
 
-        pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2]) + cell_grid
+        pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
 
         epsilon = tf.constant(self.epsilon)
 
@@ -560,16 +560,16 @@ class Yolo:
                         box = cell[k*5:(k+1)*5]
 
                         if not filter_top:
-                            box[0] = i*i_offset+(box[0]/cfg.grid_shape[0])
-                            box[1] = j*j_offset+(box[1]/cfg.grid_shape[1])
+                            box[0] = box[0]/cfg.grid_shape[0]
+                            box[1] = box[1]/cfg.grid_shape[1]
                             box[2] = box[2]/cfg.grid_shape[0]
                             box[3] = box[3]/cfg.grid_shape[1]
                             box_p = np.append(amax, box)
                             b_boxes.append(box_p)
                         elif (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
                             plot_box = box
-                            plot_box[0] = i*i_offset+(plot_box[0]/cfg.grid_shape[0])
-                            plot_box[1] = j*j_offset+(plot_box[1]/cfg.grid_shape[1])
+                            plot_box[0] = plot_box[0]/cfg.grid_shape[0]
+                            plot_box[1] = plot_box[1]/cfg.grid_shape[1]
                             plot_box[2] = plot_box[2]/cfg.grid_shape[0]
                             plot_box[3] = plot_box[3]/cfg.grid_shape[1]
 

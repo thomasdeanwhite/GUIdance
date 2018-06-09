@@ -12,9 +12,8 @@ import os
 tf.logging.set_verbosity(tf.logging.INFO)
 
 def normalise_point(point, val):
-    index = np.floor(point*val)
-    grid_point = index/val
-    return index + (point-grid_point)*val, grid_point
+    i = point*val
+    return i, math.floor(i)
 
 def normalise_label(label):
     px, cx = normalise_point(max(0, min(1, label[0])), cfg.grid_shape[0])
@@ -22,8 +21,8 @@ def normalise_label(label):
     return [
         px,
         py,
-        max(0, min(1, label[2]*cfg.grid_shape[0])),
-        max(0, min(1, label[3]*cfg.grid_shape[1])),
+        max(0, min(cfg.grid_shape[0], label[2]*cfg.grid_shape[0])),
+        max(0, min(cfg.grid_shape[1], label[3]*cfg.grid_shape[1])),
         label[4]
     ], (cx, cy)
 
@@ -59,8 +58,8 @@ def load_files(files):
                 #print(elements[1:3])
                 normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
                                                             float(elements[3]), float(elements[4]), 1])
-                x = max(0, min(int(float(centre[0])*cfg.grid_shape[0])-1, cfg.grid_shape[0]-1))
-                y = max(0, min(int(float(centre[1])*cfg.grid_shape[1])-1, cfg.grid_shape[1]-1))
+                x = max(0, min(int(centre[0]), cfg.grid_shape[0]-1))
+                y = max(0, min(int(centre[1]), cfg.grid_shape[1]-1))
                 imglabs[y][x] = normalised_label
                 obj_detect[y][x] = int(elements[0])
                 #obj_detect[y][x][int(elements[0])] = 1
@@ -157,7 +156,7 @@ if __name__ == '__main__':
                 anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
                 print("anchors", anchors.shape)
 
-                random.shuffle(training_images)
+                random.shuffle(valid_images)
                 with open("training.csv", "w") as file:
                     file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class\n")
 
@@ -171,7 +170,7 @@ if __name__ == '__main__':
                         gc.collect()
                         print("\rValidating " + str(j) + "/" + str(valid_batches), end="")
                         lower_index = j*cfg.batch_size
-                        upper_index = min(len(training_images), ((j+1)*cfg.batch_size))
+                        upper_index = min(len(valid_images), ((j+1)*cfg.batch_size))
 
                         v_imgs, v_labels, v_obj_detection = load_files(
                             valid_images[lower_index:upper_index])
@@ -189,6 +188,12 @@ if __name__ == '__main__':
                             yolo.x: v_imgs,
                             yolo.anchors: anchors
                         })
+
+                        for i in range(169):
+                            v_lb = v_labels[0, i%13, int(i/13)]
+                            if v_lb[4] == 1:
+                                print(i%13, int(i/13), predictions[0, i%13, int(i/13)], v_lb)
+                                break
 
                         del(v_imgs, v_labels, v_obj_detection, predictions)
 

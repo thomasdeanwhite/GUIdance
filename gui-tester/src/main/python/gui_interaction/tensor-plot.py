@@ -78,6 +78,7 @@ if __name__ == '__main__':
                     color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
                     if (box[5]>cfg.object_detection_threshold):
+                        print(box[5])
                         img = images[0][1]
 
                         height, width, channels = img.shape
