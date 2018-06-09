@@ -189,12 +189,6 @@ if __name__ == '__main__':
                             yolo.anchors: anchors
                         })
 
-                        for i in range(169):
-                            v_lb = v_labels[0, i%13, int(i/13)]
-                            if v_lb[4] == 1:
-                                print(i%13, int(i/13), predictions[0, i%13, int(i/13)], v_lb)
-                                break
-
                         del(v_imgs, v_labels, v_obj_detection, predictions)
 
                         losses[0] += loss
