@@ -108,6 +108,8 @@ if __name__ == '__main__':
 
     with tf.device(cfg.gpu):
 
+        tf.reset_default_graph()
+
         yolo = Yolo()
 
         yolo.create_network()
