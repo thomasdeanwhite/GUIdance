@@ -8,6 +8,7 @@ import gc
 import math
 import random
 import os
+from tensorflow.python.tools import inspect_checkpoint as chkp
 
 def load_file(files):
     images = []
@@ -29,7 +30,7 @@ if __name__ == '__main__':
 
 
 
-
+        tf.reset_default_graph()
         yolo = Yolo()
 
         yolo.create_network()
@@ -42,6 +43,8 @@ if __name__ == '__main__':
         saver = tf.train.Saver()
 
         model_file = os.getcwd() + "/backup_model/model.ckpt"
+
+        chkp.print_tensors_in_checkpoint_file(model_file, tensor_name='', all_tensors=True)
 
         config = tf.ConfigProto(allow_soft_placement = True)
 
