@@ -30,6 +30,7 @@ class Yolo:
     pred_classes = None
     loss_layers = {}
     cell_grid = None
+    layer_counter = 0
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -57,7 +58,8 @@ class Yolo:
         #                    dtype=tf.float32)
 
     def leaky_relu(self, layer):
-        x = tf.layers.batch_normalization(layer, training=self.is_training)
+        self.layer_counter = self.layer_counter + 1
+        x = tf.layers.batch_normalization(layer, training=self.is_training, name="batch_norm" + str(self.layer_counter))
         return tf.maximum(x, 0.1 * x)
 
     def create_network(self):
@@ -69,111 +71,111 @@ class Yolo:
 
         self.anchors = tf.placeholder(tf.float32, [anchors_size, 2], "anchors")
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.x, 32, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.x, 32, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = tf.layers.max_pooling2d(self.network, 2, 2)
+        self.network = tf.layers.max_pooling2d(self.network, 2, 2, name="max2d" + str(self.layer_counter))
         print(self.network.shape)
 
         if cfg.enable_logging:
             tf.summary.histogram("n1", self.network)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 64, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 64, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
         if cfg.enable_logging:
             tf.summary.histogram("n1.5", self.network)
 
-        self.network = tf.layers.max_pooling2d(self.network, 2, 2)
+        self.network = tf.layers.max_pooling2d(self.network, 2, 2, name="max" + str(self.layer_counter))
         print(self.network.shape)
 
         if cfg.enable_logging:
             tf.summary.histogram("n2", self.network)
 
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 64, 1, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 64, 1, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 3, padding="same", name="conv2d" + str(self.layer_counter)))
 
-        self.network = tf.layers.max_pooling2d(self.network, 2, 2)
+        self.network = tf.layers.max_pooling2d(self.network, 2, 2, name="max" + str(self.layer_counter))
         print(self.network.shape)
 
         if cfg.enable_logging:
             tf.summary.histogram("n3", self.network)
 
-            self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 3, padding="same"))
+            self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 1, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 1, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 3, padding="same"))
-        self.network = tf.layers.max_pooling2d(self.network, 2, 2)
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 3, padding="same", name="conv2d" + str(self.layer_counter)))
+        self.network = tf.layers.max_pooling2d(self.network, 2, 2, name="max" + str(self.layer_counter))
         print(self.network.shape)
 
         if cfg.enable_logging:
             tf.summary.histogram("n4", self.network)
 
-            self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same"))
+            self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 1, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 1, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 1, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 1, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same", name="conv2d" + str(self.layer_counter)))
 
-        reorg = tf.extract_image_patches(self.network, [1, 2, 2, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding="SAME")
+        reorg = tf.extract_image_patches(self.network, [1, 2, 2, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding="SAME", name="extract" + str(self.layer_counter))
 
         print("reorg:", reorg.shape)
 
-        self.network = tf.layers.max_pooling2d(self.network, 2, 2)
+        self.network = tf.layers.max_pooling2d(self.network, 2, 2, name="max" + str(self.layer_counter))
         print(self.network.shape)
 
         if cfg.enable_logging:
             tf.summary.histogram("n5", self.network)
             #tf.summary.histogram("reorg", reorg)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 1, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 1, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 1, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 1, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
         print("Combining ", self.network.shape, "with reorg:", reorg.shape)
-        self.network = tf.concat([self.network, reorg], axis=-1)
+        self.network = tf.concat([self.network, reorg], axis=-1, name="concat" + str(self.layer_counter))
 
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, int(anchors_size*5 + classes), 1, padding="same"))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, int(anchors_size*5 + classes), 1, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
         cell_x = tf.to_float(tf.reshape(tf.tile(tf.range(cfg.grid_shape[0]), [cfg.grid_shape[1]]),
