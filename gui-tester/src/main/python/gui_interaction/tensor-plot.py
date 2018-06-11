@@ -78,7 +78,7 @@ if __name__ == '__main__':
                     color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
                     if (box[5]>cfg.object_detection_threshold):
-                        print(box[5])
+                        print(box)
                         img = images[0][1]
 
                         height, width, channels = img.shape
@@ -104,7 +104,7 @@ if __name__ == '__main__':
                                       (x1 + len(cls)*7, y1),
                                       (color[0], color[1], color[2]), -1, 8)
 
-                        cv2.putText(img, cls,
+                        cv2.putText(img, cls + str(round(box[4]*100)),
                                     (x1, y1-int(10*box[4])-2),
                                     cv2.FONT_HERSHEY_SIMPLEX,
                                     0.4, text_col, 1)

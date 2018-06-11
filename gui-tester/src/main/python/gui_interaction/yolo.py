@@ -69,182 +69,100 @@ class Yolo:
 
         self.anchors = tf.placeholder(tf.float32, [anchors_size, 2], "anchors")
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.x,
-                                    self.create_filter([3,
-                                                        3,
-                                                        1,
-                                                        32], "f1"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
-        print(self.network.shape)
-        self.network = tf.nn.max_pool(self.network, [1, 1, 1, 1], [1, 2, 2, 1], padding="SAME")
+        self.network = self.leaky_relu(tf.layers.conv2d(self.x, 32, 3, padding="same"))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        32,
-                                                        64], "f2"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = tf.layers.max_pooling2d(self.network, 2, 2)
         print(self.network.shape)
 
-        self.network = tf.nn.max_pool(self.network, [1, 1, 1, 1], [1, 2, 2, 1], padding="SAME")
+        if cfg.enable_logging:
+            tf.summary.histogram("n1", self.network)
+
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 64, 3, padding="same"))
         print(self.network.shape)
 
+        if cfg.enable_logging:
+            tf.summary.histogram("n1.5", self.network)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        64,
-                                                        128], "f3"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = tf.layers.max_pooling2d(self.network, 2, 2)
         print(self.network.shape)
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([1,
-                                                        1,
-                                                        128,
-                                                        64], "f4"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+        if cfg.enable_logging:
+            tf.summary.histogram("n2", self.network)
+
+
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 3, padding="same"))
         print(self.network.shape)
 
-
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        64,
-                                                        128], "f5"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 64, 1, padding="same"))
         print(self.network.shape)
 
-        self.network = tf.nn.max_pool(self.network, [1, 1, 1, 1], [1, 2, 2, 1], padding="SAME")
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 3, padding="same"))
+
+        self.network = tf.layers.max_pooling2d(self.network, 2, 2)
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        128,
-                                                        256], "f6"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        if cfg.enable_logging:
+            tf.summary.histogram("n3", self.network)
+
+            self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 3, padding="same"))
         print(self.network.shape)
 
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([1,
-                                                        1,
-                                                        256,
-                                                        128], "f7"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 1, padding="same"))
         print(self.network.shape)
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        128,
-                                                        256], "f8"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 3, padding="same"))
+        self.network = tf.layers.max_pooling2d(self.network, 2, 2)
         print(self.network.shape)
 
-        self.network = tf.nn.max_pool(self.network, [1, 1, 1, 1], [1, 2, 2, 1], padding="SAME")
+        if cfg.enable_logging:
+            tf.summary.histogram("n4", self.network)
+
+            self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same"))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([1,
-                                                        1,
-                                                        256,
-                                                        512], "f9"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 1, padding="same"))
         print(self.network.shape)
 
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        512,
-                                                        256], "f10"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same"))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([1,
-                                                        1,
-                                                        256,
-                                                        512], "f11"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 1, padding="same"))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        512,
-                                                        256], "f12"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([1,
-                                                        1,
-                                                        256,
-                                                        512], "f13"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same"))
 
         reorg = tf.extract_image_patches(self.network, [1, 2, 2, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding="SAME")
 
-        self.network = tf.nn.max_pool(self.network, [1, 1, 1, 1], [1, 2, 2, 1], padding="SAME")
+        print("reorg:", reorg.shape)
+
+        self.network = tf.layers.max_pooling2d(self.network, 2, 2)
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        512,
-                                                        1024], "f14"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        if cfg.enable_logging:
+            tf.summary.histogram("n5", self.network)
+            #tf.summary.histogram("reorg", reorg)
+
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        1024,
-                                                        512], "f15"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 1, padding="same"))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        512,
-                                                        1024], "f16"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        1024,
-                                                        512], "f17"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 1, padding="same"))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        512,
-                                                        1024], "f18"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        1024,
-                                                        1024], "f19"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        1024,
-                                                        1024], "f20"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
         print(self.network.shape)
 
         print("Combining ", self.network.shape, "with reorg:", reorg.shape)
@@ -252,21 +170,10 @@ class Yolo:
 
         print(self.network.shape)
 
-        self.network = self.leaky_relu(tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        3072,
-                                                        1024], "f21"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same"))
         print(self.network.shape)
 
-
-        self.network = tf.nn.conv2d(self.network,
-                                    self.create_filter([3,
-                                                        3,
-                                                        1024,
-                                                        int(anchors_size*5 + classes)], "f22"),
-                                    [1, 1, 1, 1], padding="SAME", use_cudnn_on_gpu=cfg.cudnn_on_gpu)
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, int(anchors_size*5 + classes), 1, padding="same"))
         print(self.network.shape)
 
         cell_x = tf.to_float(tf.reshape(tf.tile(tf.range(cfg.grid_shape[0]), [cfg.grid_shape[1]]),
@@ -531,12 +438,14 @@ class Yolo:
 
         #tf.summary.histogram("loss", self.loss)
         if (cfg.enable_logging):
-            tf.summary.histogram("loss_position", total_pos_loss)
-            tf.summary.histogram("loss_dimension", total_dim_loss)
-            tf.summary.histogram("loss_obj", object_recognition)
-            tf.summary.histogram("loss_class", class_loss)
-            tf.summary.histogram("predictions_boxes", self.pred_boxes)
-            tf.summary.histogram("predictions_classes", self.pred_classes)
+            for v in range(len(self.variables)):
+                tf.summary.histogram("v" + str(v), self.variables[v])
+            # tf.summary.histogram("loss_position", total_pos_loss)
+            # tf.summary.histogram("loss_dimension", total_dim_loss)
+            # tf.summary.histogram("loss_obj", object_recognition)
+            # tf.summary.histogram("loss_class", class_loss)
+            # tf.summary.histogram("predictions_boxes", self.pred_boxes)
+            # tf.summary.histogram("predictions_classes", self.pred_classes)
 
     def get_network(self):
         return self.network

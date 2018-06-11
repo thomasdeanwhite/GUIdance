@@ -108,88 +108,152 @@ if __name__ == '__main__':
 
     with tf.device(cfg.gpu):
 
+        yolo = Yolo()
+
+        yolo.create_network()
+
+        yolo.set_training(True)
+
+        yolo.create_training()
+
+        learning_rate = tf.placeholder(tf.float64)
+        learning_r = cfg.learning_rate_start
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
-
-            yolo = Yolo()
-
-            yolo.create_network()
-
-            yolo.set_training(True)
             yolo.set_update_ops(update_ops)
-
-            yolo.create_training()
-
-            learning_rate = tf.placeholder(tf.float64)
-            learning_r = cfg.learning_rate_start
-
             train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
                 minimize(yolo.loss)
 
-            saver = tf.train.Saver()
+        saver = tf.train.Saver()
 
-            model_file = "model/model.ckpt"
+        model_file = "model/model.ckpt"
 
-            valid_batches = math.ceil(len(valid_images)/cfg.batch_size) if cfg.run_all_batches else 1
+        valid_batches = math.ceil(len(valid_images)/cfg.batch_size) if cfg.run_all_batches else 1
 
-            config = tf.ConfigProto(allow_soft_placement = True)
+        config = tf.ConfigProto(allow_soft_placement = True)
 
-            with tf.Session(config=config) as sess:
+        with tf.Session(config=config) as sess:
 
-                init_op = tf.global_variables_initializer()
+            init_op = tf.global_variables_initializer()
 
-                print("Initialising Memory Values")
-                model = sess.run(init_op)
+            print("Initialising Memory Values")
+            model = sess.run(init_op)
 
-                if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
-                    saver.restore(sess, "backup_" + model_file)
-                    print("Restored model")
+            if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
+                saver.restore(sess, "backup_" + model_file)
+                print("Restored model")
 
-                if (cfg.enable_logging):
-                    train_writer = tf.summary.FileWriter( './logs/1/train ', sess.graph)
+            if (cfg.enable_logging):
+                train_writer = tf.summary.FileWriter( './logs/1/train ', sess.graph)
 
-                print("!Finished Initialising Memory Values!")
-                image_length = len(training_images)
-                batches = math.ceil(image_length/cfg.batch_size) if cfg.run_all_batches else 1
-                print("Starting training:", image_length, "images in", batches, "batches.")
+            print("!Finished Initialising Memory Values!")
+            image_length = len(training_images)
+            batches = math.ceil(image_length/cfg.batch_size) if cfg.run_all_batches else 1
+            print("Starting training:", image_length, "images in", batches, "batches.")
 
-                anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
-                print("anchors", anchors.shape)
+            anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
+            print("anchors", anchors.shape)
 
-                random.shuffle(valid_images)
-                with open("training.csv", "w") as file:
-                    file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class\n")
+            random.shuffle(valid_images)
+            with open("training.csv", "w") as file:
+                file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class\n")
 
-                for i in range(cfg.epochs):
-                    random.shuffle(training_images)
-                    yolo.set_training(False)
+            for i in range(cfg.epochs):
+                random.shuffle(training_images)
+                yolo.set_training(False)
 
-                    losses = [0, 0, 0, 0, 0]
+                losses = [0, 0, 0, 0, 0]
 
-                    for j in range(valid_batches):
-                        gc.collect()
-                        print("\rValidating " + str(j) + "/" + str(valid_batches), end="")
-                        lower_index = j*cfg.batch_size
-                        upper_index = min(len(valid_images), ((j+1)*cfg.batch_size))
+                for j in range(valid_batches):
+                    gc.collect()
+                    print("\rValidating " + str(j) + "/" + str(valid_batches), end="")
+                    lower_index = j*cfg.batch_size
+                    upper_index = min(len(valid_images), ((j+1)*cfg.batch_size))
 
-                        v_imgs, v_labels, v_obj_detection = load_files(
-                            valid_images[lower_index:upper_index])
+                    v_imgs, v_labels, v_obj_detection = load_files(
+                        valid_images[lower_index:upper_index])
 
-                        v_imgs = (np.array(v_imgs)/255)
+                    v_imgs = (np.array(v_imgs)/255)
 
-                        v_labels = np.array(v_labels)
+                    v_labels = np.array(v_labels)
 
-                        v_obj_detection = np.array(v_obj_detection)
+                    v_obj_detection = np.array(v_obj_detection)
 
-                        predictions, loss, lp, ld, lo, lc = sess.run([yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
-                                                                                         yolo.loss_obj, yolo.loss_class], feed_dict={
+                    if cfg.enable_logging and i == 0:
+                        merge = tf.summary.merge_all()
+                        summary, _ = sess.run([merge, yolo.loss], feed_dict={
                             yolo.train_bounding_boxes: v_labels,
                             yolo.train_object_recognition: v_obj_detection,
                             yolo.x: v_imgs,
                             yolo.anchors: anchors
                         })
 
-                        del(v_imgs, v_labels, v_obj_detection, predictions)
+                        train_writer.add_summary(summary, 0)
+
+                    predictions, loss, lp, ld, lo, lc = sess.run([yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
+                                                                                     yolo.loss_obj, yolo.loss_class], feed_dict={
+                        yolo.train_bounding_boxes: v_labels,
+                        yolo.train_object_recognition: v_obj_detection,
+                        yolo.x: v_imgs,
+                        yolo.anchors: anchors
+                    })
+
+                    del(v_imgs, v_labels, v_obj_detection, predictions)
+
+                    losses[0] += loss
+                    losses[1] += lp
+                    losses[2] += ld
+                    losses[3] += lo
+                    losses[4] += lc
+
+                print(i, "loss:", losses)
+
+                loss_string = str(i) + "," + "Validation"
+
+                for l in range(len(losses)):
+                    loss_string = loss_string + "," + str(losses[l])
+
+                with open("training.csv", "a") as file:
+                    file.write(loss_string + "\n")
+
+                print(loss_string)
+
+                #learning_r = (cfg.learning_rate_start-cfg.learning_rate_min)*pow(cfg.learning_rate_decay, i) \
+                #             + cfg.learning_rate_min
+
+                learning_r = modify_learning_rate(i)
+                print("Learning rate:", learning_r)
+                yolo.set_training(True)
+
+                losses = [0, 0, 0, 0, 0]
+
+                for j in range(batches):
+                    gc.collect()
+                    if (cfg.enable_logging):
+                        merge = tf.summary.merge_all()
+
+                    print("\rTraining " + str(j) + "/" + str(batches), end="")
+
+                    lower_index = j * cfg.batch_size
+                    upper_index = min(len(training_images), (j+1)*cfg.batch_size)
+                    imgs, labels, obj_detection = load_files(
+                        training_images[lower_index:upper_index])
+
+                    imgs = (np.array(imgs)/127.5)-1
+
+                    labels = np.array(labels)
+
+                    obj_detection = np.array(obj_detection)
+
+                    if (cfg.enable_logging):
+                        summary, _, predictions, loss, lp, ld, lo, lc = sess.run([merge, train_step, yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
+                                                                             yolo.loss_obj, yolo.loss_class], feed_dict={
+                            yolo.train_bounding_boxes: labels,
+                            yolo.train_object_recognition: obj_detection,
+                            yolo.x: imgs,
+                            yolo.anchors: anchors,
+                            learning_rate: learning_r
+                        })
 
                         losses[0] += loss
                         losses[1] += lp
@@ -197,113 +261,48 @@ if __name__ == '__main__':
                         losses[3] += lo
                         losses[4] += lc
 
-                    print(i, "loss:", losses)
-
-                    loss_string = str(i) + "," + "Validation"
-
-                    for l in range(len(losses)):
-                        loss_string = loss_string + "," + str(losses[l])
-
-                    with open("training.csv", "a") as file:
-                        file.write(loss_string + "\n")
-
-                    print(loss_string)
-
-                    #learning_r = (cfg.learning_rate_start-cfg.learning_rate_min)*pow(cfg.learning_rate_decay, i) \
-                    #             + cfg.learning_rate_min
-
-                    learning_r = modify_learning_rate(i)
-                    print("Learning rate:", learning_r)
-                    yolo.set_training(True)
-
-                    losses = [0, 0, 0, 0, 0]
-
-                    for j in range(batches):
-                        gc.collect()
-                        if (cfg.enable_logging):
-                            merge = tf.summary.merge_all()
-
-                        print("\rTraining " + str(j) + "/" + str(batches), end="")
-
-                        lower_index = j * cfg.batch_size
-                        upper_index = min(len(training_images), (j+1)*cfg.batch_size)
-                        imgs, labels, obj_detection = load_files(
-                            training_images[lower_index:upper_index])
-
-                        imgs = (np.array(imgs)/127.5)-1
-
-                        labels = np.array(labels)
-
-                        obj_detection = np.array(obj_detection)
-
-                        # loss, lp, ld, lo, ln, lc, out = sess.run([yolo.loss, yolo.loss_position, yolo.loss_dimension,
-                        #                  yolo.loss_obj, yolo.loss_noobj, yolo.loss_class, yolo.output], feed_dict={
-                        #     yolo.train_bounding_boxes: labels,
-                        #     yolo.train_object_recognition: obj_detection,
-                        #     yolo.x: imgs,
-                        #     yolo.anchors: anchors
-                        # })
-                        #
-                        # print("l,lp,ld,lo,ln,lc:",loss,lp,ld,lo,ln,lc,out)
-
-                        if (cfg.enable_logging):
-                            summary, _, predictions, loss, lp, ld, lo, lc = sess.run([merge, train_step, yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
+                        train_writer.add_summary(summary, i+1)
+                    else:
+                        _, predictions, loss, lp, ld, lo, lc = sess.run([train_step, yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
                                                                                  yolo.loss_obj, yolo.loss_class], feed_dict={
-                                yolo.train_bounding_boxes: v_labels,
-                                yolo.train_object_recognition: v_obj_detection,
-                                yolo.x: v_imgs,
-                                yolo.anchors: anchors,
-                                learning_rate: learning_r
-                            })
+                            yolo.train_bounding_boxes: labels,
+                            yolo.train_object_recognition: obj_detection,
+                            yolo.x: imgs,
+                            yolo.anchors: anchors,
+                            learning_rate: learning_r
+                        })
 
-                            losses[0] += loss
-                            losses[1] += lp
-                            losses[2] += ld
-                            losses[3] += lo
-                            losses[4] += lc
-
-                            train_writer.add_summary(summary, i)
-                        else:
-                            _, predictions, loss, lp, ld, lo, lc = sess.run([train_step, yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
-                                                                                     yolo.loss_obj, yolo.loss_class], feed_dict={
-                                yolo.train_bounding_boxes: labels,
-                                yolo.train_object_recognition: obj_detection,
-                                yolo.x: imgs,
-                                yolo.anchors: anchors,
-                                learning_rate: learning_r
-                            })
-
-                            losses[0] += loss
-                            losses[1] += lp
-                            losses[2] += ld
-                            losses[3] += lo
-                            losses[4] += lc
+                        losses[0] += loss
+                        losses[1] += lp
+                        losses[2] += ld
+                        losses[3] += lo
+                        losses[4] += lc
 
 
 
-                        del(imgs)
-                        del(labels)
-                        del(obj_detection)
+                    del(imgs)
+                    del(labels)
+                    del(obj_detection)
 
 
-                    loss_string = str(i) + "," + "Test"
+                loss_string = str(i) + "," + "Training"
 
-                    for l in range(len(losses)):
-                        loss_string = loss_string + "," + str(losses[l])
-
-
-                    with open("training.csv", "a") as file:
-                        file.write(loss_string + "\n")
-
-                    print(loss_string)
+                for l in range(len(losses)):
+                    loss_string = loss_string + "," + str(losses[l])
 
 
-                    if i % 10 == 0:
-                        save_path = saver.save(sess, str(i) + model_file)
+                with open("training.csv", "a") as file:
+                    file.write(loss_string + "\n")
 
-                    save_path = saver.save(sess, "backup_" + model_file)
+                print(loss_string)
 
 
-                gc.collect()
+                if i % 10 == 0:
+                    save_path = saver.save(sess, str(i) + model_file)
 
-                sys.exit()
+                save_path = saver.save(sess, "backup_" + model_file)
+
+
+            gc.collect()
+
+            sys.exit()
