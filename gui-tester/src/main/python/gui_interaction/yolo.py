@@ -107,7 +107,7 @@ class Yolo:
         if cfg.enable_logging:
             tf.summary.histogram("n3", self.network)
 
-            self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 3, padding="same", name="conv2d" + str(self.layer_counter)))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
 
@@ -121,7 +121,7 @@ class Yolo:
         if cfg.enable_logging:
             tf.summary.histogram("n4", self.network)
 
-            self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same", name="conv2d" + str(self.layer_counter)))
+        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same", name="conv2d" + str(self.layer_counter)))
         print(self.network.shape)
 
         self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 1, padding="same", name="conv2d" + str(self.layer_counter)))
