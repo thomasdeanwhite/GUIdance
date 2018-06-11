@@ -438,14 +438,16 @@ class Yolo:
 
         #tf.summary.histogram("loss", self.loss)
         if (cfg.enable_logging):
-            for v in range(len(self.variables)):
-                tf.summary.histogram("v" + str(v), self.variables[v])
-            # tf.summary.histogram("loss_position", total_pos_loss)
-            # tf.summary.histogram("loss_dimension", total_dim_loss)
-            # tf.summary.histogram("loss_obj", object_recognition)
-            # tf.summary.histogram("loss_class", class_loss)
-            # tf.summary.histogram("predictions_boxes", self.pred_boxes)
-            # tf.summary.histogram("predictions_classes", self.pred_classes)
+            tf.summary.histogram("loss_position", total_pos_loss)
+            tf.summary.histogram("loss_dimension", total_dim_loss)
+            tf.summary.histogram("loss_object", object_recognition)
+            tf.summary.histogram("loss_classification", class_loss)
+            tf.summary.scalar("loss_pos", self.loss_position)
+            tf.summary.scalar("loss_dim", self.loss_dimension)
+            tf.summary.scalar("loss_obj", self.loss_obj)
+            tf.summary.scalar("loss_class", self.loss_class)
+            tf.summary.scalar("total_loss", self.loss)
+
 
     def get_network(self):
         return self.network

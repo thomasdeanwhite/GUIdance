@@ -139,6 +139,8 @@ if __name__ == '__main__':
             print("Initialising Memory Values")
             model = sess.run(init_op)
 
+            #print(tf.get_default_graph().as_graph_def())
+
             if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
                 saver.restore(sess, "backup_" + model_file)
                 print("Restored model")

@@ -27,88 +27,85 @@ if __name__ == '__main__':
 
     with tf.device(cfg.gpu):
 
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
-
-            yolo = Yolo()
-
-            yolo.create_network()
-
-            yolo.set_training(True)
-            yolo.set_update_ops(update_ops)
-
-            yolo.create_training()
-
-            learning_rate = tf.placeholder(tf.float64)
-            learning_r = cfg.learning_rate_start
-
-            saver = tf.train.Saver()
-
-            model_file = os.getcwd() + "/backup_model/model.ckpt"
-
-            config = tf.ConfigProto(allow_soft_placement = True)
-
-            with tf.Session(config=config) as sess:
-
-                init_op = tf.global_variables_initializer()
-                model = sess.run(init_op)
-                if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
-                    saver.restore(sess, model_file)
-                    print("Restored model")
-                yolo.set_training(False)
-
-                anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
-                images = load_file(sys.argv[1:])
-
-                imgs = (np.array([row[0] for row in images])/127.5)-1
-
-                boxes = sess.run(yolo.output, feed_dict={
-                    yolo.x: imgs,
-                    yolo.anchors: anchors,
-                })
-
-                proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True)
 
 
-                for box in proc_boxes:
-                    cls = yolo.names[int(box[0])]
 
-                    hex = cls.encode('utf-8').hex()[0:6]
+        yolo = Yolo()
 
-                    color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
+        yolo.create_network()
+        #yolo.set_training(False)
+        #yolo.create_training()
 
-                    if (box[5]>cfg.object_detection_threshold):
-                        print(box)
-                        img = images[0][1]
+        learning_rate = tf.placeholder(tf.float64)
+        learning_r = cfg.learning_rate_start
 
-                        height, width, channels = img.shape
+        saver = tf.train.Saver()
 
-                        avg_col = color[0] + color[1] + color[2]
+        model_file = os.getcwd() + "/backup_model/model.ckpt"
 
-                        text_col = (255, 255, 255)
+        config = tf.ConfigProto(allow_soft_placement = True)
 
-                        if avg_col > 127:
-                            text_col = (0, 0, 0)
+        with tf.Session(config=config) as sess:
 
-                        x1 = max(int(width*(box[1]-box[3]/2)), 0)
-                        y1 = max(int(height*(box[2]-box[4]/2)), 0)
-                        x2 = int(width*((box[1]+box[3]/2)))
-                        y2 = int(height*(box[2]+box[4]/2))
+            init_op = tf.global_variables_initializer()
+            model = sess.run(init_op)
+            if os.path.isfile(os.getcwd() + "/backup_model/checkpoint"):
+                saver.restore(sess, model_file)
+                print("Restored model")
+            yolo.set_training(False)
 
-                        cv2.rectangle(img, (x1, y1),
-                                      (x2, y2),
-                                      (color[0], color[1], color[2]), int(10*box[4]), 8)
+            anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
+            images = load_file(sys.argv[1:])
 
-                        cv2.rectangle(img,
-                                      (x1, y1-int(10*box[4])-15),
-                                      (x1 + len(cls)*7, y1),
-                                      (color[0], color[1], color[2]), -1, 8)
+            imgs = (np.array([row[0] for row in images])/127.5)-1
 
-                        cv2.putText(img, cls + str(round(box[4]*100)),
-                                    (x1, y1-int(10*box[4])-2),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.4, text_col, 1)
+            boxes = sess.run(yolo.output, feed_dict={
+                yolo.x: imgs,
+                yolo.anchors: anchors,
+            })
 
-                cv2.imshow('image',images[0][1])
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
+            proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True)
+
+
+            for box in proc_boxes:
+                cls = yolo.names[int(box[0])]
+
+                hex = cls.encode('utf-8').hex()[0:6]
+
+                color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
+
+                if (box[5]>cfg.object_detection_threshold):
+                    print(box)
+                    img = images[0][1]
+
+                    height, width, channels = img.shape
+
+                    avg_col = color[0] + color[1] + color[2]
+
+                    text_col = (255, 255, 255)
+
+                    if avg_col > 127:
+                        text_col = (0, 0, 0)
+
+                    x1 = max(int(width*(box[1]-box[3]/2)), 0)
+                    y1 = max(int(height*(box[2]-box[4]/2)), 0)
+                    x2 = int(width*((box[1]+box[3]/2)))
+                    y2 = int(height*(box[2]+box[4]/2))
+
+                    cv2.rectangle(img, (x1, y1),
+                                  (x2, y2),
+                                  (color[0], color[1], color[2]), int(10*box[4]), 8)
+
+                    cv2.rectangle(img,
+                                  (x1, y1-int(10*box[4])-15),
+                                  (x1 + (4 + len(cls))*7, y1),
+                                  (color[0], color[1], color[2]), -1, 8)
+
+                    cv2.putText(img, cls + str(round(box[4]*100)),
+                                (x1, y1-int(10*box[4])-2),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.4, text_col, 1)
+
+            cv2.imshow('image',images[0][1])
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
