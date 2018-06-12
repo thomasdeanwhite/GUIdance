@@ -394,9 +394,9 @@ class Yolo:
 
         #print("top pos loss:", pos_loss.shape)
 
-        self.loss_position = tf.reduce_sum(obj_xy * total_pos_loss) / (tf.reduce_sum(tf.cast(obj_xy>0, tf.float32)) + epsilon)
+        self.loss_position = tf.reduce_sum(obj_xy * total_pos_loss)
 
-        self.loss_dimension = tf.reduce_sum(obj_xy * total_dim_loss) / (tf.reduce_sum(tf.cast(obj_xy>0, tf.float32)) + epsilon)
+        self.loss_dimension = tf.reduce_sum(obj_xy * total_dim_loss)
 
         #pred_conf = tf.multiply(top_iou[:,:,:,:,0], truth[:,:,:,:,4])
 
@@ -434,7 +434,7 @@ class Yolo:
         class_loss = tf.multiply(tf.cast(obj_classes, tf.float32), class_loss) \
                      / (tf.reduce_sum(tf.cast(obj_classes>0, tf.float32))+epsilon)
 
-        self.loss_class = tf.reduce_mean(class_loss)
+        self.loss_class = tf.reduce_sum(class_loss)
 
         self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_class
 
