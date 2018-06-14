@@ -465,7 +465,7 @@ class Yolo:
                             box[3] = box[3]/cfg.grid_shape[1]
                             box_p = np.append(amax, box)
                             b_boxes.append(box_p)
-                        elif (box[4]>cfg.object_detection_threshold and box[4]>plot_box[4]):
+                        elif (box[4]>plot_box[4]):
                             plot_box = box
                             plot_box[0] = plot_box[0]/cfg.grid_shape[0]
                             plot_box[1] = plot_box[1]/cfg.grid_shape[1]

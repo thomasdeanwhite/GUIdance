@@ -78,38 +78,4 @@ if __name__ == '__main__':
 
                 color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
-                if (box[5]>cfg.object_detection_threshold):
-                    print(box)
-                    img = images[0][1]
-
-                    height, width, channels = img.shape
-
-                    avg_col = color[0] + color[1] + color[2]
-
-                    text_col = (255, 255, 255)
-
-                    if avg_col > 127:
-                        text_col = (0, 0, 0)
-
-                    x1 = max(int(width*(box[1]-box[3]/2)), 0)
-                    y1 = max(int(height*(box[2]-box[4]/2)), 0)
-                    x2 = int(width*((box[1]+box[3]/2)))
-                    y2 = int(height*(box[2]+box[4]/2))
-
-                    cv2.rectangle(img, (x1, y1),
-                                  (x2, y2),
-                                  (color[0], color[1], color[2]), 3+int(7*box[4]), 8)
-
-                    cv2.rectangle(img,
-                                  (x1, y1-int(10*box[4])-15),
-                                  (x1 + (5 + len(cls))*7, y1),
-                                  (color[0], color[1], color[2]), -1, 8)
-
-                    cv2.putText(img, cls + str(round(box[5]*100)),
-                                (x1, y1-int(10*box[4])-2),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.4, text_col, 1)
-
-            cv2.imshow('image',images[0][1])
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+                print(cls, box[1], box[2], box[3], box[4], box[5])

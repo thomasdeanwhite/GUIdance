@@ -10,13 +10,17 @@ Training models to identify GUI Widgets.
 
 # Running #
 
-After downloading or training a model and creating weights, run
+After downloading or training the model's  weights, run
+```
+gui-tester/src/main/python/gui_interaction/model_run.py [path to image]
+```
+to print out the identified bounding boxes.
+
+To visualise bounding boxes, model_plot.py can be used:
 ```
 gui-tester/src/main/python/gui_interaction/model_plot.py [path to image]
 ```
-
 e.g.
-
 ```
 python gui-tester/src/main/python/gui_interaction/model_plot.py /home/user/img.png
 ```
