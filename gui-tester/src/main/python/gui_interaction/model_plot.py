@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
         saver = tf.train.Saver()
 
-        model_file = os.getcwd() + "/weights/model.ckpt"
+        model_file = os.getcwd() + "/" + cfg.weights_dir + "/model.ckpt"
 
         #chkp.print_tensors_in_checkpoint_file(model_file, tensor_name='', all_tensors=True)
 
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
             init_op = tf.global_variables_initializer()
             model = sess.run(init_op)
-            if os.path.isfile(os.getcwd() + "/weights/checkpoint"):
+            if os.path.isfile(os.getcwd() + "/" + cfg.weights_dir + "/checkpoint"):
                 saver.restore(sess, model_file)
                 print("Restored model")
             yolo.set_training(False)

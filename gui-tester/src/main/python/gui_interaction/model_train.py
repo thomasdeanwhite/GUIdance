@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
         saver = tf.train.Saver()
 
-        model_file = "weights/model.ckpt"
+        model_file = cfg.weights_dir + "/model.ckpt"
 
         valid_batches = math.ceil(len(valid_images)/cfg.batch_size) if cfg.run_all_batches else 1
 
@@ -143,7 +143,7 @@ if __name__ == '__main__':
 
             #print(tf.get_default_graph().as_graph_def())
 
-            if os.path.isfile(os.getcwd() + "/weights/checkpoint"):
+            if os.path.isfile(os.getcwd() + "/" + cfg.weights_dir + "/checkpoint"):
                 saver.restore(sess, model_file)
                 print("Restored model")
 
