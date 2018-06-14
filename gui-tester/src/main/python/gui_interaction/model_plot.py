@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
         model_file = os.getcwd() + "/backup_model/model.ckpt"
 
-        chkp.print_tensors_in_checkpoint_file(model_file, tensor_name='', all_tensors=True)
+        #chkp.print_tensors_in_checkpoint_file(model_file, tensor_name='', all_tensors=True)
 
         config = tf.ConfigProto(allow_soft_placement = True)
 
@@ -60,7 +60,8 @@ if __name__ == '__main__':
             anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
             images = load_file(sys.argv[1:])
 
-            imgs = (np.array([row[0] for row in images])/127.5)-1
+            #normalise data  between 0 and 1
+            imgs = (np.array([row[0] for row in images])/255)
 
             boxes = sess.run(yolo.output, feed_dict={
                 yolo.x: imgs,
@@ -97,14 +98,14 @@ if __name__ == '__main__':
 
                     cv2.rectangle(img, (x1, y1),
                                   (x2, y2),
-                                  (color[0], color[1], color[2]), int(10*box[4]), 8)
+                                  (color[0], color[1], color[2]), 3+int(7*box[4]), 8)
 
                     cv2.rectangle(img,
                                   (x1, y1-int(10*box[4])-15),
-                                  (x1 + (4 + len(cls))*7, y1),
+                                  (x1 + (5 + len(cls))*7, y1),
                                   (color[0], color[1], color[2]), -1, 8)
 
-                    cv2.putText(img, cls + str(round(box[4]*100)),
+                    cv2.putText(img, cls + str(round(box[5]*100)),
                                 (x1, y1-int(10*box[4])-2),
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 0.4, text_col, 1)

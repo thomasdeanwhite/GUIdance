@@ -49,15 +49,6 @@ if __name__ == '__main__':
 
     program_name = "Firefox"
 
-    #info = os.system("xwininfo -name \"" + program_name + "\" | grep Corners")
-
-    #info = info.trim()
-
-    #corners = info.split("[+-]*")
-
-    #print(corners)
-
-
     with tf.device(cfg.gpu):
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -94,27 +85,17 @@ if __name__ == '__main__':
                 start_time = time.time()
 
                 while (time.time() - start_time < 30):
-                    #os.system("gnome-screenshot --file=/tmp/current_screen.png")
 
-                    image = pyautogui.screenshot().convert("L") # cv2.imread("/tmp/current_screen.png", 0)
+                    image = pyautogui.screenshot().convert("L")
 
                     image = np.array(image)
-
-                    #image = image[:, :, ::-1].copy()
 
                     image = image[app_y:app_y+app_h, app_x:app_x+app_w]
 
                     image = cv2.resize(image, (cfg.width, cfg.height))
 
-                    # cv2.imshow('image',image)
-                    # cv2.waitKey(0)
-                    # cv2.destroyAllWindows()
-
-
 
                     images = np.reshape(image, [1, cfg.width, cfg.height, 1])
-
-                    #imgs = (np.array([row[0] for row in images])/127.5)-1
 
                     boxes = sess.run(yolo.output, feed_dict={
                         yolo.x: images,

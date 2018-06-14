@@ -388,17 +388,9 @@ class Yolo:
 
         print("total pos loss:", total_pos_loss.shape)
 
-        # pos_loss = tf.gather_nd(total_pos_loss, new_indices)
-        # dim_loss = tf.gather_nd(total_dim_loss, new_indices)
-        # conf_loss = tf.gather_nd(total_conf_loss, new_indices)
-
-        #print("top pos loss:", pos_loss.shape)
-
         self.loss_position = tf.reduce_sum(obj_xy * total_pos_loss)
 
         self.loss_dimension = tf.reduce_sum(obj_xy * total_dim_loss)
-
-        #pred_conf = tf.multiply(top_iou[:,:,:,:,0], truth[:,:,:,:,4])
 
         obj_conf = tf.cast(tf.reshape(top_iou,
                                  [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < cfg.object_detection_threshold, tf.float32) * \
@@ -422,8 +414,6 @@ class Yolo:
 
         self.loss_obj = tf.reduce_sum(object_recognition)
 
-        #true_classes = tf.argmax(self.train_object_recognition, -1)
-
         class_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_classes,
                                                 labels=tf.cast(self.train_object_recognition, tf.int32))
 
@@ -438,7 +428,6 @@ class Yolo:
 
         self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_class
 
-        #tf.summary.histogram("loss", self.loss)
         if (cfg.enable_logging):
             tf.summary.histogram("loss_position", total_pos_loss)
             tf.summary.histogram("loss_dimension", total_dim_loss)
@@ -456,9 +445,6 @@ class Yolo:
 
     def convert_net_to_bb(self, boxes, filter_top=True):
         b_boxes = []
-
-        i_offset = 1/cfg.grid_shape[0]
-        j_offset = 1/cfg.grid_shape[1]
 
         for image in range(boxes.shape[0]):
             for i in range(cfg.grid_shape[0]):

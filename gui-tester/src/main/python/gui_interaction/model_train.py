@@ -163,7 +163,7 @@ if __name__ == '__main__':
                 file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class\n")
 
             for i in range(cfg.epochs):
-                random.shuffle(training_images)
+                #random.shuffle(training_images)
                 yolo.set_training(False)
 
                 losses = [0, 0, 0, 0, 0]
