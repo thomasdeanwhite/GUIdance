@@ -17,4 +17,4 @@ target/*
 venv/
 **/*/__pycache__
 **/*/config.py
-backup_model
+weights
