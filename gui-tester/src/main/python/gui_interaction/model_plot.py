@@ -68,7 +68,7 @@ if __name__ == '__main__':
                 yolo.anchors: anchors,
             })
 
-            proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True)
+            proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()
 
 
             for box in proc_boxes:
