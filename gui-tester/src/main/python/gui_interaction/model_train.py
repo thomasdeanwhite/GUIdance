@@ -36,8 +36,25 @@ def load_files(files):
     object_detection = []
 
     for f in files:
-        image = imread(f, 0)
-        image = resize(image, (cfg.width, cfg.height))
+        image = np.int16(imread(f, 0))
+
+        if random.random() < cfg.brightness_probability:
+            brightness = int(random.random()*cfg.brightness_var*2)-cfg.brightness_var
+            image = np.maximum(0, np.minimum(255, np.add(image, brightness)))
+
+        if random.random() < cfg.contrast_probability:
+            contrast = (random.random() * cfg.contrast_var * 2) - cfg.contrast_var
+
+            contrast_diff = (image - np.mean(image)) * contrast
+            image = np.maximum(0, np.minimum(255, np.add(image, contrast_diff)))
+
+        if random.random() < cfg.invert_probability:
+            image = 255 - image
+
+        image = np.uint8(resize(image, (cfg.width, cfg.height)))
+        image = np.reshape(image, [cfg.width, cfg.height, 1])
+
+
         image = np.reshape(image, [cfg.width, cfg.height, 1])
         images.append(image)
 

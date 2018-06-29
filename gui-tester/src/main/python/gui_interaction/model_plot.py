@@ -14,10 +14,27 @@ def load_file(files):
     images = []
 
     for f in files:
-        image = cv2.imread(f, 0)
+        image = np.int16(cv2.imread(f, 0))
         img_raw = cv2.imread(f)
-        image = cv2.resize(image, (cfg.width, cfg.height))
+
+        if random.random() < cfg.brightness_probability:
+            brightness = int(random.random()*cfg.brightness_var*2)-cfg.brightness_var
+            image = np.maximum(0, np.minimum(255, np.add(image, brightness)))
+
+        if random.random() < cfg.contrast_probability:
+            contrast = (random.random() * cfg.contrast_var * 2) - cfg.contrast_var
+
+            contrast_diff = (image - np.mean(image)) * contrast
+            image = np.maximum(0, np.minimum(255, np.add(image, contrast_diff)))
+
+        if random.random() < cfg.invert_probability:
+            image = 255 - image
+
+        image = np.uint8(cv2.resize(image, (cfg.width, cfg.height)))
         image = np.reshape(image, [cfg.width, cfg.height, 1])
+
+
+
         images.append([image, img_raw])
 
     return images
@@ -110,6 +127,6 @@ if __name__ == '__main__':
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 0.4, text_col, 1)
 
-            cv2.imshow('image',images[0][1])
+            cv2.imshow('image',images[0][0])
             cv2.waitKey(0)
             cv2.destroyAllWindows()
