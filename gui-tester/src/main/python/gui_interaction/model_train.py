@@ -26,25 +26,25 @@ def normalise_label(label):
         label[4]
     ], (cx, cy)
 
-def load_files(files):
-    #files = [f.replace("/data/acp15tdw", "/home/thomas") for f in files]
-    raw_files = files
+def load_files(raw_files):
+    #raw_files = [f.replace("/data/acp15tdw", "/home/thomas") for f in raw_files]
     files = []
-    for f in raw_files:
-        if os.path.isfile(f):
-            files.append(f)
-
-    label_files = [f.replace("/images/", "/labels/") for f in files]
-    label_files = [f.replace(".png", ".txt") for f in label_files]
+    #for f in raw_files:
+    #    if os.path.isfile(f):
+    #        files.append(f)
 
     images = []
     labels = []
     object_detection = []
 
-    for f in files:
-        if f == None:
+    for f in raw_files:
+        if f == None or not os.path.isfile(f):
             continue
         raw_img = imread(f, 0)
+        if raw_img is None:
+            continue
+
+        files.append(f)
         image = np.int16(raw_img)
 
         if random.random() < cfg.brightness_probability:
@@ -66,6 +66,9 @@ def load_files(files):
 
         image = np.reshape(image, [cfg.width, cfg.height, 1])
         images.append(image)
+
+    label_files = [f.replace("/images/", "/labels/") for f in files]
+    label_files = [f.replace(".png", ".txt") for f in label_files]
 
     for f in label_files:
         # read in format [c, x, y, width, height]
