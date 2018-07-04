@@ -42,6 +42,8 @@ def load_files(files):
     object_detection = []
 
     for f in files:
+        if f == None:
+            continue
         raw_img = imread(f, 0)
         image = np.int16(raw_img)
 
