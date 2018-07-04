@@ -31,6 +31,11 @@ class Yolo:
     loss_layers = {}
     cell_grid = None
     layer_counter = 0
+    false_positives = None
+    false_negatives = None
+    true_positives = None
+    true_negatives = None
+    iou_threshold = None
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -231,6 +236,8 @@ class Yolo:
         self.train_object_recognition = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1]], "train_obj_rec")
         self.train_bounding_boxes = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 5], "train_bb")
 
+        self.iou_threshold = tf.placeholder(tf.float32)
+
         truth = tf.reshape(self.train_bounding_boxes, [-1, 13, 13, 1, 5])
 
         pred_boxes = self.pred_boxes
@@ -427,6 +434,26 @@ class Yolo:
         self.loss_class = tf.reduce_sum(class_loss)
 
         self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_class
+
+
+        obj_sens = tf.reshape(obj, [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+
+        class_assignments = tf.argmax(self.pred_classes,-1)
+
+        print(class_assignments.shape)
+        print(self.train_object_recognition.shape)
+
+        correct_classes = tf.cast(tf.equal(class_assignments, tf.cast(self.train_object_recognition, tf.int64)), tf.float32)
+
+        identified_objects = tf.reshape(tf.cast(top_iou >= self.iou_threshold, tf.float32), [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+
+
+        self.true_positives = tf.reduce_sum(obj_sens * identified_objects * correct_classes
+                                            )
+        self.false_positives = tf.reduce_sum(tf.maximum(1-obj_sens + (1-correct_classes), 1) * identified_objects)
+
+        self.true_negatives = tf.reduce_sum((1-obj_sens) * tf.cast(top_iou < self.iou_threshold, tf.float32))
+        self.false_negatives = tf.reduce_sum(1-obj_sens * (1-identified_objects))
 
         if (cfg.enable_logging):
             tf.summary.histogram("loss_position", total_pos_loss)

@@ -78,7 +78,7 @@ if __name__ == '__main__':
             images = load_file(sys.argv[1:])
 
             #normalise data  between 0 and 1
-            imgs = (np.array([row[0] for row in images])/255)
+            imgs = (np.array(([row[0] for row in images])/127.5)-1)
 
             boxes = sess.run(yolo.output, feed_dict={
                 yolo.x: imgs,

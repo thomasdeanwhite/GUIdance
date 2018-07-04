@@ -150,7 +150,7 @@ if __name__ == '__main__':
 
                     images = np.reshape(image, [1, cfg.width, cfg.height, 1])
 
-                    imgs = images/255.0
+                    imgs = (images/127.5)-1
                     gen_boxes = True
 
                     for l in states:

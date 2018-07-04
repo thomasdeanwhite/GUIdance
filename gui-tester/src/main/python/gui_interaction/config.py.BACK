@@ -63,7 +63,12 @@ batch_size = 32
 # standard deviation of variables when initialised
 var_sd = 0.001
 
-enable_logging = False
+brightness_probability = 1.1
+contrast_probability = 0.1
+invert_probability = 0.1
+
+brightness_var = 50
+contrast_var = 1
 
 
 # ------------------------

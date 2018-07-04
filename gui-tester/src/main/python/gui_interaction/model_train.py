@@ -177,13 +177,13 @@ if __name__ == '__main__':
 
             random.shuffle(valid_images)
             with open("training.csv", "w") as file:
-                file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class\n")
+                file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class,precision,recall,mAP\n")
 
             for i in range(cfg.epochs):
                 #random.shuffle(training_images)
                 yolo.set_training(False)
 
-                losses = [0, 0, 0, 0, 0]
+                losses = [0, 0, 0, 0, 0, 0, 0, 0]
 
                 for j in range(valid_batches):
                     gc.collect()
@@ -211,13 +211,38 @@ if __name__ == '__main__':
 
                         train_writer.add_summary(summary, 0)
 
-                    predictions, loss, lp, ld, lo, lc = sess.run([yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
-                                                                                     yolo.loss_obj, yolo.loss_class], feed_dict={
+                    predictions, \
+                    loss, lp, ld, lo, lc, \
+                    true_pos, false_pos, false_neg, cla = sess.run([
+                        yolo.pred_boxes,
+                        yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
+                        yolo.true_positives, yolo.false_positives, yolo.false_negatives, yolo.pred_classes], feed_dict={
                         yolo.train_bounding_boxes: v_labels,
                         yolo.train_object_recognition: v_obj_detection,
                         yolo.x: v_imgs,
-                        yolo.anchors: anchors
+                        yolo.anchors: anchors,
+                        yolo.iou_threshold: 0.5
                     })
+
+                    # keep track of true/false positive values to calculate mAP
+                    tps = true_pos
+                    fps = false_pos
+                    fns = false_neg
+
+                    for p in range(9):
+
+                        tp, fp, fn = sess.run([
+                            yolo.true_positives, yolo.false_positives, yolo.false_negatives], feed_dict={
+                            yolo.train_bounding_boxes: v_labels,
+                            yolo.train_object_recognition: v_obj_detection,
+                            yolo.x: v_imgs,
+                            yolo.anchors: anchors,
+                            yolo.iou_threshold: (0.55 + (0.05 * p))
+                        })
+
+                        tps += tp
+                        fps += fp
+                        fns += fn
 
                     del(v_imgs, v_labels, v_obj_detection, predictions)
 
@@ -227,12 +252,22 @@ if __name__ == '__main__':
                     losses[3] += lo
                     losses[4] += lc
 
+                    #precision
+                    losses[5] += true_pos / (true_pos + false_pos) / valid_batches
+
+                    #recall
+                    losses[6] += true_pos / (true_pos + false_neg) / valid_batches
+
+                    #mAP
+                    losses[7] += (tps / (tps + fps)) / valid_batches
+
                 print(i, "loss:", losses)
 
                 loss_string = str(i) + "," + "Validation"
 
                 for l in range(len(losses)):
                     loss_string = loss_string + "," + str(losses[l])
+
 
                 with open("training.csv", "a") as file:
                     file.write(loss_string + "\n")
@@ -246,7 +281,7 @@ if __name__ == '__main__':
                 print("Learning rate:", learning_r)
                 yolo.set_training(True)
 
-                losses = [0, 0, 0, 0, 0]
+                losses = [0, 0, 0, 0, 0, 0, 0, 0]
 
                 for j in range(batches):
                     gc.collect()
@@ -267,37 +302,70 @@ if __name__ == '__main__':
                     obj_detection = np.array(obj_detection)
 
                     if (cfg.enable_logging):
-                        summary, _, predictions, loss, lp, ld, lo, lc = sess.run([merge, train_step, yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
-                                                                             yolo.loss_obj, yolo.loss_class], feed_dict={
+                        summary, _, predictions, loss, lp, ld, lo, lc, true_pos, false_pos, false_neg = sess.run([
+                            merge, train_step, yolo.pred_boxes,
+                            yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
+                            yolo.true_positives, yolo.false_positives, yolo.false_negatives], feed_dict={
                             yolo.train_bounding_boxes: labels,
                             yolo.train_object_recognition: obj_detection,
                             yolo.x: imgs,
                             yolo.anchors: anchors,
-                            learning_rate: learning_r
+                            learning_rate: learning_r,
+                            yolo.iou_threshold: 0.5
                         })
+
+                        tps = true_pos
+                        fps = false_pos
+                        fns = false_neg
 
                         losses[0] += loss
                         losses[1] += lp
                         losses[2] += ld
                         losses[3] += lo
                         losses[4] += lc
+
+                        #precision
+                        losses[5] += true_pos / (true_pos + false_pos)
+
+                        #recall
+                        losses[6] += true_pos / (true_pos + false_neg)
+
+                        #mAP
+                        losses[7] += 0#(tps / (tps + fps))
+
 
                         train_writer.add_summary(summary, i+1)
                     else:
-                        _, predictions, loss, lp, ld, lo, lc = sess.run([train_step, yolo.pred_boxes, yolo.loss, yolo.loss_position, yolo.loss_dimension ,
-                                                                                 yolo.loss_obj, yolo.loss_class], feed_dict={
+                        _, predictions, loss, lp, ld, lo, lc, true_pos, false_pos, false_neg = sess.run([
+                            train_step, yolo.pred_boxes,
+                            yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
+                            yolo.true_positives, yolo.false_positives, yolo.false_negatives], feed_dict={
                             yolo.train_bounding_boxes: labels,
                             yolo.train_object_recognition: obj_detection,
                             yolo.x: imgs,
                             yolo.anchors: anchors,
-                            learning_rate: learning_r
+                            learning_rate: learning_r,
+                            yolo.iou_threshold: 0.5
                         })
+
+                        tps = true_pos
+                        fps = false_pos
+                        fns = false_neg
 
                         losses[0] += loss
                         losses[1] += lp
                         losses[2] += ld
                         losses[3] += lo
                         losses[4] += lc
+
+                        #precision
+                        losses[5] += true_pos / (true_pos + false_pos)
+
+                        #recall
+                        losses[6] += true_pos / (true_pos + false_neg)
+
+                        #mAP
+                        losses[7] += 0#(tps / (tps + fps))
 
 
 
