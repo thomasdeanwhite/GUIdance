@@ -28,6 +28,12 @@ def normalise_label(label):
 
 def load_files(files):
     #files = [f.replace("/data/acp15tdw", "/home/thomas") for f in files]
+    raw_files = files
+    files = []
+    for f in raw_files:
+        if os.path.isfile(f):
+            files.append(f)
+
     label_files = [f.replace("/images/", "/labels/") for f in files]
     label_files = [f.replace(".png", ".txt") for f in label_files]
 
@@ -36,7 +42,8 @@ def load_files(files):
     object_detection = []
 
     for f in files:
-        image = np.int16(imread(f, 0))
+        raw_img = imread(f, 0)
+        image = np.int16(raw_img)
 
         if random.random() < cfg.brightness_probability:
             brightness = int(random.random()*cfg.brightness_var*2)-cfg.brightness_var
@@ -200,6 +207,9 @@ if __name__ == '__main__':
 
                     v_obj_detection = np.array(v_obj_detection)
 
+                    if len(v_labels) == 0:
+                        continue
+
                     if cfg.enable_logging and i == 0:
                         merge = tf.summary.merge_all()
                         summary, _ = sess.run([merge, yolo.loss], feed_dict={
@@ -300,6 +310,10 @@ if __name__ == '__main__':
                     labels = np.array(labels)
 
                     obj_detection = np.array(obj_detection)
+
+
+                    if len(labels) == 0:
+                        continue
 
                     if (cfg.enable_logging):
                         summary, _, predictions, loss, lp, ld, lo, lc, true_pos, false_pos, false_neg = sess.run([
