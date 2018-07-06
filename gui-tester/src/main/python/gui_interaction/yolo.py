@@ -448,12 +448,12 @@ class Yolo:
         identified_objects = tf.reshape(tf.cast(top_iou >= self.iou_threshold, tf.float32), [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
 
 
-        self.true_positives = tf.reduce_sum(obj_sens * identified_objects * correct_classes
+        self.true_positives = tf.reduce_sum(obj_sens * identified_objects
                                             )
-        self.false_positives = tf.reduce_sum(tf.maximum(1-obj_sens + (1-correct_classes), 1) * identified_objects)
+        self.false_positives = tf.reduce_sum(1-obj_sens * identified_objects)
 
-        self.true_negatives = tf.reduce_sum((1-obj_sens) * tf.cast(top_iou < self.iou_threshold, tf.float32))
-        self.false_negatives = tf.reduce_sum(1-obj_sens * (1-identified_objects))
+        self.true_negatives = tf.reduce_sum((1-obj_sens) * (1-identified_objects))
+        self.false_negatives = tf.reduce_sum(obj_sens * (1-identified_objects))
 
         if (cfg.enable_logging):
             tf.summary.histogram("loss_position", total_pos_loss)
