@@ -445,7 +445,10 @@ class Yolo:
 
         correct_classes = tf.cast(tf.equal(class_assignments, tf.cast(self.train_object_recognition, tf.int64)), tf.float32)
 
-        identified_objects = tf.reshape(tf.cast(top_iou >= self.iou_threshold, tf.float32), [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+        identified_objects = tf.reshape(tf.cast(top_iou >= self.iou_threshold, tf.float32),
+                                        [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
+                                            tf.cast(matching_boxes[..., 4] >= cfg.object_detection_threshold, tf.float32),
+                                        [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
 
 
         self.true_positives = tf.reduce_sum(obj_sens * identified_objects
