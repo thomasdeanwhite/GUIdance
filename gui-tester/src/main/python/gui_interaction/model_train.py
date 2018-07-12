@@ -113,11 +113,11 @@ def modify_learning_rate(epoch):
     # return 0.0001
 
     if epoch < 5: # temp epoch start at 70
-        return 0.01
-    if epoch < 35:
         return 0.001
+    if epoch < 35:
+        return 0.0001
 
-    return 0.0001
+    return 0.00001
 
 
 if __name__ == '__main__':
