@@ -182,6 +182,8 @@ if __name__ == '__main__':
             if os.path.isfile(os.getcwd() + "/" + cfg.weights_dir + "/checkpoint"):
                 saver.restore(sess, model_file)
                 print("Restored model")
+            else:
+                print("Training from scratch.")
 
             if (cfg.enable_logging):
                 train_writer = tf.summary.FileWriter( './logs/1/train ', sess.graph)
