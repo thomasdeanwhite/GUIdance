@@ -9,6 +9,7 @@ import math
 import random
 import os
 import pickle
+import re
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -91,68 +92,54 @@ def load_files(raw_files):
 
             pickle.dump(pickled_data, open(pickle_f, "wb"))
 
-        for im in range(len(images)):
-            image = images[im]
-
-            if random.random() < cfg.brightness_probability:
-                brightness = int(random.random()*cfg.brightness_var*2)-cfg.brightness_var
-                image = np.maximum(0, np.minimum(255, np.add(image, brightness)))
-
-            if random.random() < cfg.contrast_probability:
-                contrast = (random.random() * cfg.contrast_var * 2) - cfg.contrast_var
-
-                contrast_diff = (image - np.mean(image)) * contrast
-                image = np.maximum(0, np.minimum(255, np.add(image, contrast_diff)))
-
-            if random.random() < cfg.invert_probability:
-                image = 255 - image
-
-            images[im] = image
-
     return images, labels, object_detection
-
-def modify_learning_rate(epoch):
-    # return learning rate in accordance to YOLO paper
-    # if epoch == 0:
-    #     return 0.001
-    # if epoch < 10:
-    #     return 0.001+(0.01-0.001)/((10-epoch))
-    #
-    # if epoch < 75:
-    #     return 0.01
-    #
-    # if epoch < 105:
-    #     return 0.001
-    #
-    # return 0.0001
-
-    if epoch < 5: # temp epoch start at 70
-        return 0.001
-    if epoch < 35:
-        return 0.0001
-
-    return 0.00001
-
 
 if __name__ == '__main__':
 
     training_file = cfg.data_dir + "/" + cfg.train_file
 
-    training_images = []
+    valid_images = []
+
+    real_images = []
+
+    pattern = re.compile(".*\/([0-9]+).*")
 
     with open(training_file, "r") as tfile:
         for l in tfile:
-            training_images.append(l.strip())
+
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
 
 
 
     valid_file = cfg.data_dir + "/" + cfg.validate_file
 
-    valid_images = []
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+    valid_file = cfg.data_dir + "/" + cfg.test_file
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
-            valid_images.append(l.strip())
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+    valid_file = cfg.data_dir + "/test-balanced.txt"
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num > 243:
+                valid_images.append(l.strip())
 
     #valid_images = random.sample(valid_images, cfg.batch_size)
 
@@ -180,7 +167,11 @@ if __name__ == '__main__':
 
         model_file = cfg.weights_dir + "/model.ckpt"
 
-        valid_batches = math.ceil(len(valid_images)/cfg.batch_size) if cfg.run_all_batches else 1
+        cfg.batch_size = 1
+
+        valid_batches = int(len(valid_images) / cfg.batch_size)
+
+        real_batches = int(len(real_images) / cfg.batch_size)
 
         gpu_options = tf.GPUOptions(allow_growth=True)
 
@@ -204,29 +195,28 @@ if __name__ == '__main__':
             if (cfg.enable_logging):
                 train_writer = tf.summary.FileWriter( './logs/1/train ', sess.graph)
 
-            print("!Finished Initialising Memory Values!")
-            image_length = len(training_images)
-            batches = math.ceil(image_length/cfg.batch_size) if cfg.run_all_batches else 1
-            print("Starting training:", image_length, "images in", batches, "batches.")
-
             anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
             print("anchors", anchors.shape)
 
             random.shuffle(valid_images)
-            with open("training.csv", "w") as file:
-                file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class,precision,recall,mAP\n")
+            header_string = "threshold,dataset,image,var,val"
+            with open("validation.csv", "w") as file:
+                file.write(header_string + "\n")
 
-            for i in range(cfg.epochs):
-                #random.shuffle(training_images)
-                yolo.set_training(False)
+            print(header_string)
 
-                losses = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+            yolo.set_training(False)
+
+            header_vals = ["precision", "recall", "mAP"]
+
+            for i in range(1):
+
+                values = [0, 0, 0]
 
                 for j in range(valid_batches):
                     gc.collect()
-                    print("\rValidating " + str(j) + "/" + str(valid_batches), end="")
-                    lower_index = j*cfg.batch_size
-                    upper_index = min(len(valid_images), ((j+1)*cfg.batch_size))
+                    lower_index = j
+                    upper_index = j+1
 
                     v_imgs, v_labels, v_obj_detection = load_files(
                         valid_images[lower_index:upper_index])
@@ -237,204 +227,79 @@ if __name__ == '__main__':
 
                     v_obj_detection = np.array(v_obj_detection)
 
+                    cfg.object_detection_threshold = 0.3
+
                     if len(v_labels) == 0:
                         continue
 
-                    if cfg.enable_logging and i == 0:
-                        merge = tf.summary.merge_all()
-                        summary, _ = sess.run([merge, yolo.loss], feed_dict={
-                            yolo.train_bounding_boxes: v_labels,
-                            yolo.train_object_recognition: v_obj_detection,
-                            yolo.x: v_imgs,
-                            yolo.anchors: anchors
-                        })
-
-                        train_writer.add_summary(summary, 0)
-
-                    predictions, \
-                    loss, lp, ld, lo, lc, \
                     true_pos, false_pos, false_neg, mAP = sess.run([
-                        yolo.pred_boxes,
-                        yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
                         yolo.true_positives, yolo.false_positives, yolo.false_negatives, yolo.mAP], feed_dict={
                         yolo.train_bounding_boxes: v_labels,
                         yolo.train_object_recognition: v_obj_detection,
                         yolo.x: v_imgs,
                         yolo.anchors: anchors,
-                        yolo.iou_threshold: 0.5
+                        yolo.iou_threshold: 0.5,
+                        yolo.object_detection_threshold: 0.3
                     })
+                    values[0] = 100*(true_pos/(true_pos+false_pos))
+                    values[1] = 100*(true_pos/(true_pos+false_neg))
+                    values[2] = 100*mAP
 
-                    # keep track of true/false positive values to calculate mAP
-                    tps = true_pos
-                    fps = false_pos
-                    fns = false_neg
+                    sens_string = ""
 
-                    for p in range(9):
+                    for acc in range(len(values)):
+                        sens_string += "\n" + str("%.2f" % (i*0.05)) + ",synthetic," + str(j) + ","
+                        sens_string += str(header_vals[acc]) + ","
+                        sens_string += str(values[acc])
 
-                        tp, fp, fn = sess.run([
-                            yolo.true_positives, yolo.false_positives, yolo.false_negatives], feed_dict={
-                            yolo.train_bounding_boxes: v_labels,
-                            yolo.train_object_recognition: v_obj_detection,
-                            yolo.x: v_imgs,
-                            yolo.anchors: anchors,
-                            yolo.iou_threshold: (0.55 + (0.05 * p))
-                        })
+                    print(sens_string)
+                    with open("validation.csv", "a") as file:
+                        file.write(sens_string + "\n")
 
-                        tps += tp
-                        fps += fp
-                        fns += fn
+                values = [0, 0, 0]
 
-                    del(v_imgs, v_labels, v_obj_detection, predictions)
-
-                    losses[0] += loss
-                    losses[1] += lp
-                    losses[2] += ld
-                    losses[3] += lo
-                    losses[4] += lc
-
-                    #precision
-                    losses[5] += true_pos / (true_pos + false_pos) / valid_batches
-
-                    #recall
-                    losses[6] += true_pos / (true_pos + false_neg) / valid_batches
-
-                    #mAP
-                    losses[7] += (tps / (tps + fps)) / valid_batches
-                    losses[8] += mAP
-
-                print(i, "loss:", losses)
-
-                loss_string = str(i) + "," + "Validation"
-
-                for l in range(len(losses)):
-                    loss_string = loss_string + "," + str(losses[l])
-
-
-                with open("training.csv", "a") as file:
-                    file.write(loss_string + "\n")
-
-                print(loss_string)
-
-                #learning_r = (cfg.learning_rate_start-cfg.learning_rate_min)*pow(cfg.learning_rate_decay, i) \
-                #             + cfg.learning_rate_min
-
-                learning_r = modify_learning_rate(i)
-                print("Learning rate:", learning_r)
-                yolo.set_training(True)
-
-                losses = [0, 0, 0, 0, 0, 0, 0, 0]
-
-                for j in range(batches):
+                for j in range(real_batches):
                     gc.collect()
-                    if (cfg.enable_logging):
-                        merge = tf.summary.merge_all()
+                    lower_index = j
+                    upper_index = j+1
 
-                    print("\rTraining " + str(j) + "/" + str(batches), end="")
+                    v_imgs, v_labels, v_obj_detection = load_files(
+                        real_images[lower_index:upper_index])
 
-                    lower_index = j * cfg.batch_size
-                    upper_index = min(len(training_images), (j+1)*cfg.batch_size)
-                    imgs, labels, obj_detection = load_files(
-                        training_images[lower_index:upper_index])
+                    v_imgs = (np.array(v_imgs)/127.5)-1
 
-                    imgs = (np.array(imgs)/127.5)-1
+                    v_labels = np.array(v_labels)
 
-                    labels = np.array(labels)
+                    v_obj_detection = np.array(v_obj_detection)
 
-                    obj_detection = np.array(obj_detection)
+                    cfg.object_detection_threshold = 0.3
 
-
-                    if len(labels) == 0:
+                    if len(v_labels) == 0:
                         continue
 
-                    if (cfg.enable_logging):
-                        summary, _, predictions, loss, lp, ld, lo, lc, true_pos, false_pos, false_neg = sess.run([
-                            merge, train_step, yolo.pred_boxes,
-                            yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
-                            yolo.true_positives, yolo.false_positives, yolo.false_negatives], feed_dict={
-                            yolo.train_bounding_boxes: labels,
-                            yolo.train_object_recognition: obj_detection,
-                            yolo.x: imgs,
-                            yolo.anchors: anchors,
-                            learning_rate: learning_r,
-                            yolo.iou_threshold: 0.5
-                        })
+                    true_pos, false_pos, false_neg, mAP = sess.run([
+                        yolo.true_positives, yolo.false_positives, yolo.false_negatives, yolo.mAP], feed_dict={
+                        yolo.train_bounding_boxes: v_labels,
+                        yolo.train_object_recognition: v_obj_detection,
+                        yolo.x: v_imgs,
+                        yolo.anchors: anchors,
+                        yolo.iou_threshold: 0.5,
+                        yolo.object_detection_threshold: 0.3
+                    })
+                    values[0] = 100*(true_pos/(true_pos+false_pos))
+                    values[1] = 100*(true_pos/(true_pos+false_neg))
+                    values[2] = 100*mAP
 
-                        tps = true_pos
-                        fps = false_pos
-                        fns = false_neg
+                    sens_string = ""
 
-                        losses[0] += loss
-                        losses[1] += lp
-                        losses[2] += ld
-                        losses[3] += lo
-                        losses[4] += lc
+                    for acc in range(len(values)):
+                        sens_string += "\n" + str("%.2f" % (i*0.05)) + ",real," + str(j) + ","
+                        sens_string += str(header_vals[acc]) + ","
+                        sens_string += str(values[acc])
 
-                        #precision
-                        losses[5] += true_pos / (true_pos + false_pos)
-
-                        #recall
-                        losses[6] += true_pos / (true_pos + false_neg)
-
-                        #mAP
-                        losses[7] += 0#(tps / (tps + fps))
-
-
-                        train_writer.add_summary(summary, i+1)
-                    else:
-                        _, predictions, loss, lp, ld, lo, lc, true_pos, false_pos, false_neg = sess.run([
-                            train_step, yolo.pred_boxes,
-                            yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
-                            yolo.true_positives, yolo.false_positives, yolo.false_negatives], feed_dict={
-                            yolo.train_bounding_boxes: labels,
-                            yolo.train_object_recognition: obj_detection,
-                            yolo.x: imgs,
-                            yolo.anchors: anchors,
-                            learning_rate: learning_r,
-                            yolo.iou_threshold: 0.5
-                        })
-
-                        tps = true_pos
-                        fps = false_pos
-                        fns = false_neg
-
-                        losses[0] += loss
-                        losses[1] += lp
-                        losses[2] += ld
-                        losses[3] += lo
-                        losses[4] += lc
-
-                        #precision
-                        losses[5] += true_pos / (true_pos + false_pos)
-
-                        #recall
-                        losses[6] += true_pos / (true_pos + false_neg)
-
-                        #mAP
-                        losses[7] += 0#(tps / (tps + fps))
-
-
-
-                    del(imgs)
-                    del(labels)
-                    del(obj_detection)
-
-
-                loss_string = str(i) + "," + "Training"
-
-                for l in range(len(losses)):
-                    loss_string = loss_string + "," + str(losses[l])
-
-
-                with open("training.csv", "a") as file:
-                    file.write(loss_string + "\n")
-
-                print(loss_string)
-
-
-                if i % 10 == 0:
-                    save_path = saver.save(sess, str(i) + model_file)
-
-                save_path = saver.save(sess, model_file)
+                    print(sens_string)
+                    with open("validation.csv", "a") as file:
+                        file.write(sens_string + "\n")
 
 
             gc.collect()

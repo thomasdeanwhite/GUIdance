@@ -63,7 +63,9 @@ if __name__ == '__main__':
 
         #chkp.print_tensors_in_checkpoint_file(model_file, tensor_name='', all_tensors=True)
 
-        config = tf.ConfigProto(allow_soft_placement = True)
+        gpu_options = tf.GPUOptions(allow_growth=True)
+
+        config = tf.ConfigProto(allow_soft_placement = True, gpu_options=gpu_options)
 
         with tf.Session(config=config) as sess:
 

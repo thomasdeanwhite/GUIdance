@@ -10,7 +10,7 @@ args = commandArgs(TRUE)
 load_data <- function(directory){
   wd = getwd()
   setwd(directory)
-  data <- readr::read_csv("tuning.csv")
+  data <- readr::read_csv("validation.csv")
   return(data)
 }
 
@@ -19,11 +19,11 @@ setwd('/home/thomas/work/GUIdance')
 data <- load_data('/home/thomas/work/GUIdance')
 
 p = data %>%
-  ggplot(aes(x=threshold, y=val, color=var)) +
-  geom_line() +
+  ggplot(aes(x=var, y=val, color=dataset)) +
+  geom_boxplot() +
   #geom_smooth(method="lm", se=F) +
   #scale_y_log10() +
-  labs(x="Confidence Threshold",
+  labs(x="IoU Threshold",
        y="",
        title=paste("")) +
   #scale_x_discrete() +

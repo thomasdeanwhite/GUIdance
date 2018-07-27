@@ -96,20 +96,9 @@ def load_files(raw_files):
 
 if __name__ == '__main__':
 
-    training_file = cfg.data_dir + "/" + cfg.train_file
-
     valid_images = []
 
     pattern = re.compile(".*\/([0-9]+).*")
-
-    with open(training_file, "r") as tfile:
-        for l in tfile:
-
-            file_num = int(pattern.findall(l)[-1])
-
-            if file_num <= 243:
-                print(file_num)
-                valid_images.append(l.strip())
 
 
 
@@ -120,6 +109,7 @@ if __name__ == '__main__':
             file_num = int(pattern.findall(l)[-1])
 
             if file_num <= 243:
+                print(file_num)
                 valid_images.append(l.strip())
 
     #valid_images = random.sample(valid_images, cfg.batch_size)
@@ -148,7 +138,8 @@ if __name__ == '__main__':
 
         model_file = cfg.weights_dir + "/model.ckpt"
 
-        valid_batches = len(valid_images)
+        valid_batches = math.ceil(len(valid_images)/cfg.batch_size)
+
 
         gpu_options = tf.GPUOptions(allow_growth=True)
 
@@ -176,24 +167,28 @@ if __name__ == '__main__':
             print("anchors", anchors.shape)
 
             random.shuffle(valid_images)
-            header_string = "threshold,precision,recall,mAP"
-            with open("validation.csv", "w") as file:
-                file.write(header_string + "\n")
+            header_string = "threshold,var,val"
+            with open("tuning.csv", "w") as file:
+                file.write(header_string)
 
             print(header_string)
 
             yolo.set_training(False)
 
+            beta_weight = 2
+
+            header_vals = ["precision", "recall", "mAP", "F0.5", "F1", "F2"]
 
 
-            for i in range(20):
 
-                values = [0, 0, 0]
+            for i in range(101):
+
+                values = [0, 0, 0, 0, 0, 0]
 
                 for j in range(valid_batches):
                     gc.collect()
-                    lower_index = j
-                    upper_index = j+1
+                    lower_index = j*cfg.batch_size
+                    upper_index = min(len(valid_images), ((j+1)*cfg.batch_size))
 
                     v_imgs, v_labels, v_obj_detection = load_files(
                         valid_images[lower_index:upper_index])
@@ -204,7 +199,7 @@ if __name__ == '__main__':
 
                     v_obj_detection = np.array(v_obj_detection)
 
-                    cfg.object_detection_threshold = 0.05 * i
+                    cfg.object_detection_threshold = 0.01 * i
 
                     if len(v_labels) == 0:
                         continue
@@ -216,21 +211,28 @@ if __name__ == '__main__':
                         yolo.x: v_imgs,
                         yolo.anchors: anchors,
                         yolo.iou_threshold: 0.5,
-                        yolo.object_detection_threshold: 0.05 * i
+                        yolo.object_detection_threshold: 0.01 * i
                     })
-                    values[0] += 100*(true_pos/(true_pos+false_pos))/valid_batches
-                    values[1] += 100*(true_pos/(true_pos+false_neg))/valid_batches
+                    prec = 100*(true_pos/(true_pos+false_pos))
+                    rec = 100*(true_pos/(true_pos+false_neg))
+                    values[0] += prec/valid_batches
+                    values[1] += rec/valid_batches
                     values[2] += 100*mAP/valid_batches
+                    values[3] += ((1.5) * (prec * rec) / (0.5 * prec + rec)) / valid_batches # F0.5
+                    values[4] += ((2) * (prec * rec) / (prec + rec)) / valid_batches # F1
+                    values[5] += ((3) * (prec * rec) / (2* prec + rec)) / valid_batches # F2
 
-                sens_string = str("%.2f" % (i*0.05)) + ","
-                sens_string += str(values[0]) + ","
-                sens_string += str(values[1]) + ","
-                sens_string += str(values[2])
+                sens_string = ""
+
+                for acc in range(len(values)):
+                    sens_string += "\n" + str("%.2f" % (i*0.01)) + ","
+                    sens_string += str(header_vals[acc]) + ","
+                    sens_string += str(values[acc])
 
                 print(sens_string)
 
-                with open("validation.csv", "a") as file:
-                    file.write(sens_string + "\n")
+                with open("tuning.csv", "a") as file:
+                    file.write(sens_string)
 
 
             gc.collect()

@@ -36,6 +36,8 @@ class Yolo:
     true_positives = None
     true_negatives = None
     iou_threshold = None
+    mAP = None
+    object_detection_threshold = cfg.object_detection_threshold
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -73,6 +75,8 @@ class Yolo:
         classes = len(self.names)
 
         self.x = tf.placeholder(tf.float32, [None, cfg.height, cfg.width, 1], "input")
+
+        self.object_detection_threshold = tf.placeholder(tf.float32)
 
         self.anchors = tf.placeholder(tf.float32, [anchors_size, 2], "anchors")
 
@@ -445,18 +449,39 @@ class Yolo:
 
         correct_classes = tf.cast(tf.equal(class_assignments, tf.cast(self.train_object_recognition, tf.int64)), tf.float32)
 
-        identified_objects = tf.reshape(tf.cast(top_iou >= self.iou_threshold, tf.float32),
-                                        [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
-                                            tf.cast(matching_boxes[..., 4] >= cfg.object_detection_threshold, tf.float32),
-                                        [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+        identified_objects_tpos = tf.reshape(tf.cast(top_iou >= self.iou_threshold, tf.float32),
+                                            [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
+            tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
+            [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+
+        identified_objects_fpos = tf.reshape(
+            tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
+            [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+
+        identified_objects_fneg = 1 - identified_objects_tpos
 
 
-        self.true_positives = tf.reduce_sum(obj_sens * identified_objects
+        self.true_positives = tf.reduce_sum(obj_sens * identified_objects_tpos
                                             )
-        self.false_positives = tf.reduce_sum(1-obj_sens * identified_objects)
+        self.false_positives = tf.reduce_sum((1-obj_sens) * identified_objects_fpos)
+        self.false_negatives = tf.reduce_sum(obj_sens * identified_objects_fneg)
 
-        self.true_negatives = tf.reduce_sum((1-obj_sens) * (1-identified_objects))
-        self.false_negatives = tf.reduce_sum(obj_sens * (1-identified_objects))
+        self.mAP = 0
+
+        for i in range(10):
+            identified_obj_tpos = tf.reshape(tf.cast(top_iou >= (0.5+(i * 0.05)), tf.float32),
+                                [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
+                tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
+                [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+
+            identified_obj_fpos = tf.reshape(
+                tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
+                [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+
+            true_p = tf.reduce_sum(obj_sens * identified_obj_tpos
+                                                )
+            false_p = tf.reduce_sum((1-obj_sens) * identified_obj_fpos)
+            self.mAP = self.mAP + (((true_p+1)/(true_p+false_p+1))/10)
 
         if (cfg.enable_logging):
             tf.summary.histogram("loss_position", total_pos_loss)

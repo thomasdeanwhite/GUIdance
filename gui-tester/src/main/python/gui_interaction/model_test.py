@@ -232,14 +232,29 @@ if __name__ == '__main__':
 
                         event = event + 1
 
-                        if widget == "button" or widget == "combo_box" or widget == "list" or widget == "tree" or \
-                                widget == "scroll_bar" or widget == "tabs" or widget == "menu" or \
-                                widget == "menu_item" or widget == "toggle_button":
+                        if widget == "button" or widget == "tabs" or widget == "menu" \
+                                or widget == "menu_item" or widget == "toggle_button":
+                            pyautogui.click(x, y)
+                        elif widget == "list" or widget == "scroll_bar":
+                            x = x_start + random.randint(x_end-x_start)
+                            y = y_start + random.randint(y_end-y_start)
+                            pyautogui.click(x_start + random.randint(x_end-x_start),
+                                            y_start + random.randint(y_end-y_start))
+                        elif widget == "tree":
+                            x = x_start + random.randint(x_end-x_start)
+                            y = y_start + random.randint(y_end-y_start)
+
+                            pyautogui.doubleClick(x, y)
+
+                            x = x_start + random.randint(x_end-x_start)
+                            y = y_start + random.randint(y_end-y_start)
+
                             pyautogui.click(x, y)
                         elif widget == "text_field":
                             pyautogui.click(x, y)
                             pyautogui.typewrite(input_string, interval=0.01)
-                        elif widget == "combo_box" or widget == "menu" or widget == "menu_item":
+                        elif widget == "combo_box":
+                            pyautogui.click(x, y)
                             event = event + 1
                             next_y = best_box[2]+random.random()*0.5
                             x = int(max(app_x, min(app_x + app_w - 10, app_x + (best_box[1]*app_w))))
