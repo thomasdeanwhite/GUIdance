@@ -9,11 +9,7 @@ load_data <- function(directory){
   wd = getwd()
   setwd(directory)
   data <- readr::read_csv("training.csv")
-  data$epoch = data$epoch + 114
-  data_first <- readr::read_csv("training1-75.csv")
-  data_second <- readr::read_csv("training76-115.csv")
-  data_second$epoch = data_second$epoch + 74
-  data = bind_rows(data_first, data_second, data)
+
   return(data)
 }
 

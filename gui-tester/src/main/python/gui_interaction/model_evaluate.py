@@ -28,6 +28,11 @@ def normalise_label(label):
         label[4]
     ], (cx, cy)
 
+totals = []
+
+for i in range(10):
+    totals.append(0)
+
 def load_files(raw_files):
     raw_files = [f.replace("/data/acp15tdw", "/home/thomas/experiments") for f in raw_files]
     label_files = [f.replace("/images/", "/labels/") for f in raw_files]
@@ -40,63 +45,56 @@ def load_files(raw_files):
     labels = []
     object_detection = []
 
+
+
     for i in range(len(raw_files)):
-        pickle_f = pickle_files[i]
+
+        f = raw_files[i]
+        f_l = label_files[i]
+        image = np.int16(imread(f, 0))
+
+        image = np.uint8(resize(image, (cfg.width, cfg.height)))
+        image = np.reshape(image, [cfg.width, cfg.height, 1])
 
 
-        pickled_data = []
-
-        if os.path.isfile(pickle_f):
-            pickled_data = pickle.load(open(pickle_f, "rb"))
-            images.append(pickled_data[0])
-            labels.append(pickled_data[1])
-            object_detection.append(pickled_data[2])
-        else:
-            f = raw_files[i]
-            f_l = label_files[i]
-            image = np.int16(imread(f, 0))
-
-            image = np.uint8(resize(image, (cfg.width, cfg.height)))
-            image = np.reshape(image, [cfg.width, cfg.height, 1])
+        image = np.reshape(image, [cfg.width, cfg.height, 1])
+        images.append(image)
 
 
-            image = np.reshape(image, [cfg.width, cfg.height, 1])
-            images.append(image)
 
-            # read in format [c, x, y, width, height]
-            # store in format [c], [x, y, width, height]
-            with open(f_l, "r") as l:
-                obj_detect = [[0 for i in
-                               range(cfg.grid_shape[0])]for i in
-                              range(cfg.grid_shape[1])]
-                imglabs = [[[0 for i in
-                             range(5)]for i in
-                            range(cfg.grid_shape[1])] for i in
-                           range(cfg.grid_shape[0])]
+        # read in format [c, x, y, width, height]
+        # store in format [c], [x, y, width, height]
+        with open(f_l, "r") as l:
+            obj_detect = [[0 for i in
+                           range(cfg.grid_shape[0])]for i in
+                          range(cfg.grid_shape[1])]
+            imglabs = [[[0 for i in
+                         range(5)]for i in
+                        range(cfg.grid_shape[1])] for i in
+                       range(cfg.grid_shape[0])]
 
-                for line in l:
-                    elements = line.split(" ")
-                    #print(elements[1:3])
-                    normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
-                                                                float(elements[3]), float(elements[4]), 1])
-                    x = max(0, min(int(centre[0]), cfg.grid_shape[0]-1))
-                    y = max(0, min(int(centre[1]), cfg.grid_shape[1]-1))
-                    imglabs[y][x] = normalised_label
-                    obj_detect[y][x] = int(elements[0])
-                    #obj_detect[y][x][int(elements[0])] = 1
+            for line in l:
+                elements = line.split(" ")
+                #print(elements[1:3])
+                normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
+                                                            float(elements[3]), float(elements[4]), 1])
+                x = max(0, min(int(centre[0]), cfg.grid_shape[0]-1))
+                y = max(0, min(int(centre[1]), cfg.grid_shape[1]-1))
+                imglabs[y][x] = normalised_label
+                obj_detect[y][x] = int(elements[0])
+                totals[int(elements[0])] += 1
+                #obj_detect[y][x][int(elements[0])] = 1
 
-                object_detection.append(obj_detect)
-                labels.append(imglabs)
+            object_detection.append(obj_detect)
+            labels.append(imglabs)
 
-            pickled_data = [image, imglabs, obj_detect]
 
-            pickle.dump(pickled_data, open(pickle_f, "wb"))
 
     return images, labels, object_detection
 
 if __name__ == '__main__':
 
-    training_file = cfg.data_dir + "/" + cfg.train_file
+    training_file = cfg.data_dir + "/train.txt"
 
     valid_images = []
 
@@ -114,7 +112,7 @@ if __name__ == '__main__':
 
 
 
-    valid_file = cfg.data_dir + "/" + cfg.validate_file
+    valid_file = cfg.data_dir + "/validate.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
@@ -123,7 +121,7 @@ if __name__ == '__main__':
             if file_num <= 243:
                 real_images.append(l.strip())
 
-    valid_file = cfg.data_dir + "/" + cfg.test_file
+    valid_file = cfg.data_dir + "/test.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
@@ -142,6 +140,8 @@ if __name__ == '__main__':
                 valid_images.append(l.strip())
 
     #valid_images = random.sample(valid_images, cfg.batch_size)
+
+    valid_images = valid_images[:150]
 
     with tf.device(cfg.gpu):
 
@@ -173,6 +173,8 @@ if __name__ == '__main__':
 
         real_batches = int(len(real_images) / cfg.batch_size)
 
+        print("Batches:", valid_batches, real_batches)
+
         gpu_options = tf.GPUOptions(allow_growth=True)
 
         config = tf.ConfigProto(allow_soft_placement = True, gpu_options=gpu_options)
@@ -199,19 +201,20 @@ if __name__ == '__main__':
             print("anchors", anchors.shape)
 
             random.shuffle(valid_images)
-            header_string = "threshold,dataset,image,var,val"
+            header_string = "iou_threshold,dataset,class,rank,correct,precision,recall,confidence,iou"
             with open("validation.csv", "w") as file:
                 file.write(header_string + "\n")
 
-            print(header_string)
-
             yolo.set_training(False)
 
-            header_vals = ["precision", "recall", "mAP"]
+            iou_threshold = 0.2
+            confidence_threshold = -1
+
+            class_predictions = []
+
+            class_totals = []
 
             for i in range(1):
-
-                values = [0, 0, 0]
 
                 for j in range(valid_batches):
                     gc.collect()
@@ -227,36 +230,77 @@ if __name__ == '__main__':
 
                     v_obj_detection = np.array(v_obj_detection)
 
-                    cfg.object_detection_threshold = 0.3
+                    cfg.object_detection_threshold = confidence_threshold
 
                     if len(v_labels) == 0:
                         continue
 
-                    true_pos, false_pos, false_neg, mAP = sess.run([
-                        yolo.true_positives, yolo.false_positives, yolo.false_negatives, yolo.mAP], feed_dict={
+                    res, correct, iou = sess.run([
+                        yolo.output, yolo.matches, yolo.best_iou], feed_dict={
                         yolo.train_bounding_boxes: v_labels,
                         yolo.train_object_recognition: v_obj_detection,
                         yolo.x: v_imgs,
                         yolo.anchors: anchors,
-                        yolo.iou_threshold: 0.5,
-                        yolo.object_detection_threshold: 0.3
+                        yolo.iou_threshold: iou_threshold,
+                        yolo.object_detection_threshold: confidence_threshold
                     })
-                    values[0] = 100*(true_pos/(true_pos+false_pos))
-                    values[1] = 100*(true_pos/(true_pos+false_neg))
-                    values[2] = 100*mAP
 
-                    sens_string = ""
+                    labels = yolo.convert_net_to_bb(res, filter_top=True)
 
-                    for acc in range(len(values)):
-                        sens_string += "\n" + str("%.2f" % (i*0.05)) + ",synthetic," + str(j) + ","
-                        sens_string += str(header_vals[acc]) + ","
-                        sens_string += str(values[acc])
+                    for rc in range(len(yolo.names)):
+                        if (len(class_predictions) < rc + 1):
+                            class_predictions.append([])
+                        if (len(class_totals) < rc + 1):
+                            class_totals.append(0)
 
-                    print(sens_string)
-                    with open("validation.csv", "a") as file:
-                        file.write(sens_string + "\n")
+                        cl_equals = np.where(np.equal(res[..., 4], 1), np.equal(v_obj_detection, np.zeros_like(v_obj_detection)+rc), 0)
 
-                values = [0, 0, 0]
+                        cl_quantity = np.sum(cl_equals.astype(np.int32))
+
+                        if cl_quantity > 0:
+                            class_totals[rc] += cl_quantity
+
+                            for ic in range(cfg.grid_shape[0]):
+                                for jc in range(cfg.grid_shape[1]):
+
+                                    label = labels[(jc*cfg.grid_shape[0]) + ic]
+
+                                    if label[0] == rc and label[5] > confidence_threshold:
+                                        class_predictions[rc].append([labels[(jc*cfg.grid_shape[1]) + ic][5], correct[0][ic][jc], iou[0][ic][jc][0][0]])
+
+                    del v_imgs
+                    del v_labels
+                    del v_obj_detection
+
+                for rc in range(len(class_predictions)):
+
+                    if (class_totals[rc] == 0):
+                        class_totals[rc] = 1
+
+                    class_predictions[rc] = sorted(class_predictions[rc], key=lambda box: -box[0])
+                    correct_n = 0
+                    for box in range(len(class_predictions[rc])):
+
+                        correct_n += class_predictions[rc][box][1]
+
+                        #assert correct_n <= class_totals[rc]
+
+                        sens_string = str(iou_threshold) + ",synthetic," + yolo.names[rc] + "," + str(box+1) + "," + str(class_predictions[rc][box][1]) + "," + \
+                        str(correct_n / (box+1)) + "," + str(correct_n/totals[rc]) + "," + str(class_predictions[rc][box][0]) + "," + str(class_predictions[rc][box][2]) + "\n"
+
+                        with open("validation.csv", "a") as file:
+                            file.write(sens_string + "\n")
+
+                print(totals)
+
+                class_predictions = []
+
+                class_totals = []
+
+                totals = []
+
+                for i in range(10):
+                    totals.append(0)
 
                 for j in range(real_batches):
                     gc.collect()
@@ -272,34 +316,62 @@ if __name__ == '__main__':
 
                     v_obj_detection = np.array(v_obj_detection)
 
-                    cfg.object_detection_threshold = 0.3
+                    cfg.object_detection_threshold = confidence_threshold
 
                     if len(v_labels) == 0:
                         continue
 
-                    true_pos, false_pos, false_neg, mAP = sess.run([
-                        yolo.true_positives, yolo.false_positives, yolo.false_negatives, yolo.mAP], feed_dict={
+                    res, correct, iou = sess.run([
+                        yolo.output, yolo.matches, yolo.best_iou], feed_dict={
                         yolo.train_bounding_boxes: v_labels,
                         yolo.train_object_recognition: v_obj_detection,
                         yolo.x: v_imgs,
                         yolo.anchors: anchors,
-                        yolo.iou_threshold: 0.5,
-                        yolo.object_detection_threshold: 0.3
+                        yolo.iou_threshold: iou_threshold,
+                        yolo.object_detection_threshold: confidence_threshold
                     })
-                    values[0] = 100*(true_pos/(true_pos+false_pos))
-                    values[1] = 100*(true_pos/(true_pos+false_neg))
-                    values[2] = 100*mAP
 
-                    sens_string = ""
+                    labels = yolo.convert_net_to_bb(res, filter_top=True)
 
-                    for acc in range(len(values)):
-                        sens_string += "\n" + str("%.2f" % (i*0.05)) + ",real," + str(j) + ","
-                        sens_string += str(header_vals[acc]) + ","
-                        sens_string += str(values[acc])
+                    for rc in range(len(yolo.names)):
+                        if (len(class_predictions) < rc + 1):
+                            class_predictions.append([])
+                        if (len(class_totals) < rc + 1):
+                            class_totals.append(0)
 
-                    print(sens_string)
-                    with open("validation.csv", "a") as file:
-                        file.write(sens_string + "\n")
+                        cl_equals = np.where(np.equal(res[..., 4], 1), np.equal(v_obj_detection, np.zeros_like(v_obj_detection)+rc), 0)
+                        cl_quantity = np.sum(cl_equals.astype(np.int32))
+
+                        if cl_quantity > 0:
+
+                            label = labels[(jc*cfg.grid_shape[0]) + ic]
+
+                            for ic in range(cfg.grid_shape[0]):
+                                for jc in range(cfg.grid_shape[1]):
+                                    if label[0] == rc and label[5] > confidence_threshold:
+                                        class_predictions[rc].append([labels[(jc*cfg.grid_shape[1]) + ic][5], correct[0][ic][jc], iou[0][ic][jc][0][0]])
+                    del v_imgs
+                    del v_labels
+                    del v_obj_detection
+
+                for rc in range(len(class_predictions)):
+
+                    if (class_totals[rc] == 0):
+                        class_totals[rc] = 1
+
+                    class_predictions[rc] = sorted(class_predictions[rc], key=lambda box: -box[0])
+                    correct_n = 0
+                    for box in range(len(class_predictions[rc])):
+
+                        correct_n += class_predictions[rc][box][1]
+
+                        sens_string = str(iou_threshold) + ",real," + yolo.names[rc] + "," + str(box+1) + "," + str(class_predictions[rc][box][1]) + "," + \
+                                      str(correct_n / (box+1)) + "," + str(correct_n/totals[rc]) + "," + str(class_predictions[rc][box][0]) + "," + str(class_predictions[rc][box][2]) + "\n"
+
+                        with open("validation.csv", "a") as file:
+                            file.write(sens_string + "\n")
+
+            print(totals)
 
 
             gc.collect()

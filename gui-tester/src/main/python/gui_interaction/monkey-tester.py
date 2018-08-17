@@ -33,7 +33,7 @@ def get_window_size(window_name):
             print(window.get_wm_class())
             if isinstance(name, str):
                 for w_n in win_names:
-                    if w_n in name:
+                    if w_n.lower() in name.lower():
                         wid = windowID
                         win = window
                         window.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
@@ -61,6 +61,12 @@ def get_window_size(window_name):
         print('Screen cap failed: '+ str(e))
     return 0, 0, 0, 0
 
+def generate_input_string():
+    if random.random() < 0.5:
+        return "Hello World!"
+    else:
+        return str(random.randint(-10000, 10000))
+
 if __name__ == '__main__':
 
     if len(sys.argv) > 1:
@@ -73,18 +79,22 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
-    while (time.time() - start_time < 120):
+    runtime = 300
+
+    while (time.time() - start_time < runtime):
+
+        os.system("killall firefox")
 
         app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
 
         while app_w == 0:
             time.sleep(1)
             app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
-            if time.time() - start_time > 120:
+            if time.time() - start_time > runtime:
                 print("Couldn't find application window!")
                 break
 
-        if time.time() - start_time > 120:
+        if time.time() - start_time > runtime:
             break
 
 
@@ -99,6 +109,6 @@ if __name__ == '__main__':
             pyautogui.click(x, y)
         else: # click and type 'Hello world!'
             pyautogui.click(x, y)
-            pyautogui.typewrite('Hello world!', interval=0.01)
+            pyautogui.typewrite(generate_input_string(), interval=0.01)
 
 

@@ -34,7 +34,7 @@ def get_window_size(window_name):
             print(window.get_wm_class())
             if isinstance(name, str):
                 for w_n in win_names:
-                    if w_n in name:
+                    if w_n.lower() in name.lower():
                         wid = windowID
                         win = window
                         window.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
@@ -63,7 +63,10 @@ def get_window_size(window_name):
     return 0, 0, 0, 0
 
 def generate_input_string():
-    return "Hello World!"
+    if random.random() < 0.5:
+        return "Hello World!"
+    else:
+        return str(random.randint(-10000, 10000))
 
 if __name__ == '__main__':
 
@@ -126,18 +129,23 @@ if __name__ == '__main__':
 
                 interactions = []
 
-                while (time.time() - start_time < 120):
+                runtime = 300
+
+
+                while (time.time() - start_time < runtime):
+
+                    os.system("killall firefox")
 
                     app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
 
                     while app_w == 0:
                         time.sleep(1)
                         app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
-                        if time.time() - start_time > 120:
+                        if time.time() - start_time > runtime:
                             print("Couldn't find application window!")
                             break
 
-                    if time.time() - start_time > 120:
+                    if time.time() - start_time > runtime:
                         break
 
                     image = pyautogui.screenshot().convert("L")
@@ -184,7 +192,7 @@ if __name__ == '__main__':
 
                         states.append([image, proc_boxes])
 
-                    for box_num in range(1):
+                    for box_num in range(5):
 
                         input_string = generate_input_string()
 
@@ -208,11 +216,11 @@ if __name__ == '__main__':
                         x = int(max(app_x, min(app_x + app_w - 10, app_x + (best_box[1]*app_w))))
                         y = int(max(app_y, min(app_y + app_h - 10, app_y + (best_box[2]*app_h))))
 
-                        y_start = max(0, min(height, int(height*(best_box[2] - best_box[4]/2))-10))
-                        y_end = max(0, min(height, int(height*(best_box[2]+best_box[4]/2))+10))
+                        y_start = max(app_y, min(app_y + height - 10, app_y + int(height*(best_box[2] - best_box[4]/2))-10))
+                        y_end = max(app_y+10, min(app_y + height, app_y + int(height*(best_box[2]+best_box[4]/2))+10))
 
-                        x_start = max(0, min(width, int(width*(best_box[1]-best_box[3]/2))-10))
-                        x_end = max(0, min(width, int(width*(best_box[1]+best_box[3]/2))+10))
+                        x_start = max(app_x, min(app_x + width - 10, app_x + int(width*(best_box[1]-best_box[3]/2))-10))
+                        x_end = max(app_x + 10, min(app_x + width, app_x + int(width*(best_box[1]+best_box[3]/2))+10))
                         image_clicked = raw_image[y_start:y_end,
                                                   x_start:x_end]
 
@@ -234,27 +242,41 @@ if __name__ == '__main__':
 
                         if widget == "button" or widget == "tabs" or widget == "menu" \
                                 or widget == "menu_item" or widget == "toggle_button":
-                            pyautogui.click(x, y)
+                            if (random.random() < 0.5):
+                                pyautogui.click(x, y)
+                            else:
+                                pyautogui.rightClick(x, y)
                         elif widget == "list" or widget == "scroll_bar":
-                            x = x_start + random.randint(x_end-x_start)
-                            y = y_start + random.randint(y_end-y_start)
-                            pyautogui.click(x_start + random.randint(x_end-x_start),
-                                            y_start + random.randint(y_end-y_start))
+                            x = random.randint(x_start, x_end)
+                            y = random.randint(y_start, y_end)
+                            if (random.random() < 0.5):
+                                pyautogui.click(x, y)
+                            else:
+                                pyautogui.rightClick(x, y)
                         elif widget == "tree":
-                            x = x_start + random.randint(x_end-x_start)
-                            y = y_start + random.randint(y_end-y_start)
+                            x = random.randint(x_start, x_end)
+                            y = random.randint(y_start, y_end)
 
-                            pyautogui.doubleClick(x, y)
+                            if (random.random() < 0.5):
+                                pyautogui.doubleClick(x, y)
+                            else:
+                                pyautogui.rightClick(x, y)
 
-                            x = x_start + random.randint(x_end-x_start)
-                            y = y_start + random.randint(y_end-y_start)
+                            x = random.randint(x_start, x_end)
+                            y = random.randint(y_start, y_end)
 
                             pyautogui.click(x, y)
                         elif widget == "text_field":
-                            pyautogui.click(x, y)
+                            if (random.random() < 0.5):
+                                pyautogui.click(x, y)
+                            else:
+                                pyautogui.rightClick(x, y)
                             pyautogui.typewrite(input_string, interval=0.01)
                         elif widget == "combo_box":
-                            pyautogui.click(x, y)
+                            if (random.random() < 0.5):
+                                pyautogui.click(x, y)
+                            else:
+                                pyautogui.rightClick(x, y)
                             event = event + 1
                             next_y = best_box[2]+random.random()*0.5
                             x = int(max(app_x, min(app_x + app_w - 10, app_x + (best_box[1]*app_w))))

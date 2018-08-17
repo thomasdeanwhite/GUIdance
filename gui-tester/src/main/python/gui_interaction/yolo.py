@@ -35,9 +35,11 @@ class Yolo:
     false_negatives = None
     true_positives = None
     true_negatives = None
+    matches = None
     iou_threshold = None
     mAP = None
     object_detection_threshold = cfg.object_detection_threshold
+    average_iou = None
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -242,7 +244,7 @@ class Yolo:
 
         self.iou_threshold = tf.placeholder(tf.float32)
 
-        truth = tf.reshape(self.train_bounding_boxes, [-1, 13, 13, 1, 5])
+        truth = tf.reshape(self.train_bounding_boxes, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 5])
 
         pred_boxes = self.pred_boxes
         print("pred:", pred_boxes.shape)
@@ -347,7 +349,7 @@ class Yolo:
 
         self.loss_layers['new_indices'] = new_indices
 
-        iou_reshaped = tf.reshape(iou, [-1, 169, 5, 1])
+        iou_reshaped = tf.reshape(iou, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], 5, 1])
 
         print("reshaped_iou", iou_reshaped.shape)
 
@@ -372,7 +374,7 @@ class Yolo:
         print("matching_boxes", matching_boxes.shape)
         print("truth_boxes", truth.shape)
 
-        self.best_iou = matching_boxes
+        self.best_iou = top_iou
 
         self.loss_layers['top_iou'] = top_iou
         self.loss_layers['best_iou'] = matching_boxes
@@ -392,9 +394,9 @@ class Yolo:
 
         pos_mask_count = tf.reduce_sum(tf.cast(obj_xy>0, tf.float32)) + epsilon
 
-        total_pos_loss = tf.reshape(tf.square(pred_boxes[...,0:2] - truth_tiled[...,0:2]), [-1, 169, 5, 2]) \
+        total_pos_loss = tf.reshape(tf.square(pred_boxes[...,0:2] - truth_tiled[...,0:2]), [-1, cfg.grid_shape[0] * cfg.grid_shape[1], 5, 2]) \
                          / pos_mask_count
-        total_dim_loss = tf.reshape(tf.square(tf.sqrt(pred_boxes[...,2:4]) - tf.sqrt(truth_tiled[...,2:4])), [-1, 169, 5, 2]) \
+        total_dim_loss = tf.reshape(tf.square(tf.sqrt(pred_boxes[...,2:4]) - tf.sqrt(truth_tiled[...,2:4])), [-1, cfg.grid_shape[0] * cfg.grid_shape[1], 5, 2]) \
                          / pos_mask_count
 
         print("total pos loss:", total_pos_loss.shape)
@@ -412,7 +414,7 @@ class Yolo:
         obj_conf = tf.reshape(tf.tile(tf.expand_dims(obj_conf, axis=3),[ 1, 1, 1, anchors, 1]),
                             [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 1])
 
-        total_conf_loss = tf.reshape(tf.square(pred_boxes[...,4] - truth_tiled[...,4]), [-1, 169, 5, 1]) \
+        total_conf_loss = tf.reshape(tf.square(pred_boxes[...,4] - truth_tiled[...,4]), [-1, cfg.grid_shape[0] * cfg.grid_shape[1] , 5, 1]) \
                           / (tf.reduce_sum(tf.cast(obj_conf>0, tf.float32)) + epsilon)
 
         self.loss_layers['confidence_loss'] = total_conf_loss
@@ -430,9 +432,9 @@ class Yolo:
 
         print("class_loss", class_loss.shape)
 
-        obj_classes = tf.reshape(obj * cfg.class_weight, [-1, cfg.grid_shape[0], cfg.grid_shape[1]])#tf.tile(obj, [1, 1, 1, 10])
+        obj_classes = tf.reshape(obj, [-1, cfg.grid_shape[0], cfg.grid_shape[1]])#tf.tile(obj, [1, 1, 1, 10])
 
-        class_loss = tf.multiply(tf.cast(obj_classes, tf.float32), class_loss) \
+        class_loss = tf.multiply(obj_classes, class_loss) * cfg.class_weight \
                      / (tf.reduce_sum(tf.cast(obj_classes>0, tf.float32))+epsilon)
 
         self.loss_class = tf.reduce_sum(class_loss)
@@ -440,7 +442,7 @@ class Yolo:
         self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_class
 
 
-        obj_sens = tf.reshape(obj, [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+        obj_sens = tf.reshape(tf.cast(truth[...,4]>0, tf.float32), [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
 
         class_assignments = tf.argmax(self.pred_classes,-1)
 
@@ -454,17 +456,27 @@ class Yolo:
             tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
             [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
 
-        identified_objects_fpos = tf.reshape(
+        identified_objects_fpos = tf.maximum((1-obj_sens) + (tf.reshape(tf.cast(top_iou < self.iou_threshold, tf.float32),
+                                             [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * obj_sens), 1) * \
+                                             tf.reshape(
             tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
             [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
 
-        identified_objects_fneg = 1 - identified_objects_tpos
+        identified_objects_fneg =  tf.reshape(
+            tf.cast(matching_boxes[..., 4] < self.object_detection_threshold, tf.float32),
+            [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
 
+        self.average_iou = tf.reduce_sum(top_iou) / (tf.reduce_sum(tf.cast(truth[...,4]>0, tf.float32)) + epsilon)
+
+
+        self.matches = obj_sens * identified_objects_tpos
 
         self.true_positives = tf.reduce_sum(obj_sens * identified_objects_tpos
                                             )
-        self.false_positives = tf.reduce_sum((1-obj_sens) * identified_objects_fpos)
+        self.false_positives = tf.reduce_sum(identified_objects_fpos)
         self.false_negatives = tf.reduce_sum(obj_sens * identified_objects_fneg)
+
+        self.true_negatives = tf.reduce_sum((1 - obj_sens) * identified_objects_fneg)
 
         self.mAP = 0
 
