@@ -30,6 +30,30 @@ def load_file(files):
         # if random.random() < cfg.invert_probability:
         #     image = 255 - image
         #
+
+        height, width = image.shape[:2]
+
+        aspect = height/width
+
+        print(image.shape)
+
+        if aspect > 1: # portrait
+            padding = round((height-width)/2)
+            for i in range(padding):
+                elements = np.transpose(np.expand_dims(np.zeros([image.shape[0]]), 0))
+                image = np.append(elements, image, 1)
+            for i in range(padding):
+                elements = np.transpose(np.expand_dims(np.zeros([image.shape[0]]), 0))
+                image = np.append(image, elements, 1)
+        else: #landscape
+            padding = round((width-height)/2)
+            for i in range(padding):
+                elements = np.transpose(np.expand_dims(np.zeros([image.shape[1]]), 1))
+                image = np.append(elements, image, 0)
+            for i in range(padding):
+                elements = np.transpose(np.expand_dims(np.zeros([image.shape[1]]), 1))
+                image = np.append(image, elements, 0)
+
         image = np.uint8(cv2.resize(image, (cfg.width, cfg.height)))
         image = np.reshape(image, [cfg.width, cfg.height, 1])
 
@@ -85,7 +109,17 @@ if __name__ == '__main__':
             yolo.anchors: anchors,
         })
 
-        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()
+        raw_boxes = boxes
+
+        print(boxes[..., 1:3])
+
+        print(np.max(boxes[..., 0]), np.max(boxes[..., 1]))
+
+        proc_boxes = raw_boxes[..., :5]
+
+        classes = np.reshape(np.argmax(raw_boxes[...,5:], axis=-1), [-1, proc_boxes.shape[1], 1])
+
+        proc_boxes = np.append(classes, proc_boxes, axis=-1).tolist()[0]
 
 
         img = images[0][1]
@@ -100,16 +134,16 @@ if __name__ == '__main__':
             color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
             if (box[5]>cfg.object_detection_threshold):
-                print(box)
+                #print(box)
 
                 x1 = max(int(width*(box[1]-box[3]/2)), 0)
                 y1 = max(int(height*(box[2]-box[4]/2)), 0)
                 x2 = int(width*((box[1]+box[3]/2)))
                 y2 = int(height*(box[2]+box[4]/2))
 
-                cv2.rectangle(img, (x1, y1),
-                              (x2, y2),
-                              (color[0], color[1], color[2]), 3+int(7*box[4]), 8)
+                # cv2.rectangle(img, (x1, y1),
+                #               (x2, y2),
+                #               (color[0], color[1], color[2]), 3+int(7*box[4]), 8)
 
         for box in proc_boxes:
             cls = yolo.names[int(box[0])]

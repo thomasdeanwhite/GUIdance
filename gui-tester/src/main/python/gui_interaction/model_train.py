@@ -12,7 +12,7 @@ import os
 import pickle
 import re
 
-debug = False
+debug = True
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -59,11 +59,32 @@ def load_files(raw_files):
             f_l = label_files[i]
             image = np.int16(imread(f, 0))
             height, width = image.shape
+
+            aspect = height/width
+
+            padding_x = 0
+            padding_y = 0
+
+            if aspect > 1: # portrait
+                padding_x = round((height-width)/2)
+                for i in range(padding_x):
+                    elements = np.transpose(np.expand_dims(np.zeros([image.shape[0]]), 0))
+                    image = np.append(elements, image, 1)
+                for i in range(padding_x):
+                    elements = np.transpose(np.expand_dims(np.zeros([image.shape[0]]), 0))
+                    image = np.append(image, elements, 1)
+            else: #landscape
+                padding_y = round((width-height)/2)
+                for i in range(padding_y):
+                    elements = np.transpose(np.expand_dims(np.zeros([image.shape[1]]), 1))
+                    image = np.append(elements, image, 0)
+                for i in range(padding_y):
+                    elements = np.transpose(np.expand_dims(np.zeros([image.shape[1]]), 1))
+                    image = np.append(image, elements, 0)
+
             image = np.uint8(resize(image, (cfg.width, cfg.height)))
             image = np.reshape(image, [cfg.width, cfg.height, 1])
 
-
-            image = np.reshape(image, [cfg.width, cfg.height, 1])
             images.append(image)
 
             # read in format [c, x, y, width, height]
@@ -80,11 +101,27 @@ def load_files(raw_files):
                 for line in l:
                     elements = line.split(" ")
                     #print(elements[1:3])
-                    normalised_label, centre = normalise_label([float(elements[1])-2/width, float(elements[2])-2/height,
-                                                                float(elements[3])-8/width, float(elements[4])-8/height, 1])
-                    x = max(0, min(int(centre[0]), cfg.grid_shape[0]-1))
-                    y = max(0, min(int(centre[1]), cfg.grid_shape[1]-1))
-                    imglabs[y][x] = normalised_label
+                    normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
+                                                                float(elements[3]), float(elements[4]), 1])
+
+                    if padding_x > 0:
+                        ratio = 1-(2*padding_x)/height
+                        newx = cfg.grid_shape[0] * (0.5 + (normalised_label[0]/cfg.grid_shape[0] - 0.5)*ratio)
+                        normalised_label[0] = newx
+                        normalised_label[2] = normalised_label[2] * ratio
+                    elif padding_y > 0:
+                        ratio = 1-(2*padding_y)/width
+                        newy = cfg.grid_shape[1] * (0.5 + (normalised_label[1]/cfg.grid_shape[1] - 0.5)*ratio)
+                        normalised_label[1] = newy
+                        normalised_label[3] = normalised_label[3] * ratio
+
+                    x = max(0, min(int(normalised_label[0]), cfg.grid_shape[0]-1))
+                    y = max(0, min(int(normalised_label[1]), cfg.grid_shape[1]-1))
+
+                    classes = [0 for i in range(len(yolo.names))]
+
+                    imglabs[y][x] = np.concatenate((normalised_label, classes), axis=0)
+                    imglabs[y][x][5+int(elements[0])] = 1
                     obj_detect[y][x] = int(elements[0])
                     #obj_detect[y][x][int(elements[0])] = 1
 
@@ -295,6 +332,8 @@ def load_files(raw_files):
         if debug:
             height, width, chan = image.shape
 
+            print(labs)
+
             for lnx in range(len(labs)):
                 for lny in range(len(labs[lnx])):
 
@@ -305,10 +344,10 @@ def load_files(raw_files):
                     if (lbl[4] > 0):
                         col = 255
 
-                    lbl[0] = lbl[0] / cfg.grid_shape[0]
-                    lbl[1] = lbl[1] / cfg.grid_shape[1]
-                    lbl[2] = lbl[2] / cfg.grid_shape[0]
-                    lbl[3] = lbl[3] / cfg.grid_shape[1]
+                    lbl[0] = lbl[0]/cfg.grid_shape[0]
+                    lbl[1] = lbl[1]/cfg.grid_shape[1]
+                    lbl[2] = lbl[2]/cfg.grid_shape[0]
+                    lbl[3] = lbl[3]/cfg.grid_shape[1]
                     x1, y1 = (int(width * (lbl[0] - lbl[2]/2)),
                               int(height * (lbl[1] - lbl[3]/2)))
                     x2, y2 = (int(width * (lbl[0] + lbl[2]/2)),

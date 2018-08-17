@@ -71,9 +71,66 @@ class Yolo:
         x = tf.layers.batch_normalization(layer, training=self.is_training, name="batch_norm" + str(self.layer_counter))
         return tf.maximum(x, 0.1 * x)
 
+    def conv2d(self, input, filters, kernals=3, strides=1):
+        return self.leaky_relu(tf.layers.conv2d(input, filters, kernals, strides, padding="same", name="conv2d" + str(self.layer_counter)))
+
+    def darknet53_layers(self, input, filters):
+        layer = self.conv2d(input, filters, kernals=1)
+        layer = self.conv2d(layer, filters * 2)
+        return layer + input
+
+    def prediction_layer(self, inputs, anchors):
+        anchors_size = anchors.shape.as_list()[0]
+        classes = len(self.names)
+
+        cell_x = tf.to_float(tf.reshape(tf.tile(tf.range(inputs.shape[1]), [inputs.shape[2]]),
+                                        (1, inputs.shape[2], inputs.shape[1], 1, 1)))
+        cell_y = tf.transpose(cell_x, (0,2,1,3,4))
+
+        cell_grid = tf.tile(tf.concat([cell_x,cell_y], -1), [tf.shape(self.x)[0], 1, 1, int(anchors_size/3), 1])
+
+        height, width = inputs.shape.as_list()[1:3]
+
+        stride = (cfg.width // height, cfg.height // width)
+
+        preds = tf.reshape(
+            self.conv2d(inputs, (classes + 5) * anchors_size, kernals=1, strides=1),
+            [-1, inputs.shape[1], inputs.shape[2], anchors_size, classes+5])
+
+        anchors_weight = tf.tile(
+            tf.reshape(anchors, [1, 1, 1, anchors_size, 2]),
+            [tf.shape(preds)[0], inputs.shape[1], inputs.shape[2], 1, 1]
+        )
+
+        box_xy = tf.multiply(tf.nn.sigmoid(preds[...,:2]) + cell_grid, stride)
+        box_wh = tf.exp(preds[...,2:4]) * anchors_weight * stride
+        box_conf = tf.expand_dims(tf.nn.sigmoid(preds[...,4]), dim=-1)
+        box_classes = preds[..., 5:]
+
+        return tf.identity(tf.reshape(tf.concat([box_xy, box_wh, box_conf, box_classes], axis=-1),
+                                      [-1, inputs.shape[1] * inputs.shape[2] * anchors_size, classes+5]))
+
+    def yolo_layers(self, input, filters):
+        layer = self.conv2d(input, filters, kernals=1)
+        layer = self.conv2d(layer, filters*2, kernals=3)
+        layer = self.conv2d(layer, filters, kernals=1)
+        layer = self.conv2d(layer, filters*2, kernals=3)
+        layer = self.conv2d(layer, filters, kernals=1)
+        residual = layer
+        layer = self.conv2d(layer, filters*2, kernals=3)
+        return residual, layer
+
+    def yolo_upsample(self, input, output):
+        layer = tf.pad(input, [[0, 0], [1, 1],
+                            [1, 1], [0, 0]], mode="SYMMETRIC")
+
+        layer = tf.image.resize_nearest_neighbor(layer, (output[2], output[1]))
+
+        return tf.identity(layer)
+
     def create_network(self):
 
-        anchors_size = int(len(cfg.anchors)/2)
+        anchors_size = int(len(cfg.anchors)/2) # n / 2 points * 3 sample sizes
         classes = len(self.names)
 
         self.x = tf.placeholder(tf.float32, [None, cfg.height, cfg.width, 1], "input")
@@ -82,204 +139,100 @@ class Yolo:
 
         self.anchors = tf.placeholder(tf.float32, [anchors_size, 2], "anchors")
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.x, 32, 3, padding="same", name="conv2d" + str(self.layer_counter)))
+        #construct darknet-53 layers
+        print("Starting Darknet-53 layers")
+        self.network = self.conv2d(self.x, 32)
+        self.network = self.conv2d(self.network, 64, strides=2)
+
+        self.network = self.darknet53_layers(self.network, 32)
+        self.network = self.conv2d(self.network, 128, strides=2)
+
+        for i in range(2):
+            self.network = self.darknet53_layers(self.network, 64)
+
+        self.network = self.conv2d(self.network, 256, strides=2)
+
+        for i in range(8):
+            self.network = self.darknet53_layers(self.network, 128)
+
+        reorg = self.network
+
+        self.network = self.conv2d(self.network, 512, strides=2)
+
+        for i in range(8):
+            self.network = self.darknet53_layers(self.network, 256)
+
+        reorg2 = self.network
+
+        self.network = self.conv2d(self.network, 1024, strides=2)
+
+        for i in range(4):
+            self.network = self.darknet53_layers(self.network, 512)
+
+
+        #begin YOLOv3 layers
+        print("Starting YOLOv3 layers.")
+
+        self.network, residual = self.yolo_layers(self.network, 512)
+        preds1 = self.prediction_layer(residual, self.anchors[:3])
+
+        self.network = self.conv2d(self.network, 256, kernals=1)
+
+        self.network = self.yolo_upsample(self.network, tf.shape(reorg2))
         print(self.network.shape)
+        self.network = tf.concat([self.network, reorg2], axis=-1)
 
-        self.network = tf.layers.max_pooling2d(self.network, 2, 2, name="max2d" + str(self.layer_counter))
+        self.network, residual = self.yolo_layers(self.network, 256)
+
+        preds2 = self.prediction_layer(residual, self.anchors[3:6])
+
+        self.network = self.conv2d(self.network, 128, kernals=1)
+
+        self.network = self.yolo_upsample(self.network, tf.shape(reorg))
         print(self.network.shape)
+        self.network = tf.concat([self.network, reorg], axis=-1)
 
-        if cfg.enable_logging:
-            tf.summary.histogram("n1", self.network)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 64, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        if cfg.enable_logging:
-            tf.summary.histogram("n1.5", self.network)
-
-        self.network = tf.layers.max_pooling2d(self.network, 2, 2, name="max" + str(self.layer_counter))
-        print(self.network.shape)
-
-        if cfg.enable_logging:
-            tf.summary.histogram("n2", self.network)
+        _, residual = self.yolo_layers(self.network, 128)
+        preds3 = self.prediction_layer(residual, self.anchors[6:9])
 
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
+        self.network = tf.concat([preds1, preds2, preds3], axis=1)
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 64, 1, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
+        self.output = self.network
 
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-
-        self.network = tf.layers.max_pooling2d(self.network, 2, 2, name="max" + str(self.layer_counter))
-        print(self.network.shape)
-
-        if cfg.enable_logging:
-            tf.summary.histogram("n3", self.network)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 128, 1, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        self.network = tf.layers.max_pooling2d(self.network, 2, 2, name="max" + str(self.layer_counter))
-        print(self.network.shape)
-
-        if cfg.enable_logging:
-            tf.summary.histogram("n4", self.network)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 1, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 256, 1, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-
-        reorg = tf.extract_image_patches(self.network, [1, 2, 2, 1], [1, 2, 2, 1], [1, 1, 1, 1], padding="SAME", name="extract" + str(self.layer_counter))
-
-        print("reorg:", reorg.shape)
-
-        self.network = tf.layers.max_pooling2d(self.network, 2, 2, name="max" + str(self.layer_counter))
-        print(self.network.shape)
-
-        if cfg.enable_logging:
-            tf.summary.histogram("n5", self.network)
-            #tf.summary.histogram("reorg", reorg)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 1, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 512, 1, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        print("Combining ", self.network.shape, "with reorg:", reorg.shape)
-        self.network = tf.concat([self.network, reorg], axis=-1, name="concat" + str(self.layer_counter))
-
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, 1024, 3, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        self.network = self.leaky_relu(tf.layers.conv2d(self.network, int(anchors_size*5 + classes), 1, padding="same", name="conv2d" + str(self.layer_counter)))
-        print(self.network.shape)
-
-        cell_x = tf.to_float(tf.reshape(tf.tile(tf.range(cfg.grid_shape[0]), [cfg.grid_shape[1]]),
-                                        (1, cfg.grid_shape[1], cfg.grid_shape[0], 1, 1)))
-        cell_y = tf.transpose(cell_x, (0,2,1,3,4))
-
-        predictions = tf.reshape(self.network, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], int(anchors_size*5 + classes)])
-
-        raw_boxes = predictions[:, :, 0:(anchors_size*5)]
-
-        pred_boxes = tf.reshape(raw_boxes, [-1,  cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 5])
-
-        self.cell_grid = tf.tile(tf.concat([cell_x,cell_y], -1), [tf.shape(pred_boxes)[0], 1, 1, anchors_size, 1])
-
-        pred_boxes_xy = tf.sigmoid(pred_boxes[..., 0:2]) + self.cell_grid
-        pred_boxes_wh = tf.exp(pred_boxes[..., 2:4])
-
-        anchors_weight = tf.tile(
-            tf.reshape(self.anchors, [1, 1, 1, anchors_size, 2]),
-            [tf.shape(pred_boxes)[0], cfg.grid_shape[0], cfg.grid_shape[1],
-             1, 1])
-
-        pred_boxes_wh = tf.square(pred_boxes_wh) * anchors_weight
-
-        confidence = tf.sigmoid(tf.reshape(pred_boxes[:, :, :, :, 4],
-                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size, 1]))
-
-        pred_boxes = tf.concat([pred_boxes_xy, pred_boxes_wh], axis=-1)
-        pred_boxes = tf.concat([pred_boxes, confidence], axis=-1)
-
-        self.pred_boxes = pred_boxes
-
-        pred_classes = tf.nn.softmax(tf.reshape(
-            predictions[:,:, anchors_size*5:anchors_size*5+classes],
-            [-1, cfg.grid_shape[0], cfg.grid_shape[1], classes]))
-
-        self.pred_classes = pred_classes
-
-        self.output = tf.concat([tf.reshape(pred_boxes,
-                                            [-1, cfg.grid_shape[0], cfg.grid_shape[1], anchors_size*5]
-                                 ),
-                                 pred_classes], axis=-1)
-        print("final network layer:", self.output.shape)
+        print("Network shape:", self.network.shape)
 
 
     def create_training(self):
 
         classes = len(self.names)
-        print("classes:", classes)
         anchors = int(len(cfg.anchors)/2)
-        print("anchors:", anchors)
 
-        self.train_object_recognition = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1]], "train_obj_rec")
-        self.train_bounding_boxes = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 5], "train_bb")
+        self.train_bounding_boxes = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 5 + classes], "train_bb")
 
         self.iou_threshold = tf.placeholder(tf.float32)
 
-        truth = tf.reshape(self.train_bounding_boxes, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 5])
+        truth = tf.reshape(self.train_bounding_boxes, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], 5 + classes])
 
-        pred_boxes = self.pred_boxes
-        print("pred:", pred_boxes.shape)
+        pred_boxes = self.output
 
         pred_confidence = tf.reshape(
-            pred_boxes[:, :, 4],
+            pred_boxes[..., 4],
             [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 1]
         )
 
-        print("conf:", pred_confidence.shape)
-
-        pred_classes = self.pred_classes
-
-        print("p_classes:", pred_classes.shape)
+        pred_classes = pred_boxes[..., 5:]
 
 
 
-        pred_boxes_xy = (pred_boxes[:, :, :, :, 0:2])
+        pred_boxes_xy = (pred_boxes[..., :2])
 
         epsilon = tf.constant(self.epsilon)
 
-        pred_boxes_wh = pred_boxes[:, :, :, :, 2:4]
+        pred_boxes_wh = pred_boxes[..., 2:4]
 
-        truth_tiled = tf.tile(truth, [1, 1, 1, anchors, 1])
-
-        print("truth tiled:", truth_tiled.shape)
-
-        self.loss_layers['pred_boxes_xy'] = pred_boxes_xy
-        self.loss_layers['pred_boxes_wh'] = pred_boxes_wh
-
-        truth_boxes_xy = truth_tiled[..., 0:2]
-        truth_boxes_wh = truth_tiled[..., 2:4]
-
-        self.loss_layers['truth_boxes_xy'] = truth_boxes_xy
-        self.loss_layers['truth_boxes_wh'] = truth_boxes_wh
+        truth_boxes_xy = truth[..., :2] * (cfg.grid_shape[0]/width)
+        truth_boxes_wh = truth[..., 2:4] * (cfg.grid_shape[1]/height)
 
         pred_wh_half = pred_boxes_wh/2
         pred_min = pred_boxes_xy - pred_wh_half
