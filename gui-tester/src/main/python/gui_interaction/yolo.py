@@ -40,6 +40,7 @@ class Yolo:
     mAP = None
     object_detection_threshold = cfg.object_detection_threshold
     average_iou = None
+    network_predictions = []
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -79,19 +80,17 @@ class Yolo:
         layer = self.conv2d(layer, filters * 2)
         return layer + input
 
-    def prediction_layer(self, inputs, anchors):
+    def prediction_layer(self, inputs, anchors, scale):
         anchors_size = anchors.shape.as_list()[0]
         classes = len(self.names)
 
-        cell_x = tf.to_float(tf.reshape(tf.tile(tf.range(inputs.shape[1]), [inputs.shape[2]]),
-                                        (1, inputs.shape[2], inputs.shape[1], 1, 1)))
-        cell_y = tf.transpose(cell_x, (0,2,1,3,4))
-
-        cell_grid = tf.tile(tf.concat([cell_x,cell_y], -1), [tf.shape(self.x)[0], 1, 1, int(anchors_size/3), 1])
-
         height, width = inputs.shape.as_list()[1:3]
 
-        stride = (cfg.width // height, cfg.height // width)
+        cell_x = tf.to_float(tf.reshape(tf.tile(tf.range(width), [height]),
+                                        (1, height, width, 1, 1)))
+        cell_y = tf.transpose(cell_x, (0,2,1,3,4))
+
+        cell_grid = tf.tile(tf.concat([cell_x,cell_y], -1), [tf.shape(inputs)[0], 1, 1, anchors_size, 1])
 
         preds = tf.reshape(
             self.conv2d(inputs, (classes + 5) * anchors_size, kernals=1, strides=1),
@@ -102,13 +101,18 @@ class Yolo:
             [tf.shape(preds)[0], inputs.shape[1], inputs.shape[2], 1, 1]
         )
 
-        box_xy = tf.multiply(tf.nn.sigmoid(preds[...,:2]) + cell_grid, stride)
-        box_wh = tf.exp(preds[...,2:4]) * anchors_weight * stride
-        box_conf = tf.expand_dims(tf.nn.sigmoid(preds[...,4]), dim=-1)
+        box_xy = (tf.nn.sigmoid(preds[...,:2]) + cell_grid)/scale
+        box_wh = tf.exp(preds[...,2:4]) * anchors_weight/scale
+        box_conf = tf.expand_dims(tf.nn.sigmoid(preds[...,4]), axis=-1)
         box_classes = preds[..., 5:]
 
-        return tf.identity(tf.reshape(tf.concat([box_xy, box_wh, box_conf, box_classes], axis=-1),
-                                      [-1, inputs.shape[1] * inputs.shape[2] * anchors_size, classes+5]))
+        upscaled_box_num = anchors_size * scale * scale
+
+        layer = tf.concat([box_xy, box_wh, box_conf, box_classes], axis=-1)
+
+        return tf.identity(tf.reshape(
+            layer,
+            [-1, int(height/scale), int(width/scale), upscaled_box_num, classes+5]))
 
     def yolo_layers(self, input, filters):
         layer = self.conv2d(input, filters, kernals=1)
@@ -174,7 +178,7 @@ class Yolo:
         print("Starting YOLOv3 layers.")
 
         self.network, residual = self.yolo_layers(self.network, 512)
-        preds1 = self.prediction_layer(residual, self.anchors[:3])
+        preds1 = self.prediction_layer(residual, self.anchors[:3], 1)
 
         self.network = self.conv2d(self.network, 256, kernals=1)
 
@@ -184,7 +188,7 @@ class Yolo:
 
         self.network, residual = self.yolo_layers(self.network, 256)
 
-        preds2 = self.prediction_layer(residual, self.anchors[3:6])
+        preds2 = self.prediction_layer(residual, self.anchors[3:6], 2)
 
         self.network = self.conv2d(self.network, 128, kernals=1)
 
@@ -193,10 +197,13 @@ class Yolo:
         self.network = tf.concat([self.network, reorg], axis=-1)
 
         _, residual = self.yolo_layers(self.network, 128)
-        preds3 = self.prediction_layer(residual, self.anchors[6:9])
+        preds3 = self.prediction_layer(residual, self.anchors[6:9], 4)
 
+        print("Preds shape:", preds1.shape, preds2.shape, preds3.shape)
 
-        self.network = tf.concat([preds1, preds2, preds3], axis=1)
+        self.network_predictions = [preds1, preds2, preds3]
+
+        self.network = tf.concat([preds1, preds2, preds3], axis=3)
 
         self.output = self.network
 
@@ -209,17 +216,11 @@ class Yolo:
         anchors = int(len(cfg.anchors)/2)
 
         self.train_bounding_boxes = tf.placeholder(tf.float32, [None, cfg.grid_shape[0], cfg.grid_shape[1], 5 + classes], "train_bb")
-
+        truth = tf.reshape(self.train_bounding_boxes,
+                           [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 5 + classes])
         self.iou_threshold = tf.placeholder(tf.float32)
 
-        truth = tf.reshape(self.train_bounding_boxes, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], 5 + classes])
-
         pred_boxes = self.output
-
-        pred_confidence = tf.reshape(
-            pred_boxes[..., 4],
-            [-1, cfg.grid_shape[0] * cfg.grid_shape[1] * anchors, 1]
-        )
 
         pred_classes = pred_boxes[..., 5:]
 
@@ -231,8 +232,10 @@ class Yolo:
 
         pred_boxes_wh = pred_boxes[..., 2:4]
 
-        truth_boxes_xy = truth[..., :2] * (cfg.grid_shape[0]/width)
-        truth_boxes_wh = truth[..., 2:4] * (cfg.grid_shape[1]/height)
+        truth_tiled = tf.tile(truth, [1, 1, 1, pred_boxes.shape[3], 1])
+
+        truth_boxes_xy = truth_tiled[..., :2]
+        truth_boxes_wh = truth_tiled[..., 2:4]
 
         pred_wh_half = pred_boxes_wh/2
         pred_min = pred_boxes_xy - pred_wh_half
@@ -260,86 +263,35 @@ class Yolo:
         iou = tf.truediv(intersect_areas, union_areas)
         self.loss_layers['raw_iou'] = iou
 
-        print("iou", iou.shape)
+        top_iou = tf.reshape(tf.reduce_max(iou, axis=-1),
+                    [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1])
 
-        shaped_iou = tf.reshape(iou, [-1, cfg.grid_shape[0]*cfg.grid_shape[1], anchors])
+        top_iou = tf.tile(top_iou,
+                          [1, 1, 1, iou.shape[3]])
 
-        indices = tf.reshape(
-            tf.argmax(shaped_iou, axis=-1),
-            [-1, cfg.grid_shape[0]*cfg.grid_shape[1], 1])
+        iou_mask = tf.cast(iou >= top_iou, tf.float32)
 
-        print("indices", indices.shape)
+        ignore_mask = tf.cast(iou > 0.5, tf.float32)
 
-        shaped_boxes = tf.reshape(pred_boxes, [-1, cfg.grid_shape[0]*cfg.grid_shape[1], anchors, 5])
+        ignore_mask = 1 - (ignore_mask * (1-iou_mask))
 
-        print("shaped_boxes", shaped_boxes.shape)
+        iou_mask = tf.expand_dims(iou_mask, -1)
 
-        zero_axis_indices = \
-            tf.tile(tf.reshape(tf.range(0, tf.shape(shaped_boxes)[0]), [tf.shape(shaped_boxes)[0], 1, 1]),
-                    [1, cfg.grid_shape[0]*cfg.grid_shape[1], 1])
+        box_preds = self.output.shape[3]
 
-        one_axis_indices = \
-            tf.tile(tf.reshape(tf.range(0, tf.shape(shaped_boxes)[1]), [1, cfg.grid_shape[0]*cfg.grid_shape[1], 1]),
-                    [tf.shape(shaped_boxes)[0], 1, 1])
+        print("IOU:", iou.shape, top_iou.shape, iou_mask.shape)
 
-        # new_indices = tf.map_fn(lambda x: tf.concat([
-        #     zero_axis_indices,
-        #     one_axis_indices,
-        #     x
-        #
-        # ], axis=-1), tf.cast(indices, tf.int32))
+        obj = tf.cast(truth_tiled[..., 4], tf.float32)
 
-        new_indices = tf.concat([
-            zero_axis_indices,
-            one_axis_indices,
-            tf.cast(indices, tf.int32)
-
-        ], axis=-1)
-
-
-
-        new_indices = tf.reshape(new_indices, [-1, 3])
-
-        self.loss_layers['new_indices'] = new_indices
-
-        iou_reshaped = tf.reshape(iou, [-1, cfg.grid_shape[0] * cfg.grid_shape[1], 5, 1])
-
-        print("reshaped_iou", iou_reshaped.shape)
-
-        print("new_indices", new_indices.shape)
-
-        top_boxes = tf.gather_nd(shaped_boxes, new_indices)
-
-        self.loss_layers['top_boxes'] = new_indices
-
-        print("top_boxes", top_boxes.shape)
-
-        top_iou = tf.gather_nd(iou_reshaped, new_indices)
-
-        self.indices = new_indices
-
-        print("top_iou", top_iou.shape)
-
-        top_iou = tf.reshape(top_iou, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 1])
-
-        matching_boxes = tf.reshape(top_boxes, [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1, 5])
-
-        print("matching_boxes", matching_boxes.shape)
-        print("truth_boxes", truth.shape)
-
-        self.best_iou = top_iou
-
-        self.loss_layers['top_iou'] = top_iou
-        self.loss_layers['best_iou'] = matching_boxes
-
-        obj = tf.cast(truth[..., 4], tf.float32)
+        print(obj.shape)
 
         self.loss_layers['obj'] = obj
 
         print("obj:", obj.shape)
 
-        obj_xy = tf.reshape(tf.tile(tf.expand_dims(obj * cfg.coord_weight, axis=3),[ 1, 1, 1, anchors, 2]),
-                            [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 2])
+        obj_xy = tf.tile(tf.expand_dims(obj * cfg.coord_weight, axis=-1),
+                                    [ 1, 1, 1, 1, 2]) * \
+                 tf.tile(iou_mask, [1, 1, 1, 1, 2])
 
         print("obj_xy:", obj_xy.shape)
 
@@ -347,9 +299,9 @@ class Yolo:
 
         pos_mask_count = tf.reduce_sum(tf.cast(obj_xy>0, tf.float32)) + epsilon
 
-        total_pos_loss = tf.reshape(tf.square(pred_boxes[...,0:2] - truth_tiled[...,0:2]), [-1, cfg.grid_shape[0] * cfg.grid_shape[1], 5, 2]) \
+        total_pos_loss = tf.square(pred_boxes[...,0:2] - truth_tiled[...,0:2]) \
                          / pos_mask_count
-        total_dim_loss = tf.reshape(tf.square(tf.sqrt(pred_boxes[...,2:4]) - tf.sqrt(truth_tiled[...,2:4])), [-1, cfg.grid_shape[0] * cfg.grid_shape[1], 5, 2]) \
+        total_dim_loss = tf.square(tf.sqrt(pred_boxes[...,2:4]) - tf.sqrt(truth_tiled[...,2:4])) \
                          / pos_mask_count
 
         print("total pos loss:", total_pos_loss.shape)
@@ -358,34 +310,29 @@ class Yolo:
 
         self.loss_dimension = tf.reduce_sum(obj_xy * total_dim_loss)
 
-        obj_conf = tf.cast(tf.reshape(top_iou,
-                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < cfg.object_detection_threshold, tf.float32) * \
-              (1 - truth[...,4]) * cfg.noobj_weight
+        conf_diff = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_boxes[...,4], labels=truth_tiled[...,4])
 
-        obj_conf = obj_conf + truth[...,4] * cfg.obj_weight
+        conf_loss = (1 - obj) * cfg.noobj_weight * conf_diff
 
-        obj_conf = tf.reshape(tf.tile(tf.expand_dims(obj_conf, axis=3),[ 1, 1, 1, anchors, 1]),
-                            [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 1])
+        conf_loss = conf_loss + obj * conf_diff * ignore_mask * cfg.obj_weight
 
-        total_conf_loss = tf.reshape(tf.square(pred_boxes[...,4] - truth_tiled[...,4]), [-1, cfg.grid_shape[0] * cfg.grid_shape[1] , 5, 1]) \
-                          / (tf.reduce_sum(tf.cast(obj_conf>0, tf.float32)) + epsilon)
+        total_conf_loss = conf_loss / (tf.reduce_sum(tf.cast((ignore_mask)>0, tf.float32)) + epsilon)
 
         self.loss_layers['confidence_loss'] = total_conf_loss
 
         print("conf_loss", total_conf_loss.shape)
 
-        object_recognition = tf.multiply(tf.cast(obj_conf, tf.float32), total_conf_loss)
+        self.loss_obj = tf.reduce_sum(total_conf_loss)
 
-        self.loss_layers['object_recognition'] = object_recognition
+        self.train_object_recognition = tf.tile(truth[..., 5:],
+                [1, 1, 1, pred_classes.shape[3], 1])
 
-        self.loss_obj = tf.reduce_sum(object_recognition)
-
-        class_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_classes,
-                                                labels=tf.cast(self.train_object_recognition, tf.int32))
+        class_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_classes,
+                                                labels=self.train_object_recognition)
 
         print("class_loss", class_loss.shape)
 
-        obj_classes = tf.reshape(obj, [-1, cfg.grid_shape[0], cfg.grid_shape[1]])#tf.tile(obj, [1, 1, 1, 10])
+        obj_classes =tf.tile(tf.expand_dims(obj, -1) * iou_mask, [1, 1, 1, 1, classes])
 
         class_loss = tf.multiply(obj_classes, class_loss) * cfg.class_weight \
                      / (tf.reduce_sum(tf.cast(obj_classes>0, tf.float32))+epsilon)
@@ -393,71 +340,6 @@ class Yolo:
         self.loss_class = tf.reduce_sum(class_loss)
 
         self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_class
-
-
-        obj_sens = tf.reshape(tf.cast(truth[...,4]>0, tf.float32), [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
-
-        class_assignments = tf.argmax(self.pred_classes,-1)
-
-        print(class_assignments.shape)
-        print(self.train_object_recognition.shape)
-
-        correct_classes = tf.cast(tf.equal(class_assignments, tf.cast(self.train_object_recognition, tf.int64)), tf.float32)
-
-        identified_objects_tpos = tf.reshape(tf.cast(top_iou >= self.iou_threshold, tf.float32),
-                                            [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
-            tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
-            [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
-
-        identified_objects_fpos = tf.maximum((1-obj_sens) + (tf.reshape(tf.cast(top_iou < self.iou_threshold, tf.float32),
-                                             [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * obj_sens), 1) * \
-                                             tf.reshape(
-            tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
-            [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
-
-        identified_objects_fneg =  tf.reshape(
-            tf.cast(matching_boxes[..., 4] < self.object_detection_threshold, tf.float32),
-            [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
-
-        self.average_iou = tf.reduce_sum(top_iou) / (tf.reduce_sum(tf.cast(truth[...,4]>0, tf.float32)) + epsilon)
-
-
-        self.matches = obj_sens * identified_objects_tpos
-
-        self.true_positives = tf.reduce_sum(obj_sens * identified_objects_tpos
-                                            )
-        self.false_positives = tf.reduce_sum(identified_objects_fpos)
-        self.false_negatives = tf.reduce_sum(obj_sens * identified_objects_fneg)
-
-        self.true_negatives = tf.reduce_sum((1 - obj_sens) * identified_objects_fneg)
-
-        self.mAP = 0
-
-        for i in range(10):
-            identified_obj_tpos = tf.reshape(tf.cast(top_iou >= (0.5+(i * 0.05)), tf.float32),
-                                [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
-                tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
-                [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
-
-            identified_obj_fpos = tf.reshape(
-                tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
-                [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
-
-            true_p = tf.reduce_sum(obj_sens * identified_obj_tpos
-                                                )
-            false_p = tf.reduce_sum((1-obj_sens) * identified_obj_fpos)
-            self.mAP = self.mAP + (((true_p+1)/(true_p+false_p+1))/10)
-
-        if (cfg.enable_logging):
-            tf.summary.histogram("loss_position", total_pos_loss)
-            tf.summary.histogram("loss_dimension", total_dim_loss)
-            tf.summary.histogram("loss_object", object_recognition)
-            tf.summary.histogram("loss_classification", class_loss)
-            tf.summary.scalar("loss_pos", self.loss_position)
-            tf.summary.scalar("loss_dim", self.loss_dimension)
-            tf.summary.scalar("loss_obj", self.loss_obj)
-            tf.summary.scalar("loss_class", self.loss_class)
-            tf.summary.scalar("total_loss", self.loss)
 
 
     def get_network(self):

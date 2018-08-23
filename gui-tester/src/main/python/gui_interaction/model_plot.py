@@ -109,20 +109,27 @@ if __name__ == '__main__':
             yolo.anchors: anchors,
         })
 
-        raw_boxes = boxes
+        proc_boxes = boxes#[..., :5]
 
-        print(boxes[..., 1:3])
+        for x in range(13):
+            for y in range(13):
+                b = proc_boxes[0, x, y]
+                print("(", x, ",", y, ")", "x:", np.max(b[3:15,0]), "-", np.min(b[3:15,0]),
+                "y:", np.max(b[...,1]), "-", np.min(b[...,1]))
 
-        print(np.max(boxes[..., 0]), np.max(boxes[..., 1]))
+        proc_boxes[...,0:4] = proc_boxes[...,0:4]/cfg.grid_shape[0]
 
-        proc_boxes = raw_boxes[..., :5]
+        proc_boxes = np.reshape(proc_boxes, [proc_boxes.shape[0], -1, 5+len(yolo.names)])
 
-        classes = np.reshape(np.argmax(raw_boxes[...,5:], axis=-1), [-1, proc_boxes.shape[1], 1])
+        classes = np.reshape(np.argmax(proc_boxes[...,5:], axis=-1), [-1, proc_boxes.shape[1], 1])
+
+        proc_boxes = proc_boxes[..., 0:5]
 
         proc_boxes = np.append(classes, proc_boxes, axis=-1).tolist()[0]
 
-
         img = images[0][1]
+
+        proc_boxes.sort(key=lambda box: box[5])
 
         for box in proc_boxes:
             height, width, channels = img.shape
@@ -134,7 +141,7 @@ if __name__ == '__main__':
             color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
             if (box[5]>cfg.object_detection_threshold):
-                #print(box)
+                print(box)
 
                 x1 = max(int(width*(box[1]-box[3]/2)), 0)
                 y1 = max(int(height*(box[2]-box[4]/2)), 0)

@@ -12,7 +12,7 @@ import os
 import pickle
 import re
 
-debug = True
+debug = False
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -53,7 +53,6 @@ def load_files(raw_files):
             pickled_data = pickle.load(open(pickle_f, "rb"))
             images.append(pickled_data[0])
             labels.append(pickled_data[1])
-            object_detection.append(pickled_data[2])
         else:
             f = raw_files[i]
             f_l = label_files[i]
@@ -90,11 +89,8 @@ def load_files(raw_files):
             # read in format [c, x, y, width, height]
             # store in format [c], [x, y, width, height]
             with open(f_l, "r") as l:
-                obj_detect = [[0 for i in
-                               range(cfg.grid_shape[0])]for i in
-                              range(cfg.grid_shape[1])]
                 imglabs = [[[0 for i in
-                             range(5)]for i in
+                             range(5 + len(yolo.names))] for i in
                             range(cfg.grid_shape[1])] for i in
                            range(cfg.grid_shape[0])]
 
@@ -122,13 +118,9 @@ def load_files(raw_files):
 
                     imglabs[y][x] = np.concatenate((normalised_label, classes), axis=0)
                     imglabs[y][x][5+int(elements[0])] = 1
-                    obj_detect[y][x] = int(elements[0])
-                    #obj_detect[y][x][int(elements[0])] = 1
-
-                object_detection.append(obj_detect)
                 labels.append(imglabs)
 
-            pickled_data = [image, imglabs, obj_detect]
+            pickled_data = [image, imglabs]
 
             pickle.dump(pickled_data, open(pickle_f, "wb"))
 
@@ -195,13 +187,11 @@ def load_files(raw_files):
                 mult_x = width / new_width
                 mult_y = height / new_height
 
-                obj_det = np.copy(object_detection[im])
                 labs_copy = np.copy(labels[im])
 
                 for lnx in range(len(labs)):
                     for lny in range(len(labs[lnx])):
-                        object_detection[im][lnx][lny] = 0
-                        labels[im][lnx][lny] = [0, 0, 0, 0, 0]
+                        labels[im][lnx][lny] = [0 for i in range(5+len(yolo.names))]
 
                 for lnx in range(len(labs)):
                     for lny in range(len(labs[lnx])):
@@ -213,7 +203,6 @@ def load_files(raw_files):
                             lbl[2] = lbl[2] * mult_x
                             lbl[3] = lbl[3] * mult_y
 
-                            object_detection[im][int(lbl[1])][int(lbl[0])] = obj_det[lnx][lny]
                             labels[im][int(lbl[1])][int(lbl[0])] = lbl
 
             elif rand_num < 0.6666: #crop
@@ -234,14 +223,12 @@ def load_files(raw_files):
 
                 mult_x = width / new_width
                 mult_y = height / new_height
-
-                obj_det = np.copy(object_detection[im])
                 labs_copy = np.copy(labels[im])
 
                 for lnx in range(len(labs)):
                     for lny in range(len(labs[lnx])):
                         object_detection[im][lnx][lny] = 0
-                        labels[im][lnx][lny] = [0, 0, 0, 0, 0]
+                        labels[im][lnx][lny] = [0 for i in range(5+len(yolo.names))]
 
                 for lnx in range(len(labs)):
                     for lny in range(len(labs[lnx])):
@@ -254,7 +241,6 @@ def load_files(raw_files):
                             lbl[3] = lbl[3] * mult_y
 
                             if (lbl[0] >= 0 and lbl[1] >= 0 and lbl[0] < cfg.grid_shape[0] and lbl[1] < cfg.grid_shape[1] ): # check if element is in screenshot
-                                object_detection[im][int(lbl[1])][int(lbl[0])] = obj_det[lnx][lny]
                                 labels[im][int(lbl[1])][int(lbl[0])] = lbl
 
             else: # tile
@@ -281,13 +267,12 @@ def load_files(raw_files):
 
                 image = img
 
-                obj_det = np.copy(object_detection[im])
                 labs_copy = np.copy(labels[im])
 
                 for lnx in range(len(labs)):
                     for lny in range(len(labs[lnx])):
                         object_detection[im][lnx][lny] = 0
-                        labels[im][lnx][lny] = [0, 0, 0, 0, 0]
+                        labels[im][lnx][lny] = [0 for i in range(5+len(yolo.names))]
 
                 disp_x = cfg.grid_shape[0]/2
                 disp_y = cfg.grid_shape[1]/2
@@ -302,26 +287,22 @@ def load_files(raw_files):
 
                             if copies[0]:
                                 labels[im][int(y)][int(x)] = np.copy(lbl)
-                                object_detection[im][int(y)][int(x)] = obj_det[lnx][lny]
 
                             if copies[1]:
                                 lbc2 = np.copy(lbl)
                                 lbc2[1] += disp_y
                                 labels[im][int(lbc2[1])][int(lbc2[0])] = lbc2
-                                object_detection[im][int(lbc2[1])][int(lbc2[0])] = obj_det[lnx][lny]
 
                             if copies[2]:
                                 lbc2 = np.copy(lbl)
                                 lbc2[0] += disp_x
                                 labels[im][int(lbc2[1])][int(lbc2[0])] = lbc2
-                                object_detection[im][int(lbc2[1])][int(lbc2[0])] = obj_det[lnx][lny]
 
                             if copies[3]:
                                 lbc2 = np.copy(lbl)
                                 lbc2[0] += disp_x
                                 lbc2[1] += disp_y
                                 labels[im][int(lbc2[1])][int(lbc2[0])] = lbc2
-                                object_detection[im][int(lbc2[1])][int(lbc2[0])] = obj_det[lnx][lny]
 
         image = cv2.resize(image, (cfg.height, cfg.width))
 
@@ -372,10 +353,10 @@ def load_files(raw_files):
             cv2.destroyAllWindows()
 
 
-    return images, labels, object_detection
+    return images, labels
 
 def modify_learning_rate(epoch):
-    ep = epoch + 8
+    ep = epoch
 
     #return learning rate in accordance to YOLO paper
     if ep == 0:
@@ -494,13 +475,13 @@ if __name__ == '__main__':
 
             random.shuffle(valid_images)
             with open("training.csv", "w") as file:
-                file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class,precision,recall,mAP\n")
+                file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class\n")
 
             for i in range(cfg.epochs):
                 #random.shuffle(training_images)
                 yolo.set_training(False)
 
-                losses = [0, 0, 0, 0, 0, 0, 0, 0]
+                losses = [0, 0, 0, 0, 0]
 
                 for j in range(valid_batches):
                     gc.collect()
@@ -508,14 +489,12 @@ if __name__ == '__main__':
                     lower_index = j*cfg.batch_size
                     upper_index = min(len(valid_images), ((j+1)*cfg.batch_size))
 
-                    v_imgs, v_labels, v_obj_detection = load_files(
+                    v_imgs, v_labels = load_files(
                         valid_images[lower_index:upper_index])
 
                     v_imgs = (np.array(v_imgs)/127.5)-1
 
                     v_labels = np.array(v_labels)
-
-                    v_obj_detection = np.array(v_obj_detection)
 
                     if len(v_labels) == 0:
                         continue
@@ -524,33 +503,23 @@ if __name__ == '__main__':
                         merge = tf.summary.merge_all()
                         summary, _ = sess.run([merge, yolo.loss], feed_dict={
                             yolo.train_bounding_boxes: v_labels,
-                            yolo.train_object_recognition: v_obj_detection,
                             yolo.x: v_imgs,
                             yolo.anchors: anchors
                         })
 
                         train_writer.add_summary(summary, 0)
 
-                    predictions, \
-                    loss, lp, ld, lo, lc, \
-                    true_pos, false_pos, false_neg, mAP = sess.run([
-                        yolo.pred_boxes,
-                        yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
-                        yolo.true_positives, yolo.false_positives, yolo.false_negatives, yolo.mAP], feed_dict={
+                    predictions, loss, lp, ld, lo, lc = sess.run([yolo.output,
+                        yolo.loss, yolo.loss_position, yolo.loss_dimension,
+                        yolo.loss_obj, yolo.loss_class], feed_dict={
                         yolo.train_bounding_boxes: v_labels,
-                        yolo.train_object_recognition: v_obj_detection,
                         yolo.x: v_imgs,
                         yolo.anchors: anchors,
                         yolo.iou_threshold: 0.5,
                         yolo.object_detection_threshold: cfg.object_detection_threshold
                     })
 
-                    # keep track of true/false positive values to calculate mAP
-                    tps = true_pos
-                    fps = false_pos
-                    fns = false_neg
-
-                    del(v_imgs, v_labels, v_obj_detection, predictions)
+                    del(v_imgs, v_labels, predictions)
 
                     losses[0] += loss
                     losses[1] += lp
@@ -558,18 +527,8 @@ if __name__ == '__main__':
                     losses[3] += lo
                     losses[4] += lc
 
-                    #precision
-                    losses[5] += (true_pos+1) / (true_pos + false_pos+1)
-
-                    #recall
-                    losses[6] += (true_pos+1) / (true_pos + false_neg+1)
-
-                    losses[7] += mAP
-
                 for li in range(len(losses)):
                     losses[li] = losses[li] / valid_batches
-
-                print(i, "loss:", losses)
 
                 loss_string = str(i) + "," + "Validation"
 
@@ -584,7 +543,7 @@ if __name__ == '__main__':
 
                 yolo.set_training(False)
 
-                losses = [0, 0, 0, 0, 0, 0, 0, 0]
+                losses = [0, 0, 0, 0, 0]
 
                 for j in range(real_batches):
                     gc.collect()
@@ -592,14 +551,12 @@ if __name__ == '__main__':
                     lower_index = j*cfg.batch_size
                     upper_index = min(len(real_images), ((j+1)*cfg.batch_size))
 
-                    v_imgs, v_labels, v_obj_detection = load_files(
+                    v_imgs, v_labels = load_files(
                         real_images[lower_index:upper_index])
 
                     v_imgs = (np.array(v_imgs)/127.5)-1
 
                     v_labels = np.array(v_labels)
-
-                    v_obj_detection = np.array(v_obj_detection)
 
                     if len(v_labels) == 0:
                         continue
@@ -608,7 +565,6 @@ if __name__ == '__main__':
                         merge = tf.summary.merge_all()
                         summary, _ = sess.run([merge, yolo.loss], feed_dict={
                             yolo.train_bounding_boxes: v_labels,
-                            yolo.train_object_recognition: v_obj_detection,
                             yolo.x: v_imgs,
                             yolo.anchors: anchors
                         })
@@ -616,25 +572,18 @@ if __name__ == '__main__':
                         train_writer.add_summary(summary, 0)
 
                     predictions, \
-                    loss, lp, ld, lo, lc, \
-                    true_pos, false_pos, false_neg, mAP = sess.run([
-                        yolo.pred_boxes,
-                        yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
-                        yolo.true_positives, yolo.false_positives, yolo.false_negatives, yolo.mAP], feed_dict={
+                    loss, lp, ld, lo, lc, = sess.run([
+                        yolo.output,
+                        yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class], feed_dict={
                         yolo.train_bounding_boxes: v_labels,
-                        yolo.train_object_recognition: v_obj_detection,
                         yolo.x: v_imgs,
                         yolo.anchors: anchors,
                         yolo.iou_threshold: 0.5,
                         yolo.object_detection_threshold: cfg.object_detection_threshold
                     })
 
-                    # keep track of true/false positive values to calculate mAP
-                    tps = true_pos
-                    fps = false_pos
-                    fns = false_neg
 
-                    del(v_imgs, v_labels, v_obj_detection, predictions)
+                    del(v_imgs, v_labels, predictions)
 
                     losses[0] += loss
                     losses[1] += lp
@@ -642,18 +591,8 @@ if __name__ == '__main__':
                     losses[3] += lo
                     losses[4] += lc
 
-                    #precision
-                    losses[5] += (true_pos+1) / (true_pos + false_pos+1)
-
-                    #recall
-                    losses[6] += (true_pos+1) / (true_pos + false_neg+1)
-
-                    losses[7] += mAP
-
                 for li in range(len(losses)):
                     losses[li] = losses[li] / real_batches
-
-                print(i, "loss:", losses)
 
                 loss_string = str(i) + "," + "Real"
 
@@ -673,9 +612,9 @@ if __name__ == '__main__':
                 print("Learning rate:", learning_r)
                 yolo.set_training(True)
 
-                print("\rTraining from " + str(batches) + " batches.", end="")
+                print("Training")
 
-                losses = [0, 0, 0, 0, 0, 0, 0, 0]
+                losses = [0, 0, 0, 0, 0]
 
                 for j in range(batches):
                     gc.collect()
@@ -686,61 +625,41 @@ if __name__ == '__main__':
 
                     lower_index = j * cfg.batch_size
                     upper_index = min(len(training_images), (j+1)*cfg.batch_size)
-                    imgs, labels, obj_detection = load_files(
+                    imgs, labels = load_files(
                         training_images[lower_index:upper_index])
 
                     imgs = (np.array(imgs)/127.5)-1
 
                     labels = np.array(labels)
 
-                    obj_detection = np.array(obj_detection)
-
 
                     if len(labels) == 0:
                         continue
 
                     if (cfg.enable_logging):
-                        summary, _, predictions, loss, lp, ld, lo, lc, true_pos, false_pos, false_neg, mAP = sess.run([
-                            merge, train_step, yolo.pred_boxes,
-                            yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
-                            yolo.true_positives, yolo.false_positives, yolo.false_negatives, yolo.mAP], feed_dict={
+                        summary, _, predictions, loss, lp, ld, lo, lc = sess.run([
+                            merge, train_step, yolo.output,
+                            yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class], feed_dict={
                             yolo.train_bounding_boxes: labels,
-                            yolo.train_object_recognition: obj_detection,
                             yolo.x: imgs,
                             yolo.anchors: anchors,
                             learning_rate: learning_r,
                             yolo.iou_threshold: 0.5,
                             yolo.object_detection_threshold: cfg.object_detection_threshold
                         })
-
-                        tps = true_pos
-                        fps = false_pos
-                        fns = false_neg
-
                         losses[0] += loss
                         losses[1] += lp
                         losses[2] += ld
                         losses[3] += lo
                         losses[4] += lc
-
-                        #precision
-                        losses[5] += (true_pos+1) / (true_pos + false_pos+1)
-
-                        #recall
-                        losses[6] += (true_pos+1) / (true_pos + false_neg+1)
-
-                        #mAP
-                        losses[7] += mAP
 
 
                         train_writer.add_summary(summary, i+1)
                     else:
-                        _, predictions, loss, lp, ld, lo, lc, true_pos, false_pos, false_neg, mAP = sess.run([
-                            train_step, yolo.pred_boxes,
-                            yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
-                            yolo.true_positives, yolo.false_positives, yolo.false_negatives, yolo.mAP], feed_dict={
+                        _, predictions, loss, lp, ld, lo, lc = sess.run([
+                            train_step, yolo.output,
+                            yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class], feed_dict={
                             yolo.train_bounding_boxes: labels,
-                            yolo.train_object_recognition: obj_detection,
                             yolo.x: imgs,
                             yolo.anchors: anchors,
                             learning_rate: learning_r,
@@ -748,30 +667,16 @@ if __name__ == '__main__':
                             yolo.object_detection_threshold: cfg.object_detection_threshold
                         })
 
-                        tps = true_pos
-                        fps = false_pos
-                        fns = false_neg
-
                         losses[0] += loss
                         losses[1] += lp
                         losses[2] += ld
                         losses[3] += lo
                         losses[4] += lc
-
-                        #precision
-                        losses[5] += (true_pos+1) / (true_pos + false_pos+1)
-
-                        #recall
-                        losses[6] += (true_pos+1) / (true_pos + false_neg+1)
-
-                        #mAP
-                        losses[7] += mAP
 
 
 
                     del(imgs)
                     del(labels)
-                    del(obj_detection)
 
                 for li in range(len(losses)):
                     losses[li] = losses[li] / batches
@@ -786,7 +691,7 @@ if __name__ == '__main__':
                 with open("training.csv", "a") as file:
                     file.write(loss_string + "\n")
 
-                print(loss_string)
+                print(loss_string + "\n")
 
 
                 if i % 10 == 0:
