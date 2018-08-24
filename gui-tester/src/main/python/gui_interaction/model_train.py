@@ -336,7 +336,7 @@ def load_files(raw_files):
     return images, labels, object_detection
 
 def modify_learning_rate(epoch):
-    ep = epoch + 8
+    ep = epoch
 
     #return learning rate in accordance to YOLO paper
     if ep == 0:
@@ -365,7 +365,10 @@ if __name__ == '__main__':
 
     with open(training_file, "r") as tfile:
         for l in tfile:
-            training_images.append(l.strip())
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num > 243 and file_num > 15256 and file_num < 20000:
+                training_images.append(l.strip())
 
 
 
@@ -376,6 +379,9 @@ if __name__ == '__main__':
     with open(valid_file, "r") as tfile:
         for l in tfile:
             valid_images.append(l.strip())
+
+    random.shuffle(valid_images)
+    valid_images = valid_images[:500]
 
     for i in ['train.txt', 'test.txt', 'validate.txt']:
 
@@ -412,7 +418,7 @@ if __name__ == '__main__':
             yolo.set_update_ops(update_ops)
             #train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
             #    minimize(yolo.loss)
-            train_step = tf.train.AdadeltaOptimizer(learning_rate). \
+            train_step = tf.train.AdamOptimizer(learning_rate). \
                 minimize(yolo.loss)
 
         saver = tf.train.Saver()
