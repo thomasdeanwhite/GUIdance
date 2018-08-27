@@ -80,8 +80,8 @@ def load_files(raw_files):
                 for line in l:
                     elements = line.split(" ")
                     #print(elements[1:3])
-                    normalised_label, centre = normalise_label([float(elements[1])-2/width, float(elements[2])-2/height,
-                                                                float(elements[3])-8/width, float(elements[4])-8/height, 1])
+                    normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
+                                                                float(elements[3]), float(elements[4]), 1])
                     x = max(0, min(int(centre[0]), cfg.grid_shape[0]-1))
                     y = max(0, min(int(centre[1]), cfg.grid_shape[1]-1))
                     imglabs[y][x] = normalised_label
@@ -413,13 +413,9 @@ if __name__ == '__main__':
 
         learning_rate = tf.placeholder(tf.float64)
         learning_r = cfg.learning_rate_start
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
-            yolo.set_update_ops(update_ops)
-            #train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
-            #    minimize(yolo.loss)
-            train_step = tf.train.AdamOptimizer(learning_rate). \
-                minimize(yolo.loss)
+
+        train_step = tf.train.AdamOptimizer(learning_rate). \
+            minimize(yolo.loss)
 
         saver = tf.train.Saver()
 
@@ -714,6 +710,9 @@ if __name__ == '__main__':
                             yolo.iou_threshold: 0.5,
                             yolo.object_detection_threshold: cfg.object_detection_threshold
                         })
+
+                        print(np.max(labels[..., 2:4]))
+                        print(np.max(predictions[..., 2:4]))
 
                         tps = true_pos
                         fps = false_pos

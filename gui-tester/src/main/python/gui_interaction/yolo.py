@@ -439,7 +439,7 @@ class Yolo:
 
         self.loss_class = tf.reduce_sum(class_loss)
 
-        self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_class
+        self.loss = self.loss_position + self.loss_dimension + self.loss_obj # + self.loss_class
 
 
         obj_sens = tf.reshape(tf.cast(truth[...,4]>0, tf.float32), [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
