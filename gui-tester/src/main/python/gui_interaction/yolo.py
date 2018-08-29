@@ -80,6 +80,35 @@ class Yolo:
         layer = self.conv2d(layer, filters * 2)
         return layer + input
 
+    def reshape(self, arr, scale, width, height, anchors):
+
+        indices = []
+
+        print(arr.shape)
+        for i in range(width):
+            ind = []
+            for j in range(height):
+                inh = []
+                for s in range(scale):
+                    for t in range(scale):
+                        for a in range(anchors):
+                            inh.append([(i*scale)+t, (j*scale)+s, a])
+                ind.append(inh)
+
+            indices.append(ind)
+
+        indices = np.array(indices)
+
+        print(indices.shape)
+
+        #indices = tf.expand_dims(indices, 0)
+
+        #indices = tf.tile(indices, [tf.shape(arr)[0], 1, 1, 1])
+
+        return tf.map_fn(lambda x: tf.gather_nd(x, indices), arr)
+        #return arr
+
+
     def prediction_layer(self, inputs, anchors, scale):
         anchors_size = anchors.shape.as_list()[0]
         classes = len(self.names)
@@ -102,13 +131,20 @@ class Yolo:
         )
 
         box_xy = (tf.nn.sigmoid(preds[...,:2]) + cell_grid)/scale
-        box_wh = tf.exp(preds[...,2:4]) * anchors_weight/scale
+        box_wh = tf.minimum(tf.exp(preds[...,2:4]) * anchors_weight, cfg.grid_shape[0])
         box_conf = tf.expand_dims(tf.nn.sigmoid(preds[...,4]), axis=-1)
         box_classes = preds[..., 5:]
 
         upscaled_box_num = anchors_size * scale * scale
 
         layer = tf.concat([box_xy, box_wh, box_conf, box_classes], axis=-1)
+
+        print(layer.shape)
+
+        if (scale > 1):
+            layer = self.reshape(layer, scale, int(width/scale), int(height/scale), anchors_size)
+
+            print(layer.shape)
 
         return tf.identity(tf.reshape(
             layer,
@@ -226,7 +262,7 @@ class Yolo:
 
 
 
-        pred_boxes_xy = (pred_boxes[..., :2])
+        pred_boxes_xy = pred_boxes[..., :2]
 
         epsilon = tf.constant(self.epsilon)
 
@@ -253,14 +289,14 @@ class Yolo:
         true_areas = truth_boxes_wh[..., 0] * truth_boxes_wh[..., 1]
         pred_areas = pred_boxes_wh[..., 0] * pred_boxes_wh[..., 1]
 
-        union_areas = pred_areas + true_areas - intersect_areas + tf.ones_like(intersect_areas)
+        union_areas = pred_areas + true_areas - intersect_areas
 
         self.loss_layers['intersect_areas'] = intersect_areas
         self.loss_layers['union_areas'] = union_areas
         self.loss_layers['true_areas'] = true_areas
         self.loss_layers['pred_areas'] = pred_areas
 
-        iou = tf.truediv(intersect_areas, union_areas)
+        iou = tf.truediv(intersect_areas, union_areas + epsilon)
         self.loss_layers['raw_iou'] = iou
 
         top_iou = tf.reshape(tf.reduce_max(iou, axis=-1),
@@ -269,7 +305,7 @@ class Yolo:
         top_iou = tf.tile(top_iou,
                           [1, 1, 1, iou.shape[3]])
 
-        iou_mask = tf.cast(iou >= top_iou, tf.float32)
+        iou_mask = tf.cast(tf.equal(iou, top_iou), tf.float32)
 
         ignore_mask = tf.cast(iou > 0.5, tf.float32)
 
@@ -297,18 +333,20 @@ class Yolo:
 
         self.loss_layers['obj_xy'] = obj_xy
 
-        pos_mask_count = tf.reduce_sum(tf.cast(obj_xy>0, tf.float32)) + epsilon
+        #pos_mask_count = tf.reduce_sum(tf.cast(obj_xy>0, tf.float32)) + epsilon
 
-        total_pos_loss = tf.square(pred_boxes[...,0:2] - truth_tiled[...,0:2]) \
-                         / pos_mask_count
-        total_dim_loss = tf.square(tf.sqrt(pred_boxes[...,2:4]) - tf.sqrt(truth_tiled[...,2:4])) \
-                         / pos_mask_count
+        total_pos_loss = tf.square(obj_xy*(truth_tiled[...,0:2] - pred_boxes[...,0:2]))
+
+        total_dim_loss = tf.square(obj_xy*(tf.sqrt(epsilon + truth_tiled[...,2:4]) - tf.sqrt(epsilon + pred_boxes[...,2:4])))
+
 
         print("total pos loss:", total_pos_loss.shape)
 
-        self.loss_position = tf.reduce_sum(obj_xy * total_pos_loss)
+        self.loss_position = tf.reduce_sum(total_pos_loss)
 
-        self.loss_dimension = tf.reduce_sum(obj_xy * total_dim_loss)
+        #Issue here: When assinging a pred box to match a true box, if the box is in a smaller grid cell it
+        #can never reach its intended x,y positions!
+        self.loss_dimension = tf.reduce_sum(total_dim_loss)
 
         conf_diff = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_boxes[...,4], labels=truth_tiled[...,4])
 
@@ -316,7 +354,7 @@ class Yolo:
 
         conf_loss = conf_loss + obj * conf_diff * ignore_mask * cfg.obj_weight
 
-        total_conf_loss = conf_loss / (tf.reduce_sum(tf.cast((ignore_mask)>0, tf.float32)) + epsilon)
+        total_conf_loss = conf_loss
 
         self.loss_layers['confidence_loss'] = total_conf_loss
 
@@ -334,8 +372,7 @@ class Yolo:
 
         obj_classes =tf.tile(tf.expand_dims(obj, -1) * iou_mask, [1, 1, 1, 1, classes])
 
-        class_loss = tf.multiply(obj_classes, class_loss) * cfg.class_weight \
-                     / (tf.reduce_sum(tf.cast(obj_classes>0, tf.float32))+epsilon)
+        class_loss = tf.multiply(obj_classes, class_loss) * cfg.class_weight
 
         self.loss_class = tf.reduce_sum(class_loss)
 

@@ -94,6 +94,11 @@ def load_files(raw_files):
                             range(cfg.grid_shape[1])] for i in
                            range(cfg.grid_shape[0])]
 
+                for i in range(cfg.grid_shape[0]):
+                    for j in range(cfg.grid_shape[1]):
+                        imglabs[i][j][0] = j
+                        imglabs[i][j][1] = i
+
                 for line in l:
                     elements = line.split(" ")
                     #print(elements[1:3])
@@ -119,6 +124,8 @@ def load_files(raw_files):
                     imglabs[y][x] = np.concatenate((normalised_label, classes), axis=0)
                     imglabs[y][x][5+int(elements[0])] = 1
                 labels.append(imglabs)
+
+            imglabs = np.array(imglabs)
 
             pickled_data = [image, imglabs]
 
@@ -358,7 +365,7 @@ def load_files(raw_files):
 def modify_learning_rate(epoch):
     ep = epoch
 
-    #return learning rate in accordance to YOLO paper
+    # return learning rate in accordance to YOLO paper
     if ep == 0:
         return 0.001
     if ep < 10:
@@ -428,12 +435,9 @@ if __name__ == '__main__':
         learning_rate = tf.placeholder(tf.float64)
         learning_r = cfg.learning_rate_start
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
-            yolo.set_update_ops(update_ops)
-            #train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
-            #    minimize(yolo.loss)
-            train_step = tf.train.AdadeltaOptimizer(learning_rate). \
-                minimize(yolo.loss)
+
+        train_step = tf.train.AdamOptimizer(learning_rate). \
+            minimize(yolo.loss)
 
         saver = tf.train.Saver()
 
@@ -470,7 +474,8 @@ if __name__ == '__main__':
             batches = math.ceil(image_length/cfg.batch_size) if cfg.run_all_batches else 1
             print("Starting training:", image_length, "images in", batches, "batches.")
 
-            anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
+            anchors = np.reshape(np.array(cfg.anchors), [-1, 2]) / cfg.width * cfg.grid_shape[0]
+
             print("anchors", anchors.shape)
 
             random.shuffle(valid_images)
@@ -509,7 +514,7 @@ if __name__ == '__main__':
 
                         train_writer.add_summary(summary, 0)
 
-                    predictions, loss, lp, ld, lo, lc = sess.run([yolo.output,
+                    predictions, loss, lp, ld, lo, lc = sess.run([yolo.loss_layers['raw_iou'], yolo.output,
                         yolo.loss, yolo.loss_position, yolo.loss_dimension,
                         yolo.loss_obj, yolo.loss_class], feed_dict={
                         yolo.train_bounding_boxes: v_labels,
@@ -518,6 +523,19 @@ if __name__ == '__main__':
                         yolo.iou_threshold: 0.5,
                         yolo.object_detection_threshold: cfg.object_detection_threshold
                     })
+
+
+                    lr = 3
+                    ur = 6
+                    p1 = predictions[0, lr:ur, lr:ur, 5, 4]
+
+                    p2 = v_labels[0, lr:ur, lr:ur, 4]
+
+                    iou = iou[0, lr:ur, lr:ur]
+
+                    print(p1,"\n")
+                    print(p2, "\n")
+                    print(p2 - p1)
 
                     del(v_imgs, v_labels, predictions)
 
@@ -656,6 +674,9 @@ if __name__ == '__main__':
 
                         train_writer.add_summary(summary, i+1)
                     else:
+
+                        assert not np.any(np.less(labels[..., 2:4], 0))
+
                         _, predictions, loss, lp, ld, lo, lc = sess.run([
                             train_step, yolo.output,
                             yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class], feed_dict={
@@ -666,6 +687,8 @@ if __name__ == '__main__':
                             yolo.iou_threshold: 0.5,
                             yolo.object_detection_threshold: cfg.object_detection_threshold
                         })
+
+                        assert not np.any(np.less(predictions[..., 2:4], 0))
 
                         losses[0] += loss
                         losses[1] += lp
