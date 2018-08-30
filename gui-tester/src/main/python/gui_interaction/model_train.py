@@ -26,8 +26,8 @@ def normalise_label(label):
     return [
         px,
         py,
-        max(0, min(cfg.grid_shape[0], label[2]*cfg.grid_shape[0])),
-        max(0, min(cfg.grid_shape[1], label[3]*cfg.grid_shape[1])),
+        max(0.05, min(cfg.grid_shape[0], label[2]*cfg.grid_shape[0])),
+        max(0.05, min(cfg.grid_shape[1], label[3]*cfg.grid_shape[1])),
         label[4]
     ], (cx, cy)
 
@@ -66,6 +66,9 @@ def load_files(raw_files):
             image = np.reshape(image, [cfg.width, cfg.height, 1])
             images.append(image)
 
+            if height < 15 or width < 15:
+                continue
+
             # read in format [c, x, y, width, height]
             # store in format [c], [x, y, width, height]
             with open(f_l, "r") as l:
@@ -77,13 +80,22 @@ def load_files(raw_files):
                             range(cfg.grid_shape[1])] for i in
                            range(cfg.grid_shape[0])]
 
+                for x in range(cfg.grid_shape[0]):
+                    for y in range(cfg.grid_shape[1]):
+                        imglabs[x][y][0] = y
+                        imglabs[x][y][1] = x
+
                 for line in l:
                     elements = line.split(" ")
                     #print(elements[1:3])
+
+                    if float(elements[3]) <= 0 or float(elements[4]) <= 0:
+                        continue
+
                     normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
                                                                 float(elements[3]), float(elements[4]), 1])
-                    x = max(0, min(int(centre[0]), cfg.grid_shape[0]-1))
-                    y = max(0, min(int(centre[1]), cfg.grid_shape[1]-1))
+                    x = max(0, min(int(normalised_label[0]), cfg.grid_shape[0]-1))
+                    y = max(0, min(int(normalised_label[1]), cfg.grid_shape[1]-1))
                     imglabs[y][x] = normalised_label
                     obj_detect[y][x] = int(elements[0])
                     #obj_detect[y][x][int(elements[0])] = 1
@@ -336,13 +348,15 @@ def load_files(raw_files):
     return images, labels, object_detection
 
 def modify_learning_rate(epoch):
+
+
     ep = epoch
 
     #return learning rate in accordance to YOLO paper
     if ep == 0:
         return 0.001
     if ep < 10:
-        return 0.001+(0.01-0.001)/((10-epoch))
+        return 0.001+(0.01-0.001)/((10-ep))
 
     if ep < 75:
         return 0.01
@@ -414,8 +428,10 @@ if __name__ == '__main__':
         learning_rate = tf.placeholder(tf.float64)
         learning_r = cfg.learning_rate_start
 
-        train_step = tf.train.AdamOptimizer(learning_rate). \
-            minimize(yolo.loss)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            train_step = tf.train.AdamOptimizer(learning_rate). \
+                minimize(yolo.loss)
 
         saver = tf.train.Saver()
 
@@ -460,7 +476,7 @@ if __name__ == '__main__':
                 file.write("epoch,dataset,loss,loss_position,loss_dimension,loss_obj,loss_class,precision,recall,mAP\n")
 
             for i in range(cfg.epochs):
-                #random.shuffle(training_images)
+                random.shuffle(training_images)
                 yolo.set_training(False)
 
                 losses = [0, 0, 0, 0, 0, 0, 0, 0]
@@ -494,9 +510,14 @@ if __name__ == '__main__':
 
                         train_writer.add_summary(summary, 0)
 
-                    predictions, \
+                    assert not np.any(np.isnan(v_labels))
+                    assert not np.any(np.isnan(v_obj_detection))
+                    assert not np.any(np.isnan(v_imgs))
+
+                    iou, iou2, iou3, predictions, \
                     loss, lp, ld, lo, lc, \
                     true_pos, false_pos, false_neg, mAP = sess.run([
+                        yolo.loss_layers['pred_boxes_wh'], yolo.loss_layers['dim_loss'], yolo.cell_grid,
                         yolo.pred_boxes,
                         yolo.loss, yolo.loss_position, yolo.loss_dimension, yolo.loss_obj, yolo.loss_class,
                         yolo.true_positives, yolo.false_positives, yolo.false_negatives, yolo.mAP], feed_dict={
@@ -507,6 +528,25 @@ if __name__ == '__main__':
                         yolo.iou_threshold: 0.5,
                         yolo.object_detection_threshold: cfg.object_detection_threshold
                     })
+
+                    print(predictions[0, 0:3, 0:3, 0, 2:4])
+                    #print(iou[0, 0:3, 0:3, 0, 0:2])
+                    print("---")
+                    print(v_labels[0, 0:3, 0:3, 2:4])
+                    print("---")
+                    #print(iou2[0, 0:3])
+                    print(iou3[0, 0:3, 0:3, 0])
+
+                    print("pred:", np.sqrt(predictions[0, 0, 0:3, 0, 2:4]))
+                    print("truth:", np.sqrt(v_labels[0, 0, 0:3, 2:4]))
+                    print("---")
+
+                    print(np.square(np.subtract(np.sqrt(predictions[0, 0, 0:3, 0, 2:4]), np.sqrt(v_labels[0, 0, 0:3, 2:4]))))
+                    print(loss)
+                    print(np.min(predictions[..., 2:4]), "-", np.max(predictions[..., 2:4]))
+                    print(np.min(v_labels[..., 2:4]), "-", np.max(v_labels[..., 2:4]))
+                    print(np.min(v_imgs), "-", np.max(v_imgs))
+                    print(np.min(v_obj_detection), "-", np.max(v_obj_detection))
 
                     # keep track of true/false positive values to calculate mAP
                     tps = true_pos
@@ -662,6 +702,10 @@ if __name__ == '__main__':
                     if len(labels) == 0:
                         continue
 
+                    assert not np.any(np.isnan(labels))
+                    assert not np.any(np.isnan(obj_detection))
+                    assert not np.any(np.isnan(imgs))
+
                     if (cfg.enable_logging):
                         summary, _, predictions, loss, lp, ld, lo, lc, true_pos, false_pos, false_neg, mAP = sess.run([
                             merge, train_step, yolo.pred_boxes,
@@ -711,12 +755,15 @@ if __name__ == '__main__':
                             yolo.object_detection_threshold: cfg.object_detection_threshold
                         })
 
-                        print(np.max(labels[..., 2:4]))
-                        print(np.max(predictions[..., 2:4]))
-
                         tps = true_pos
                         fps = false_pos
                         fns = false_neg
+
+                        if (np.isnan(ld) or np.isinf(ld) or np.any(np.isinf(predictions))):
+                            print("INF!")
+                            print(np.max(labels))
+                            print(np.max(imgs))
+                            print("---")
 
                         losses[0] += loss
                         losses[1] += lp
