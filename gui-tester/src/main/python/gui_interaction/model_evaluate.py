@@ -21,12 +21,12 @@ def normalise_label(label):
     px, cx = normalise_point(max(0, min(1, label[0])), cfg.grid_shape[0])
     py, cy = normalise_point(max(0, min(1, label[1])), cfg.grid_shape[1])
     return [
-        px,
-        py,
-        max(0, min(cfg.grid_shape[0], label[2]*cfg.grid_shape[0])),
-        max(0, min(cfg.grid_shape[1], label[3]*cfg.grid_shape[1])),
-        label[4]
-    ], (cx, cy)
+               px,
+               py,
+               max(0, min(cfg.grid_shape[0], label[2]*cfg.grid_shape[0])),
+               max(0, min(cfg.grid_shape[1], label[3]*cfg.grid_shape[1])),
+               label[4]
+           ], (cx, cy)
 
 totals = []
 
@@ -82,7 +82,8 @@ def load_files(raw_files):
                 y = max(0, min(int(centre[1]), cfg.grid_shape[1]-1))
                 imglabs[y][x] = normalised_label
                 obj_detect[y][x] = int(elements[0])
-                totals[int(elements[0])] += 1
+                totals[0] += 1
+                #totals[int(elements[0])] += 1
                 #obj_detect[y][x][int(elements[0])] = 1
 
             object_detection.append(obj_detect)
@@ -207,14 +208,16 @@ if __name__ == '__main__':
 
             yolo.set_training(False)
 
-            iou_threshold = 0.2
-            confidence_threshold = -1
+            iou_threshold = 0.5
+            confidence_threshold = 0.2
 
             class_predictions = []
 
             class_totals = []
 
-            for i in range(1):
+            for i in range(9):
+
+                iou_threshold = 0.5 + (i * 0.05)
 
                 for j in range(valid_batches):
                     gc.collect()
@@ -247,13 +250,15 @@ if __name__ == '__main__':
 
                     labels = yolo.convert_net_to_bb(res, filter_top=True)
 
+                    v_obj_detection = np.zeros_like(v_obj_detection)
+
                     for rc in range(len(yolo.names)):
                         if (len(class_predictions) < rc + 1):
                             class_predictions.append([])
                         if (len(class_totals) < rc + 1):
                             class_totals.append(0)
 
-                        cl_equals = np.where(np.equal(res[..., 4], 1), np.equal(v_obj_detection, np.zeros_like(v_obj_detection)+rc), 0)
+                        cl_equals = np.where(res[..., 4] > confidence_threshold, np.equal(v_obj_detection, np.zeros_like(v_obj_detection)+rc), 0)
 
                         cl_quantity = np.sum(cl_equals.astype(np.int32))
 
@@ -265,7 +270,7 @@ if __name__ == '__main__':
 
                                     label = labels[(jc*cfg.grid_shape[0]) + ic]
 
-                                    if label[0] == rc and label[5] > confidence_threshold:
+                                    if label[5] > confidence_threshold:
                                         class_predictions[rc].append([labels[(jc*cfg.grid_shape[1]) + ic][5], correct[0][ic][jc], iou[0][ic][jc][0][0]])
 
                     del v_imgs
@@ -286,7 +291,7 @@ if __name__ == '__main__':
                         #assert correct_n <= class_totals[rc]
 
                         sens_string = str(iou_threshold) + ",synthetic," + yolo.names[rc] + "," + str(box+1) + "," + str(class_predictions[rc][box][1]) + "," + \
-                        str(correct_n / (box+1)) + "," + str(correct_n/totals[rc]) + "," + str(class_predictions[rc][box][0]) + "," + str(class_predictions[rc][box][2]) + "\n"
+                                      str(correct_n / (box+1)) + "," + str(correct_n/totals[rc]) + "," + str(class_predictions[rc][box][0]) + "," + str(class_predictions[rc][box][2]) + "\n"
 
                         with open("validation.csv", "a") as file:
                             file.write(sens_string + "\n")
@@ -333,23 +338,29 @@ if __name__ == '__main__':
 
                     labels = yolo.convert_net_to_bb(res, filter_top=True)
 
+                    v_obj_detection = np.zeros_like(v_obj_detection)
+
                     for rc in range(len(yolo.names)):
                         if (len(class_predictions) < rc + 1):
                             class_predictions.append([])
                         if (len(class_totals) < rc + 1):
                             class_totals.append(0)
 
-                        cl_equals = np.where(np.equal(res[..., 4], 1), np.equal(v_obj_detection, np.zeros_like(v_obj_detection)+rc), 0)
+                        cl_equals = np.where(res[..., 4] > confidence_threshold, np.equal(v_obj_detection, np.zeros_like(v_obj_detection)+rc), 0)
+
                         cl_quantity = np.sum(cl_equals.astype(np.int32))
 
                         if cl_quantity > 0:
-
-                            label = labels[(jc*cfg.grid_shape[0]) + ic]
+                            class_totals[rc] += cl_quantity
 
                             for ic in range(cfg.grid_shape[0]):
                                 for jc in range(cfg.grid_shape[1]):
-                                    if label[0] == rc and label[5] > confidence_threshold:
+
+                                    label = labels[(jc*cfg.grid_shape[0]) + ic]
+
+                                    if label[5] > confidence_threshold:
                                         class_predictions[rc].append([labels[(jc*cfg.grid_shape[1]) + ic][5], correct[0][ic][jc], iou[0][ic][jc][0][0]])
+
                     del v_imgs
                     del v_labels
                     del v_obj_detection
@@ -376,4 +387,4 @@ if __name__ == '__main__':
 
             gc.collect()
 
-            sys.exit()
+sys.exit()

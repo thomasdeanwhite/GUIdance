@@ -49,7 +49,12 @@ def load_files(raw_files):
     for i in range(len(raw_files)):
         f = raw_files[i]
         f_l = label_files[i]
-        image = np.int16(imread(f, 0))
+        d = imread(f, 0)
+
+        if not os.path.isfile(f_l) or not os.path.isfile(f) or d is None:
+            continue
+
+        image = np.int16(d)
 
         image = np.uint8(resize(image, (cfg.width, cfg.height)))
         image = np.reshape(image, [cfg.width, cfg.height, 1])
@@ -101,12 +106,11 @@ def print_info(imgs, labels, classes, dataset):
         class_count = np.array([0 for i in
                                 range(10)])
 
-
-
         displacement = 255/30
 
         for j in range(30):
-            quantity = np.sum((np.equal((imgs[0]/displacement).astype(np.int32), j).astype(np.float32)))
+            quantity = np.sum((imgs[0] < (j+1)*displacement).astype(np.int32) *
+                              (imgs[0] > j*displacement).astype(np.int32)).astype(np.float32)
             pixels[j] += quantity
 
         for x in range(13):
@@ -126,6 +130,8 @@ def print_info(imgs, labels, classes, dataset):
             with open("class_count.csv", "a") as file:
                 file.write(str(i) + "," + yolo.names[c] + "," + str(class_count[c]/np.sum(class_count)) + "," + dataset + "\n")
 
+    print("img_hist:", pixels)
+
     for j in range(30):
         with open("img_hist.csv", "a") as file:
             file.write(str(j) + "," + str(pixels[j]) + "," + dataset + "\n")
@@ -136,7 +142,7 @@ def print_info(imgs, labels, classes, dataset):
         for y in range(13):
             for c in range(11):
                 with open("label_heat.csv", "a") as file:
-                    dens = density[x, y, c] / np.amax(density[..., c])
+                    dens = (density[x, y, c] + 1) / (np.amax(density[..., c]) + 1)
                     cl = "total"
                     if (c > 0):
                         cl = yolo.names[c-1]
@@ -166,48 +172,18 @@ if __name__ == '__main__':
     with open("label_dims.csv", "w") as file:
         file.write("img,class,dimension,value,dataset" + "\n")
 
-    with open(training_file, "r") as tfile:
-        for l in tfile:
-
-            file_num = int(pattern.findall(l)[-1])
-
-            if file_num <= 243:
-                real_images.append(l.strip())
-
-
-
-    valid_file = cfg.data_dir + "/validate.txt"
-
-    with open(valid_file, "r") as tfile:
-        for l in tfile:
-            file_num = int(pattern.findall(l)[-1])
-
-            if file_num <= 243:
-                real_images.append(l.strip())
-
     valid_file = cfg.data_dir + "/test.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
             file_num = int(pattern.findall(l)[-1])
-
-            if file_num <= 243:
-                real_images.append(l.strip())
-
-    valid_file = cfg.data_dir + "/test-balanced.txt"
-
-    with open(valid_file, "r") as tfile:
-        for l in tfile:
-            file_num = int(pattern.findall(l)[-1])
-
-            if file_num > 243 and file_num > 15256 and file_num < 20000:
-                valid_images.append(l.strip())
+            valid_images.append(l.strip())
 
     #valid_images = random.sample(valid_images, cfg.batch_size)
 
     #random.shuffle(valid_images)
 
-    valid_images = valid_images[:400]
+    #valid_images = valid_images[:400]
 
     with tf.device(cfg.gpu):
 
@@ -224,23 +200,6 @@ if __name__ == '__main__':
 
         print_info(v_imgs, v_labels, v_obj_detection, "synthetic")
 
-
-        del(v_imgs, v_labels, v_obj_detection)
-
-
-
-        v_imgs, v_labels, v_obj_detection = load_files(
-            real_images)
-
-        v_imgs = np.array(v_imgs)
-
-        v_labels = np.array(v_labels)
-
-        v_obj_detection = np.array(v_obj_detection)
-
-        print("Real set ---")
-
-        print_info(v_imgs, v_labels, v_obj_detection, "real")
 
         del(v_imgs, v_labels, v_obj_detection)
 

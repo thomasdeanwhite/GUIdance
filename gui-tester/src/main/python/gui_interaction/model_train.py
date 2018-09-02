@@ -57,6 +57,8 @@ def load_files(raw_files):
         else:
             f = raw_files[i]
             f_l = label_files[i]
+            if not os.path.isfile(f_l) or not os.path.isfile(f):
+                continue
             image = np.int16(imread(f, 0))
             height, width = image.shape
             image = np.uint8(resize(image, (cfg.width, cfg.height)))
@@ -71,6 +73,7 @@ def load_files(raw_files):
 
             # read in format [c, x, y, width, height]
             # store in format [c], [x, y, width, height]
+
             with open(f_l, "r") as l:
                 obj_detect = [[0 for i in
                                range(cfg.grid_shape[0])]for i in
@@ -380,9 +383,7 @@ if __name__ == '__main__':
     with open(training_file, "r") as tfile:
         for l in tfile:
             file_num = int(pattern.findall(l)[-1])
-
-            if file_num > 243 and file_num > 15256 and file_num < 20000:
-                training_images.append(l.strip())
+            training_images.append(l.strip())
 
 
 
@@ -405,7 +406,7 @@ if __name__ == '__main__':
             for l in tfile:
                 file_num = int(pattern.findall(l)[-1])
 
-                if file_num <= 243:
+                if file_num <= 1:
                     #print(file_num)
                     real_images.append(l.strip())
 
@@ -430,7 +431,7 @@ if __name__ == '__main__':
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
-            train_step = tf.train.AdamOptimizer(learning_rate). \
+            train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
                 minimize(yolo.loss)
 
         saver = tf.train.Saver()
@@ -440,6 +441,9 @@ if __name__ == '__main__':
         valid_batches = math.ceil(len(valid_images)/cfg.batch_size) if cfg.run_all_batches else 1
 
         real_batches = math.ceil(len(real_images)/cfg.batch_size) if cfg.run_all_batches else 1
+
+        if (real_batches < 1):
+            real_batches = 1
 
         gpu_options = tf.GPUOptions(allow_growth=True)
 
@@ -529,24 +533,24 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: cfg.object_detection_threshold
                     })
 
-                    print(predictions[0, 0:3, 0:3, 0, 2:4])
-                    #print(iou[0, 0:3, 0:3, 0, 0:2])
-                    print("---")
-                    print(v_labels[0, 0:3, 0:3, 2:4])
-                    print("---")
-                    #print(iou2[0, 0:3])
-                    print(iou3[0, 0:3, 0:3, 0])
-
-                    print("pred:", np.sqrt(predictions[0, 0, 0:3, 0, 2:4]))
-                    print("truth:", np.sqrt(v_labels[0, 0, 0:3, 2:4]))
-                    print("---")
-
-                    print(np.square(np.subtract(np.sqrt(predictions[0, 0, 0:3, 0, 2:4]), np.sqrt(v_labels[0, 0, 0:3, 2:4]))))
-                    print(loss)
-                    print(np.min(predictions[..., 2:4]), "-", np.max(predictions[..., 2:4]))
-                    print(np.min(v_labels[..., 2:4]), "-", np.max(v_labels[..., 2:4]))
-                    print(np.min(v_imgs), "-", np.max(v_imgs))
-                    print(np.min(v_obj_detection), "-", np.max(v_obj_detection))
+                    # print(predictions[0, 0:3, 0:3, 0, 2:4])
+                    # #print(iou[0, 0:3, 0:3, 0, 0:2])
+                    # print("---")
+                    # print(v_labels[0, 0:3, 0:3, 2:4])
+                    # print("---")
+                    # #print(iou2[0, 0:3])
+                    # print(iou3[0, 0:3, 0:3, 0])
+                    #
+                    # print("pred:", np.sqrt(predictions[0, 0, 0:3, 0, 2:4]))
+                    # print("truth:", np.sqrt(v_labels[0, 0, 0:3, 2:4]))
+                    # print("---")
+                    #
+                    # print(np.square(np.subtract(np.sqrt(predictions[0, 0, 0:3, 0, 2:4]), np.sqrt(v_labels[0, 0, 0:3, 2:4]))))
+                    # print(loss)
+                    # print(np.min(predictions[..., 2:4]), "-", np.max(predictions[..., 2:4]))
+                    # print(np.min(v_labels[..., 2:4]), "-", np.max(v_labels[..., 2:4]))
+                    # print(np.min(v_imgs), "-", np.max(v_imgs))
+                    # print(np.min(v_obj_detection), "-", np.max(v_obj_detection))
 
                     # keep track of true/false positive values to calculate mAP
                     tps = true_pos

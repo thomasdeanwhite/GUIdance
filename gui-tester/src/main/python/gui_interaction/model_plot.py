@@ -15,7 +15,7 @@ def load_file(files):
 
     for f in files:
         image = np.int16(cv2.imread(f, 0))
-        img_raw = cv2.imread(f)
+        img_raw = cv2.imread(f, 0)
 
         # if random.random() < cfg.brightness_probability:
         #     brightness = int(random.random()*cfg.brightness_var*2)-cfg.brightness_var
@@ -91,7 +91,7 @@ if __name__ == '__main__':
         img = images[0][1]
 
         for box in proc_boxes:
-            height, width, channels = img.shape
+            height, width = img.shape
 
             cls = yolo.names[int(box[0])]
 
@@ -119,7 +119,7 @@ if __name__ == '__main__':
             color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
             if (box[5]>cfg.object_detection_threshold):
-                height, width, channels = img.shape
+                height, width = img.shape
 
                 avg_col = color[0] + color[1] + color[2]
 

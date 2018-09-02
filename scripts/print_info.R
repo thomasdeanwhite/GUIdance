@@ -20,7 +20,8 @@ data <- load_data('/home/thomas/work/GUIdance', "img_hist.csv")
 data$pixel_value = data$pixel_value * 8.5
 
 p = data %>%
-  ggplot(aes(pixel_value, quantity, fill=dataset)) +
+  ggplot(aes(pixel_value, quantity)) +
+  #geom_boxplot() + 
   geom_bar(color="grey40", alpha=0.2, stat="identity") +
   #geom_smooth(method="lm", se=F) +
   labs(x="Pixel Value",
@@ -28,8 +29,8 @@ p = data %>%
        title=paste("Pixel Histogram for dataset images")) +
   #scale_x_discrete() +
   #scale_y_log10() +
-  theme_minimal() +
-  facet_wrap(~dataset, scales = "free")
+  theme_minimal()
+  #facet_wrap(~dataset, scales = "free")
   #theme(axis.text.x = element_text(angle = 45, hjust = 1))+
 
 ggsave("hist.png", p, height=4, width=6, dpi=150)

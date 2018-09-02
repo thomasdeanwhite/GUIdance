@@ -19,6 +19,8 @@ data <- load_data('/home/thomas/work/GUIdance')
 
 data = data %>% gather("loss", "value", loss, loss_position, loss_dimension, loss_obj, loss_class, precision, recall, mAP)
 
+data = data[data$epoch < 150,]
+
 p = data %>%
   ggplot(aes(x=epoch, y=value, lty=dataset, color=dataset)) +
   geom_line() +
