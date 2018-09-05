@@ -56,6 +56,10 @@ def load_files(raw_files):
         else:
             f = raw_files[i]
             f_l = label_files[i]
+
+            if not os.path.isfile(f) or not os.path.isfile(f_l):
+                continue
+
             image = np.int16(imread(f, 0))
             height, width = image.shape
 
@@ -436,8 +440,11 @@ if __name__ == '__main__':
         learning_r = cfg.learning_rate_start
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-        train_step = tf.train.AdamOptimizer(learning_rate). \
-            minimize(yolo.loss)
+        with tf.control_dependencies(update_ops):
+            yolo.set_update_ops(update_ops)
+
+            train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
+                    minimize(yolo.loss)
 
         saver = tf.train.Saver()
 
@@ -514,7 +521,7 @@ if __name__ == '__main__':
 
                         train_writer.add_summary(summary, 0)
 
-                    predictions, loss, lp, ld, lo, lc = sess.run([yolo.loss_layers['raw_iou'], yolo.output,
+                    predictions, loss, lp, ld, lo, lc = sess.run([yolo.output,
                         yolo.loss, yolo.loss_position, yolo.loss_dimension,
                         yolo.loss_obj, yolo.loss_class], feed_dict={
                         yolo.train_bounding_boxes: v_labels,
@@ -525,17 +532,17 @@ if __name__ == '__main__':
                     })
 
 
-                    lr = 3
-                    ur = 6
-                    p1 = predictions[0, lr:ur, lr:ur, 5, 4]
+                    # lr = 3
+                    # ur = 6
+                    # p1 = predictions[0, lr:ur, lr:ur, 5, 4]
+                    #
+                    # p2 = v_labels[0, lr:ur, lr:ur, 4]
 
-                    p2 = v_labels[0, lr:ur, lr:ur, 4]
+                    #iou = iou[0, lr:ur, lr:ur]
 
-                    iou = iou[0, lr:ur, lr:ur]
-
-                    print(p1,"\n")
-                    print(p2, "\n")
-                    print(p2 - p1)
+                    # print(p1,"\n")
+                    # print(p2, "\n")
+                    # print(p2 - p1)
 
                     del(v_imgs, v_labels, predictions)
 

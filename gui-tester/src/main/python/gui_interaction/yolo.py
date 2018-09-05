@@ -97,7 +97,7 @@ class Yolo:
 
             indices.append(ind)
 
-        indices = np.array(indices)
+        indices = np.array(indices, np.int32)
 
         print(indices.shape)
 
@@ -131,7 +131,7 @@ class Yolo:
         )
 
         box_xy = (tf.nn.sigmoid(preds[...,:2]) + cell_grid)/scale
-        box_wh = tf.minimum(tf.exp(preds[...,2:4]) * anchors_weight, cfg.grid_shape[0])
+        box_wh = tf.exp(preds[...,2:4]) * anchors_weight
         box_conf = tf.expand_dims(tf.nn.sigmoid(preds[...,4]), axis=-1)
         box_classes = preds[..., 5:]
 
@@ -258,7 +258,7 @@ class Yolo:
 
         pred_boxes = self.output
 
-        pred_classes = pred_boxes[..., 5:]
+        pred_classes = pred_boxes[..., 4:]
 
 
 
@@ -348,7 +348,8 @@ class Yolo:
         #can never reach its intended x,y positions!
         self.loss_dimension = tf.reduce_sum(total_dim_loss)
 
-        conf_diff = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_boxes[...,4], labels=truth_tiled[...,4])
+        conf_diff = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_boxes[...,4],
+                                                            labels=truth_tiled[...,4])
 
         conf_loss = (1 - obj) * cfg.noobj_weight * conf_diff
 
@@ -362,7 +363,7 @@ class Yolo:
 
         self.loss_obj = tf.reduce_sum(total_conf_loss)
 
-        self.train_object_recognition = tf.tile(truth[..., 5:],
+        self.train_object_recognition = tf.tile(truth[..., 4:],
                 [1, 1, 1, pred_classes.shape[3], 1])
 
         class_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_classes,
@@ -370,13 +371,13 @@ class Yolo:
 
         print("class_loss", class_loss.shape)
 
-        obj_classes =tf.tile(tf.expand_dims(obj, -1) * iou_mask, [1, 1, 1, 1, classes])
+        obj_classes =tf.tile(tf.expand_dims(obj, -1) * iou_mask, [1, 1, 1, 1, classes+1])
 
         class_loss = tf.multiply(obj_classes, class_loss) * cfg.class_weight
 
         self.loss_class = tf.reduce_sum(class_loss)
 
-        self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_class
+        self.loss = self.loss_position + self.loss_dimension + self.loss_class # + self.loss_obj
 
 
     def get_network(self):
