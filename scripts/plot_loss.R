@@ -17,7 +17,7 @@ setwd('/home/thomas/work/GUIdance')
 
 data <- load_data('/home/thomas/work/GUIdance')
 
-data = data %>% gather("loss", "value", loss, loss_position, loss_dimension, loss_obj, loss_class, precision, recall, mAP)
+data = data %>% gather("loss", "value", loss, loss_position, loss_dimension, loss_obj, loss_class)
 
 p = data %>%
   ggplot(aes(x=epoch, y=value, lty=dataset, color=dataset)) +
