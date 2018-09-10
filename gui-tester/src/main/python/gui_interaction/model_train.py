@@ -436,14 +436,21 @@ if __name__ == '__main__':
 
         yolo.create_training()
 
-        learning_rate = tf.placeholder(tf.float64)
-        learning_r = cfg.learning_rate_start
+        global_step = tf.Variable(0, trainable=False, dtype=tf.int64)
+
+        batches = math.ceil(len(training_images)/cfg.batch_size) if cfg.run_all_batches else 1
+
+
+        learning_rate = tf.train.exponential_decay(0.1, global_step,
+                                        batches, 0.9, staircase=True)
+        #learning_rate = tf.placeholder(tf.float64)
+        #learning_r = cfg.learning_rate_start
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         with tf.control_dependencies(update_ops):
             yolo.set_update_ops(update_ops)
 
-            train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
+            train_step = tf.train.AdadeltaOptimizer(learning_rate). \
                     minimize(yolo.loss)
 
         saver = tf.train.Saver()
@@ -478,7 +485,6 @@ if __name__ == '__main__':
 
             print("!Finished Initialising Memory Values!")
             image_length = len(training_images)
-            batches = math.ceil(image_length/cfg.batch_size) if cfg.run_all_batches else 1
             print("Starting training:", image_length, "images in", batches, "batches.")
 
             anchors = np.reshape(np.array(cfg.anchors), [-1, 2]) / cfg.width * cfg.grid_shape[0]
@@ -531,18 +537,17 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: cfg.object_detection_threshold
                     })
 
-
-                    # lr = 3
-                    # ur = 6
-                    # p1 = predictions[0, lr:ur, lr:ur, 5, 4]
-                    #
-                    # p2 = v_labels[0, lr:ur, lr:ur, 4]
-
-                    #iou = iou[0, lr:ur, lr:ur]
-
-                    # print(p1,"\n")
-                    # print(p2, "\n")
-                    # print(p2 - p1)
+                    if j == 0:
+                        lr = 3
+                        ur = 6
+                        p1 = predictions[0, lr:ur, lr:ur, 5, 0:6]
+                        p2 = v_labels[0, lr:ur, lr:ur, 0:6]
+                        #
+                        # #iou = iou[0, lr:ur, lr:ur]
+                        #
+                        print(p1,"\n")
+                        print(p2, "\n")
+                        print(p2 - p1)
 
                     del(v_imgs, v_labels, predictions)
 
@@ -669,6 +674,7 @@ if __name__ == '__main__':
                             yolo.x: imgs,
                             yolo.anchors: anchors,
                             learning_rate: learning_r,
+                            global_step: i,
                             yolo.iou_threshold: 0.5,
                             yolo.object_detection_threshold: cfg.object_detection_threshold
                         })
@@ -690,12 +696,24 @@ if __name__ == '__main__':
                             yolo.train_bounding_boxes: labels,
                             yolo.x: imgs,
                             yolo.anchors: anchors,
-                            learning_rate: learning_r,
+                            # learning_rate: learning_r,
+                            global_step: i,
                             yolo.iou_threshold: 0.5,
                             yolo.object_detection_threshold: cfg.object_detection_threshold
                         })
 
-                        assert not np.any(np.less(predictions[..., 2:4], 0))
+                        #assert not np.any(np.less(predictions[..., 2:4], 0))
+
+                        # lr = 3
+                        # ur = 6
+                        # p1 = predictions[0, lr:ur, lr:ur, 5, 0:6]
+                        # p2 = labels[0, lr:ur, lr:ur, 0:6]
+                        #
+                        # #iou = iou[0, lr:ur, lr:ur]
+                        #
+                        # print(p1,"\n")
+                        # print(p2, "\n")
+                        # print(p2 - p1)
 
                         losses[0] += loss
                         losses[1] += lp
@@ -717,9 +735,9 @@ if __name__ == '__main__':
                 for l in range(len(losses)):
                     loss_string = loss_string + "," + str(losses[l])
 
-
-                with open("training.csv", "a") as file:
-                    file.write(loss_string + "\n")
+                if losses[0] < 10000:
+                    with open("training.csv", "a") as file:
+                        file.write(loss_string + "\n")
 
                 print(loss_string + "\n")
 

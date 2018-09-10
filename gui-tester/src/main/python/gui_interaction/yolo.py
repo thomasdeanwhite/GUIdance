@@ -41,6 +41,7 @@ class Yolo:
     object_detection_threshold = cfg.object_detection_threshold
     average_iou = None
     network_predictions = []
+    boxes = None
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -132,7 +133,9 @@ class Yolo:
 
         box_xy = (tf.nn.sigmoid(preds[...,:2]) + cell_grid)/scale
         box_wh = tf.exp(preds[...,2:4]) * anchors_weight
-        box_conf = tf.expand_dims(tf.nn.sigmoid(preds[...,4]), axis=-1)
+
+        # box_conf = tf.expand_dims(tf.nn.sigmoid(preds[...,4]), axis=-1)
+        box_conf = tf.expand_dims(preds[...,4], axis=-1)
         box_classes = preds[..., 5:]
 
         upscaled_box_num = anchors_size * scale * scale
@@ -243,6 +246,15 @@ class Yolo:
 
         self.output = self.network
 
+        xy = self.output[..., :2]
+        wh = self.output[..., 2:4]
+        #conf = self.output[..., 4]
+        classes = tf.sigmoid(self.output[..., 4:])
+
+        self.boxes = tf.concat([xy, wh, classes], axis=-1)
+
+
+
         print("Network shape:", self.network.shape)
 
 
@@ -258,7 +270,7 @@ class Yolo:
 
         pred_boxes = self.output
 
-        pred_classes = pred_boxes[..., 4:]
+        pred_classes = pred_boxes[..., 5:]
 
 
 
@@ -333,11 +345,11 @@ class Yolo:
 
         self.loss_layers['obj_xy'] = obj_xy
 
-        #pos_mask_count = tf.reduce_sum(tf.cast(obj_xy>0, tf.float32)) + epsilon
+        pos_mask_count = tf.reduce_sum(tf.cast(obj_xy>0, tf.float32)) + epsilon
 
-        total_pos_loss = tf.square(obj_xy*(truth_tiled[...,0:2] - pred_boxes[...,0:2]))
+        total_pos_loss = tf.square(obj_xy*(truth_tiled[...,0:2] - pred_boxes[...,0:2])) / pos_mask_count
 
-        total_dim_loss = tf.square(obj_xy*(tf.sqrt(epsilon + truth_tiled[...,2:4]) - tf.sqrt(epsilon + pred_boxes[...,2:4])))
+        total_dim_loss = tf.square(obj_xy*(tf.sqrt(truth_tiled[...,2:4]) - tf.sqrt(pred_boxes[...,2:4]))) / pos_mask_count
 
 
         print("total pos loss:", total_pos_loss.shape)
@@ -351,9 +363,11 @@ class Yolo:
         conf_diff = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_boxes[...,4],
                                                             labels=truth_tiled[...,4])
 
-        conf_loss = (1 - obj) * cfg.noobj_weight * conf_diff
+        # conf_loss = (1 - obj) * cfg.noobj_weight * conf_diff
+        #
+        # conf_loss = conf_loss + obj * conf_diff * ignore_mask * cfg.obj_weight
 
-        conf_loss = conf_loss + obj * conf_diff * ignore_mask * cfg.obj_weight
+        conf_loss = conf_diff * ignore_mask/ pos_mask_count
 
         total_conf_loss = conf_loss
 
@@ -361,9 +375,9 @@ class Yolo:
 
         print("conf_loss", total_conf_loss.shape)
 
-        self.loss_obj = tf.reduce_sum(total_conf_loss)
+        self.loss_obj = tf.reduce_sum(total_conf_loss) * cfg.obj_weight
 
-        self.train_object_recognition = tf.tile(truth[..., 4:],
+        self.train_object_recognition = tf.tile(truth[..., 5:],
                 [1, 1, 1, pred_classes.shape[3], 1])
 
         class_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_classes,
@@ -371,13 +385,15 @@ class Yolo:
 
         print("class_loss", class_loss.shape)
 
-        obj_classes =tf.tile(tf.expand_dims(obj, -1) * iou_mask, [1, 1, 1, 1, classes+1])
+        obj_classes =tf.tile(tf.expand_dims(obj*ignore_mask, -1) * iou_mask, [1, 1, 1, 1, classes])
 
         class_loss = tf.multiply(obj_classes, class_loss) * cfg.class_weight
 
-        self.loss_class = tf.reduce_sum(class_loss)
+        #class_loss = class_loss * cfg.class_weight
 
-        self.loss = self.loss_position + self.loss_dimension + self.loss_class # + self.loss_obj
+        self.loss_class = tf.reduce_sum(tf.reduce_mean(class_loss, axis=-1)) /  pos_mask_count
+
+        self.loss = self.loss_position + self.loss_dimension + self.loss_class + self.loss_obj
 
 
     def get_network(self):
