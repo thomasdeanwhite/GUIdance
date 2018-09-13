@@ -19,7 +19,12 @@ data <- load_data('/home/thomas/work/GUIdance')
 
 data = data %>% gather("loss", "value", loss, loss_position, loss_dimension, loss_obj, loss_class, precision, recall, mAP)
 
-data = data[data$epoch < 150,]
+#data = data[data$epoch < 150,]
+data = data[data$loss != "mAP",]
+data = data[data$loss != "precision",]
+data = data[data$loss != "recall",]
+data = data[data$dataset != "Real",]
+
 
 p = data %>%
   ggplot(aes(x=epoch, y=value, lty=dataset, color=dataset)) +

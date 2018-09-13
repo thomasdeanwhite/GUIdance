@@ -60,7 +60,34 @@ def load_files(raw_files):
             if not os.path.isfile(f_l) or not os.path.isfile(f):
                 continue
             image = np.int16(imread(f, 0))
+
             height, width = image.shape
+
+            if height < 15 or width < 15:
+                continue
+
+            aspect = height/width
+
+            padding_x = 0
+            padding_y = 0
+
+            if aspect > 1: # portrait
+                padding_x = round((height-width)/2)
+                for i in range(padding_x):
+                    elements = np.transpose(np.expand_dims(np.zeros([image.shape[0]]), 0))
+                    image = np.append(elements, image, 1)
+                for i in range(padding_x):
+                    elements = np.transpose(np.expand_dims(np.zeros([image.shape[0]]), 0))
+                    image = np.append(image, elements, 1)
+            else: #landscape
+                padding_y = round((width-height)/2)
+                for i in range(padding_y):
+                    elements = np.transpose(np.expand_dims(np.zeros([image.shape[1]]), 1))
+                    image = np.append(elements, image, 0)
+                for i in range(padding_y):
+                    elements = np.transpose(np.expand_dims(np.zeros([image.shape[1]]), 1))
+                    image = np.append(image, elements, 0)
+
             image = np.uint8(resize(image, (cfg.width, cfg.height)))
             image = np.reshape(image, [cfg.width, cfg.height, 1])
 
@@ -68,8 +95,7 @@ def load_files(raw_files):
             image = np.reshape(image, [cfg.width, cfg.height, 1])
             images.append(image)
 
-            if height < 15 or width < 15:
-                continue
+
 
             # read in format [c, x, y, width, height]
             # store in format [c], [x, y, width, height]
@@ -97,6 +123,18 @@ def load_files(raw_files):
 
                     normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
                                                                 float(elements[3]), float(elements[4]), 1])
+
+                    if padding_x > 0:
+                        ratio = 1-(2*padding_x)/height
+                        newx = cfg.grid_shape[0] * (0.5 + (normalised_label[0]/cfg.grid_shape[0] - 0.5)*ratio)
+                        normalised_label[0] = newx
+                        normalised_label[2] = normalised_label[2] * ratio
+                    elif padding_y > 0:
+                        ratio = 1-(2*padding_y)/width
+                        newy = cfg.grid_shape[1] * (0.5 + (normalised_label[1]/cfg.grid_shape[1] - 0.5)*ratio)
+                        normalised_label[1] = newy
+                        normalised_label[3] = normalised_label[3] * ratio
+
                     x = max(0, min(int(normalised_label[0]), cfg.grid_shape[0]-1))
                     y = max(0, min(int(normalised_label[1]), cfg.grid_shape[1]-1))
                     imglabs[y][x] = normalised_label
@@ -317,7 +355,7 @@ def load_files(raw_files):
 
                     col = 0
 
-                    if (lbl[4] > 0):
+                    if (lbl[4] > 0 and object_detection[im][lnx][lny] > 0):
                         col = 255
 
                     lbl[0] = lbl[0] / cfg.grid_shape[0]
@@ -426,12 +464,20 @@ if __name__ == '__main__':
 
         yolo.create_training()
 
-        learning_rate = tf.placeholder(tf.float64)
-        learning_r = cfg.learning_rate_start
+        global_step = tf.Variable(0, trainable=False, dtype=tf.int64)
+        batches = math.ceil(len(training_images)/cfg.batch_size) if cfg.run_all_batches else 1
 
+
+        learning_rate = tf.train.exponential_decay(0.1, global_step,
+                                                   batches, 0.9, staircase=True)
+        #learning_rate = tf.placeholder(tf.float64)
+        #learning_r = cfg.learning_rate_start
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
         with tf.control_dependencies(update_ops):
-            train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
+            yolo.set_update_ops(update_ops)
+
+            train_step = tf.train.AdadeltaOptimizer(learning_rate). \
                 minimize(yolo.loss)
 
         saver = tf.train.Saver()
@@ -719,7 +765,8 @@ if __name__ == '__main__':
                             yolo.train_object_recognition: obj_detection,
                             yolo.x: imgs,
                             yolo.anchors: anchors,
-                            learning_rate: learning_r,
+                            # learning_rate: learning_r,
+                            global_step: i,
                             yolo.iou_threshold: 0.5,
                             yolo.object_detection_threshold: cfg.object_detection_threshold
                         })
@@ -754,7 +801,8 @@ if __name__ == '__main__':
                             yolo.train_object_recognition: obj_detection,
                             yolo.x: imgs,
                             yolo.anchors: anchors,
-                            learning_rate: learning_r,
+                            #learning_rate: learning_r,
+                            global_step: i,
                             yolo.iou_threshold: 0.5,
                             yolo.object_detection_threshold: cfg.object_detection_threshold
                         })

@@ -149,14 +149,44 @@ def print_info(imgs, labels, classes, dataset):
                     file.write(str(x) + "," + str(y) + "," + str(dens) + "," + cl + "," + dataset + "\n")
 
 if __name__ == '__main__':
-
-    training_file = cfg.data_dir + "/train.txt"
+    training_file = cfg.data_dir + "/../backup/data/train.txt"
 
     valid_images = []
 
     real_images = []
 
     pattern = re.compile(".*\/([0-9]+).*")
+
+    with open(training_file, "r") as tfile:
+        for l in tfile:
+
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+
+
+    valid_file = cfg.data_dir + "/../backup/data/validate.txt"
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+    real_images = [f.replace("/data/acp15tdw", "/data/acp15tdw/backup") for f in real_images]
+
+    valid_file = cfg.data_dir + "/../backup/data/test.txt"
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
 
     yolo = Yolo()
 
@@ -199,6 +229,22 @@ if __name__ == '__main__':
         print("Validation set ---")
 
         print_info(v_imgs, v_labels, v_obj_detection, "synthetic")
+
+
+        del(v_imgs, v_labels, v_obj_detection)
+
+        v_imgs, v_labels, v_obj_detection = load_files(
+            real_images)
+
+        v_imgs = np.array(v_imgs)
+
+        v_labels = np.array(v_labels)
+
+        v_obj_detection = np.array(v_obj_detection)
+
+        print("Real set ---")
+
+        print_info(v_imgs, v_labels, v_obj_detection, "real")
 
 
         del(v_imgs, v_labels, v_obj_detection)

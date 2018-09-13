@@ -419,57 +419,57 @@ class Yolo:
         self.loss_position = tf.reduce_sum(total_pos_loss)
 
         self.loss_dimension = tf.reduce_sum(total_dim_loss)
-        #
-        # obj_conf = tf.cast(tf.reshape(top_iou,
-        #                          [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < cfg.object_detection_threshold, tf.float32) * \
-        #       (1 - truth[...,4]) * cfg.noobj_weight
-        #
-        # obj_conf = obj_conf + truth[...,4] * cfg.obj_weight
-        #
-        # obj_conf = tf.reshape(tf.tile(tf.expand_dims(obj_conf, axis=3),[ 1, 1, 1, anchors, 1]),
-        #                     [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 1])
-        #
-        # total_conf_loss = tf.reshape(tf.square(pred_boxes[...,4] - truth_tiled[...,4]), [-1, cfg.grid_shape[0] * cfg.grid_shape[1] , 5, 1]) \
-        #                   / (tf.reduce_sum(tf.cast(obj_conf>0, tf.float32)) + epsilon)
-        #
-        # self.loss_layers['confidence_loss'] = total_conf_loss
-        #
-        # print("conf_loss", total_conf_loss.shape)
 
-        object_recognition = tf.losses.sigmoid_cross_entropy(truth_tiled[..., 4], pred_boxes[..., 4])#tf.multiply(tf.cast(obj_conf, tf.float32), total_conf_loss)
+        obj_conf = tf.cast(tf.reshape(top_iou,
+                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < cfg.object_detection_threshold, tf.float32) * \
+              (1 - truth[...,4]) * cfg.noobj_weight
 
-        self.loss_layers['object_recognition'] = object_recognition
+        obj_conf = obj_conf + truth[...,4] * cfg.obj_weight
 
-        self.loss_obj = tf.reduce_sum(object_recognition)
+        obj_conf = tf.reshape(tf.tile(tf.expand_dims(obj_conf, axis=3),[ 1, 1, 1, anchors, 1]),
+                            [-1, cfg.grid_shape[0] * cfg.grid_shape[1], anchors, 1])
 
-        # class_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_classes,
-        #                                         labels=tf.cast(self.train_object_recognition, tf.int32))
-        #
-        # print("class_loss", class_loss.shape)
-        #
-        # obj_classes = tf.reshape(obj, [-1, cfg.grid_shape[0], cfg.grid_shape[1]])#tf.tile(obj, [1, 1, 1, 10])
-        #
-        # class_loss = tf.multiply(obj_classes, class_loss) * cfg.class_weight \
-        #              / (tf.reduce_sum(tf.cast(obj_classes>0, tf.float32))+epsilon)
+        total_conf_loss = tf.reshape(tf.square(pred_boxes[...,4] - truth_tiled[...,4]), [-1, cfg.grid_shape[0] * cfg.grid_shape[1] , 5, 1]) \
+                          / (tf.reduce_sum(tf.cast(obj_conf>0, tf.float32)) + epsilon)
 
-        self.loss_class = tf.constant(0)#tf.reduce_sum(class_loss)
+        self.loss_layers['confidence_loss'] = total_conf_loss
 
-        self.loss = self.loss_position + self.loss_dimension + self.loss_obj# + self.loss_class
+        print("conf_loss", total_conf_loss.shape)
+
+        #object_recognition = tf.losses.sigmoid_cross_entropy(truth_tiled[..., 4], pred_boxes[..., 4])#tf.multiply(tf.cast(obj_conf, tf.float32), total_conf_loss)
+
+        self.loss_layers['object_recognition'] = total_conf_loss
+
+        self.loss_obj = tf.reduce_sum(total_conf_loss)
+
+        class_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred_classes,
+                                                labels=tf.cast(self.train_object_recognition, tf.int32))
+
+        print("class_loss", class_loss.shape)
+
+        obj_classes = tf.reshape(obj, [-1, cfg.grid_shape[0], cfg.grid_shape[1]])#tf.tile(obj, [1, 1, 1, 10])
+
+        class_loss = tf.multiply(obj_classes, class_loss) * cfg.class_weight \
+                     / (tf.reduce_sum(tf.cast(obj_classes>0, tf.float32))+epsilon)
+
+        self.loss_class = tf.reduce_sum(class_loss)
+
+        self.loss = self.loss_position + self.loss_dimension + self.loss_obj + self.loss_class
 
 
         obj_sens = tf.reshape(tf.cast(truth[...,4]>0, tf.float32), [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
         #
-        # class_assignments = tf.argmax(self.pred_classes,-1)
+        class_assignments = tf.argmax(self.pred_classes,-1)
         #
         # print(class_assignments.shape)
         # print(self.train_object_recognition.shape)
         #
-        # correct_classes = tf.cast(tf.equal(class_assignments, tf.cast(self.train_object_recognition, tf.int64)), tf.float32)
+        correct_classes = tf.cast(tf.equal(class_assignments, tf.cast(self.train_object_recognition, tf.int64)), tf.float32)
         #
         identified_objects_tpos = tf.reshape(tf.cast(top_iou >= self.iou_threshold, tf.float32),
                                             [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
             tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
-            [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+            [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * correct_classes
 
         # identified_objects_fpos = tf.maximum((1-obj_sens) + (tf.reshape(tf.cast(top_iou < self.iou_threshold, tf.float32),
         #                                      [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * obj_sens), 1) * \

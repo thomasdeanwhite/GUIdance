@@ -51,7 +51,16 @@ def load_files(raw_files):
 
         f = raw_files[i]
         f_l = label_files[i]
-        image = np.int16(imread(f, 0))
+
+        if not os.path.isfile(f_l) or not os.path.isfile(f) or f is None:
+            continue
+
+        img_r = imread(f, 0)
+
+        if img_r is None:
+            continue
+
+        image = np.int16(img_r)
 
         image = np.uint8(resize(image, (cfg.width, cfg.height)))
         image = np.reshape(image, [cfg.width, cfg.height, 1])
@@ -82,8 +91,8 @@ def load_files(raw_files):
                 y = max(0, min(int(centre[1]), cfg.grid_shape[1]-1))
                 imglabs[y][x] = normalised_label
                 obj_detect[y][x] = int(elements[0])
-                totals[0] += 1
-                #totals[int(elements[0])] += 1
+                #totals[0] += 1
+                totals[int(elements[0])] += 1
                 #obj_detect[y][x][int(elements[0])] = 1
 
             object_detection.append(obj_detect)
@@ -95,7 +104,15 @@ def load_files(raw_files):
 
 if __name__ == '__main__':
 
-    training_file = cfg.data_dir + "/train.txt"
+    confusion = []
+
+    for x in range(10):
+        confus = []
+        for y in range(10):
+            confus.append(0)
+        confusion.append(confus)
+
+    training_file = cfg.data_dir + "/../backup/data/train.txt"
 
     valid_images = []
 
@@ -113,7 +130,18 @@ if __name__ == '__main__':
 
 
 
-    valid_file = cfg.data_dir + "/validate.txt"
+    valid_file = cfg.data_dir + "/../backup/data/validate.txt"
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+    real_images = [f.replace("/data/acp15tdw", "/data/acp15tdw/backup") for f in real_images]
+
+    valid_file = cfg.data_dir + "/../backup/data/test.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
@@ -127,22 +155,11 @@ if __name__ == '__main__':
     with open(valid_file, "r") as tfile:
         for l in tfile:
             file_num = int(pattern.findall(l)[-1])
-
-            if file_num <= 243:
-                real_images.append(l.strip())
-
-    valid_file = cfg.data_dir + "/test-balanced.txt"
-
-    with open(valid_file, "r") as tfile:
-        for l in tfile:
-            file_num = int(pattern.findall(l)[-1])
-
-            if file_num > 243:
-                valid_images.append(l.strip())
+            valid_images.append(l.strip())
 
     #valid_images = random.sample(valid_images, cfg.batch_size)
 
-    valid_images = valid_images[:150]
+    #valid_images = valid_images[:150]
 
     with tf.device(cfg.gpu):
 
@@ -156,12 +173,20 @@ if __name__ == '__main__':
 
         yolo.create_training()
 
-        learning_rate = tf.placeholder(tf.float64)
-        learning_r = cfg.learning_rate_start
+        global_step = tf.Variable(0, trainable=False, dtype=tf.int64)
+        batches = math.ceil(len(valid_images)/cfg.batch_size) if cfg.run_all_batches else 1
+
+
+        learning_rate = tf.train.exponential_decay(0.1, global_step,
+                                                   batches, 0.9, staircase=True)
+        #learning_rate = tf.placeholder(tf.float64)
+        #learning_r = cfg.learning_rate_start
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
         with tf.control_dependencies(update_ops):
             yolo.set_update_ops(update_ops)
-            train_step = tf.train.MomentumOptimizer(learning_rate, cfg.momentum). \
+
+            train_step = tf.train.AdadeltaOptimizer(learning_rate). \
                 minimize(yolo.loss)
 
         saver = tf.train.Saver()
@@ -209,13 +234,13 @@ if __name__ == '__main__':
             yolo.set_training(False)
 
             iou_threshold = 0.5
-            confidence_threshold = 0.2
+            confidence_threshold = 0.1
 
             class_predictions = []
 
             class_totals = []
 
-            for i in range(9):
+            for i in range(1):
 
                 iou_threshold = 0.5 + (i * 0.05)
 
@@ -250,7 +275,25 @@ if __name__ == '__main__':
 
                     labels = yolo.convert_net_to_bb(res, filter_top=True)
 
-                    v_obj_detection = np.zeros_like(v_obj_detection)
+                    #v_obj_detection = np.zeros_like(v_obj_detection)
+
+                    img, h, w, = res.shape[:3]
+
+                    img -= 1
+                    h -= 1
+                    w -= 1
+
+                    while img >= 0:
+                        while h >= 0:
+                            while w >= 0:
+                                lab = res[img,h,w]
+                                if v_labels[img,h,w,4] > 0:
+                                    clazz = np.argmax(lab[25:])
+                                    c_clazz = v_obj_detection[img,h,w]
+                                    confusion[clazz][c_clazz] += 1
+                                w = w-1
+                            h = h-1
+                        img = img-1
 
                     for rc in range(len(yolo.names)):
                         if (len(class_predictions) < rc + 1):
@@ -270,7 +313,7 @@ if __name__ == '__main__':
 
                                     label = labels[(jc*cfg.grid_shape[0]) + ic]
 
-                                    if label[5] > confidence_threshold:
+                                    if label[5] > confidence_threshold and int(label[0]) == rc:
                                         class_predictions[rc].append([labels[(jc*cfg.grid_shape[1]) + ic][5], correct[0][ic][jc], iou[0][ic][jc][0][0]])
 
                     del v_imgs
@@ -284,19 +327,42 @@ if __name__ == '__main__':
 
                     class_predictions[rc] = sorted(class_predictions[rc], key=lambda box: -box[0])
                     correct_n = 0
+
+                    total = totals[rc]
+
                     for box in range(len(class_predictions[rc])):
 
                         correct_n += class_predictions[rc][box][1]
 
                         #assert correct_n <= class_totals[rc]
 
+
+
                         sens_string = str(iou_threshold) + ",synthetic," + yolo.names[rc] + "," + str(box+1) + "," + str(class_predictions[rc][box][1]) + "," + \
-                                      str(correct_n / (box+1)) + "," + str(correct_n/totals[rc]) + "," + str(class_predictions[rc][box][0]) + "," + str(class_predictions[rc][box][2]) + "\n"
+                                      str(correct_n / (box+1)) + "," + str(correct_n/total) + "," + str(class_predictions[rc][box][0]) + "," + str(class_predictions[rc][box][2]) + "\n"
 
                         with open("validation.csv", "a") as file:
                             file.write(sens_string + "\n")
 
                 print(totals)
+
+                confusion_s = "predicted_class,actual_class,quantity,dataset\n"
+
+                for x in range(10):
+                    for y in range(10):
+                        confusion_s += yolo.names[x] + "," + yolo.names[y] + "," + str(confusion[x][y]) + ",synthetic\n"
+
+                with open("confusion.csv", "w") as file:
+                    file.write(confusion_s + "\n")
+
+
+                confusion = []
+
+                for x in range(10):
+                    confus = []
+                    for y in range(10):
+                        confus.append(0)
+                    confusion.append(confus)
 
                 class_predictions = []
 
@@ -338,7 +404,25 @@ if __name__ == '__main__':
 
                     labels = yolo.convert_net_to_bb(res, filter_top=True)
 
-                    v_obj_detection = np.zeros_like(v_obj_detection)
+                    img, h, w, = res.shape[:3]
+
+                    img -= 1
+                    h -= 1
+                    w -= 1
+
+                    while img >= 0:
+                        while h >= 0:
+                            while w >= 0:
+                                lab = res[img,h,w]
+                                if v_labels[img,h,w,4] > 0:
+                                    clazz = np.argmax(lab[25:])
+                                    c_clazz = v_obj_detection[img,h,w]
+                                    confusion[clazz][c_clazz] += 1
+                                w = w-1
+                            h = h-1
+                        img = img-1
+
+                    #v_obj_detection = np.zeros_like(v_obj_detection)
 
                     for rc in range(len(yolo.names)):
                         if (len(class_predictions) < rc + 1):
@@ -358,7 +442,7 @@ if __name__ == '__main__':
 
                                     label = labels[(jc*cfg.grid_shape[0]) + ic]
 
-                                    if label[5] > confidence_threshold:
+                                    if label[5] > confidence_threshold and int(label[0]) == rc:
                                         class_predictions[rc].append([labels[(jc*cfg.grid_shape[1]) + ic][5], correct[0][ic][jc], iou[0][ic][jc][0][0]])
 
                     del v_imgs
@@ -381,6 +465,18 @@ if __name__ == '__main__':
 
                         with open("validation.csv", "a") as file:
                             file.write(sens_string + "\n")
+
+            confusion_s = ""
+
+            for x in range(10):
+                for y in range(10):
+                    confusion_s += yolo.names[x] + "," + yolo.names[y] + "," + str(confusion[x][y]) + ",real\n"
+
+            with open("confusion.csv", "a") as file:
+                file.write(confusion_s + "\n")
+
+
+            confusion = []
 
             print(totals)
 

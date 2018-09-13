@@ -7,24 +7,24 @@ library(ggthemes)
 
 args = commandArgs(TRUE)
 
-load_data <- function(directory){
+load_data <- function(directory, file){
   wd = getwd()
   setwd(directory)
-  data <- readr::read_csv("validation.csv")
+  data <- readr::read_csv(file)
   return(data)
 }
 
 setwd('/home/thomas/work/GUIdance')
 
-data <- load_data('/home/thomas/work/GUIdance')
+data <- load_data('/home/thomas/work/GUIdance', 'validation.csv')
 
-data$iou_threshold = data$iou_threshold * 2 + 0.5
+#data$iou_threshold = data$iou_threshold * 2 + 0.5
 
 data$iou_threshold = factor(data$iou_threshold)
 
 #data = data[!data$class == "menu_item",]
 
-data$class = "Widget"
+#data$class = "Widget"
 
 average_precision = data[FALSE,]
 
@@ -60,16 +60,16 @@ for (i in 0:11){
 
 p = data  %>% 
   #filter(correct==1) %>%
-  ggplot(aes(x=recall, y=precision, color=dataset, lty=iou_threshold)) +
-  geom_line() +
+  ggplot(aes(x=class, y=recall, color=dataset, )) +
+  geom_boxplot() +
   #geom_smooth(method="lm", se=F) +
   #scale_y_log10() +
-  labs(x="Recall",
-       y="Precision",
-       title="Average Precision Plots") +
+  labs(x="Widget",
+       y="Recall",
+       title="Average Recall Plots") +
   #scale_x_discrete() +
   #scale_y_log10() +
-  facet_wrap(~class) +
+  #facet_wrap(~class) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   scale_colour_colorblind()
@@ -104,3 +104,17 @@ for (d in datasets){
 }
 
 print(p)
+
+data <- load_data('/home/thomas/work/GUIdance', 'confusion.csv')
+
+# p = data %>% ggplot(aes(predicted_class, actual_class)) +
+#   geom_tile(aes(fill=quantity)) +
+#   labs(x="Predicted Class",
+#        y="Actual Class",
+#        title="Confusion Matrix for Class Prediction") +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#   scale_fill_gradient(low = "#0000FF", high = "#FF0000", na.value = "#00FF00") +
+#   facet_wrap(~dataset)
+# 
+# print(p)
+
