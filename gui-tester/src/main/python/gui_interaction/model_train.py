@@ -537,17 +537,17 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: cfg.object_detection_threshold
                     })
 
-                    if j == 0:
-                        lr = 3
-                        ur = 6
-                        p1 = predictions[0, lr:ur, lr:ur, 5, 0:6]
-                        p2 = v_labels[0, lr:ur, lr:ur, 0:6]
-                        #
-                        # #iou = iou[0, lr:ur, lr:ur]
-                        #
-                        print(p1,"\n")
-                        print(p2, "\n")
-                        print(p2 - p1)
+                    # if j == 0:
+                    #     lr = 3
+                    #     ur = 6
+                    #     p1 = predictions[0, lr:ur, lr:ur, 5, 0:6]
+                    #     p2 = v_labels[0, lr:ur, lr:ur, 0:6]
+                    #     #
+                    #     # #iou = iou[0, lr:ur, lr:ur]
+                    #     #
+                    #     print(p1,"\n")
+                    #     print(p2, "\n")
+                    #     print(p2 - p1)
 
                     del(v_imgs, v_labels, predictions)
 

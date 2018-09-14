@@ -349,7 +349,7 @@ class Yolo:
 
         total_pos_loss = tf.square(obj_xy*(truth_tiled[...,0:2] - pred_boxes[...,0:2])) / pos_mask_count
 
-        total_dim_loss = tf.square(obj_xy*(tf.sqrt(truth_tiled[...,2:4]) - tf.sqrt(pred_boxes[...,2:4]))) / pos_mask_count
+        total_dim_loss = tf.square(obj_xy*(tf.sqrt(truth_tiled[...,2:4]+epsilon) - tf.sqrt(pred_boxes[...,2:4]+epsilon))) / pos_mask_count
 
 
         print("total pos loss:", total_pos_loss.shape)
@@ -360,8 +360,8 @@ class Yolo:
         #can never reach its intended x,y positions!
         self.loss_dimension = tf.reduce_sum(total_dim_loss)
 
-        conf_diff = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_boxes[...,4],
-                                                            labels=truth_tiled[...,4])
+        conf_diff = tf.losses.sigmoid_cross_entropy(truth_tiled[...,4],
+                                                pred_boxes[...,4])
 
         # conf_loss = (1 - obj) * cfg.noobj_weight * conf_diff
         #
@@ -380,8 +380,7 @@ class Yolo:
         self.train_object_recognition = tf.tile(truth[..., 5:],
                 [1, 1, 1, pred_classes.shape[3], 1])
 
-        class_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=pred_classes,
-                                                labels=self.train_object_recognition)
+        class_loss = tf.losses.sigmoid_cross_entropy(self.train_object_recognition, pred_classes)
 
         print("class_loss", class_loss.shape)
 
