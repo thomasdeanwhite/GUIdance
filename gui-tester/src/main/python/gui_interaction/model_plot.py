@@ -9,37 +9,9 @@ import math
 import random
 import os
 from tensorflow.python.tools import inspect_checkpoint as chkp
+from data_loader import load_files, disable_transformation
 
-def load_file(files):
-    images = []
-
-    for f in files:
-        image = np.int16(cv2.imread(f, 0))
-        img_raw = cv2.imread(f, 0)
-
-        # if random.random() < cfg.brightness_probability:
-        #     brightness = int(random.random()*cfg.brightness_var*2)-cfg.brightness_var
-        #     image = np.maximum(0, np.minimum(255, np.add(image, brightness)))
-        #
-        # if random.random() < cfg.contrast_probability:
-        #     contrast = (random.random() * cfg.contrast_var * 2) - cfg.contrast_var
-        #
-        #     contrast_diff = (image - np.mean(image)) * contrast
-        #     image = np.maximum(0, np.minimum(255, np.add(image, contrast_diff)))
-        #
-        # if random.random() < cfg.invert_probability:
-        #     image = 255 - image
-        #
-        image = np.uint8(cv2.resize(image, (cfg.width, cfg.height)))
-        image = np.reshape(image, [cfg.width, cfg.height, 1])
-
-
-
-        images.append([image, img_raw])
-
-    return images
-
-
+disable_transformation()
 
 if __name__ == '__main__':
 
@@ -75,23 +47,75 @@ if __name__ == '__main__':
         yolo.set_training(False)
 
         anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
-        images = load_file(sys.argv[1:])
+        images, _, _ = load_files(sys.argv[1:])
 
         #normalise data  between 0 and 1
-        imgs = (np.array([row[0] for row in images])/127.5)-1
+        imgs = np.array(images)/127.5-1
 
         boxes = sess.run(yolo.output, feed_dict={
             yolo.x: imgs,
             yolo.anchors: anchors,
         })
 
-        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()
+        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()[0]
 
 
-        img = images[0][1]
+        img = imgs[0]
+
+        proc_boxes.sort(key=lambda box: -box[5])
+
+        #proc_boxes
+
+
+        trim_overlap = True
+
+        i=0
+        while i < len(proc_boxes):
+            box = proc_boxes[i]
+            if box[5] < cfg.object_detection_threshold:
+                del proc_boxes[i]
+            else:
+                x, y, w, h = (box[1],box[2],box[3],box[4])
+                box[1] = x - w/2
+                box[2] = y - h/2
+                box[3] = x + w/2
+                box[4] = y + h/2
+                i = i + 1
+        i = 0
+
+
+        while i < len(proc_boxes)-1 and trim_overlap:
+            box = proc_boxes[i]
+            j = i+1
+            while j < len(proc_boxes):
+                box2 = proc_boxes[j]
+
+                xA = max(box[1], box2[1])
+                yA = max(box[2], box2[2])
+                xB = min(box[3], box2[3])
+                yB = min(box[4], box2[4])
+
+                interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+
+
+                boxAArea = (box[2] - box[0] + 1) * (box[3] - box[1] + 1)
+                boxBArea = (box2[2] - box2[0] + 1) * (box2[3] - box2[1] + 1)
+
+                iou = interArea / float(boxAArea + boxBArea - interArea)
+
+                if iou > 0.8:
+                    if (box[5] >= box2[5]):
+                        del proc_boxes[j]
+                        j = j-1
+                    else:
+                        del proc_boxes[i]
+                        i = i-1
+                        break
+                j = j + 1
+            i = i+1
 
         for box in proc_boxes:
-            height, width = img.shape
+            height, width = img.shape[:2]
 
             cls = yolo.names[int(box[0])]
 
@@ -99,13 +123,15 @@ if __name__ == '__main__':
 
             color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
+            color = [0, 0, 0]
+
             if (box[5]>cfg.object_detection_threshold):
                 print(box)
 
-                x1 = max(int(width*(box[1]-box[3]/2)), 0)
-                y1 = max(int(height*(box[2]-box[4]/2)), 0)
-                x2 = int(width*((box[1]+box[3]/2)))
-                y2 = int(height*(box[2]+box[4]/2))
+                x1 = max(int(width*box[1]), 0)
+                y1 = max(int(height*box[2]), 0)
+                x2 = int(width*box[3])
+                y2 = int(height*box[4])
 
                 cv2.rectangle(img, (x1, y1),
                               (x2, y2),
@@ -119,19 +145,21 @@ if __name__ == '__main__':
             color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
             if (box[5]>cfg.object_detection_threshold):
-                height, width = img.shape
+                height, width = img.shape[:2]
 
-                avg_col = color[0] + color[1] + color[2]
+                color = [0, 0, 0]
+
+                avg_col = 0 #color[0] + color[1] + color[2]
 
                 text_col = (255, 255, 255)
 
                 if avg_col > 127:
                     text_col = (0, 0, 0)
 
-                x1 = max(int(width*(box[1]-box[3]/2)), 0)
-                y1 = max(int(height*(box[2]-box[4]/2)), 0)
-                x2 = int(width*((box[1]+box[3]/2)))
-                y2 = int(height*(box[2]+box[4]/2))
+                x1 = max(int(width*box[1]), 0)
+                y1 = max(int(height*box[2]), 0)
+                x2 = int(width*box[3])
+                y2 = int(height*box[4])
 
                 cv2.rectangle(img,
                               (x1, y1-int(10*box[4])-15),

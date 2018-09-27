@@ -65,10 +65,15 @@ ggsave("class_count.png", p, height=10, width=10, dpi=150)
 data <- load_data('/home/thomas/work/GUIdance', "label_dims.csv")
 
 p = data %>% filter(dimension != "area") %>% 
-  ggplot(aes(dataset, value, fill=dimension)) +
+  ggplot(aes(interaction(dimension, dataset), value, fill=dimension)) +
   geom_boxplot() +
   theme_minimal() +
-  facet_wrap(~class, scales="free")
+  facet_wrap(~class, scales="free") +
+  stat_summary(fun.y=mean, colour="darkred", geom="point", shape=18, size=3, show.legend = FALSE) + 
+  stat_summary(fun.y=mean, colour="red", geom="text", show.legend = FALSE, 
+               vjust=-0.7, aes( label=round(..y.., digits=3))) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
   
 ggsave("label_dims.png", p, height=10, width=10, dpi=150)
 

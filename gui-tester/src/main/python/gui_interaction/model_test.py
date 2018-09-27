@@ -178,7 +178,7 @@ if __name__ == '__main__':
                             yolo.anchors: anchors,
                         })
 
-                        p_boxes = yolo.convert_net_to_bb(boxes, filter_top=False)
+                        p_boxes = yolo.convert_net_to_bb(boxes, filter_top=False)[0]
 
                         total = np.sum(p_boxes[:,5])
 
@@ -246,7 +246,7 @@ if __name__ == '__main__':
                                 pyautogui.click(x, y)
                             else:
                                 pyautogui.rightClick(x, y)
-                        elif widget == "list" or widget == "scroll_bar":
+                        elif widget == "list" or widget == "scroll_bar" or widget == "slider":
                             x = random.randint(x_start, x_end)
                             y = random.randint(y_start, y_end)
                             if (random.random() < 0.5):

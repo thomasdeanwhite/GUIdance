@@ -529,6 +529,7 @@ class Yolo:
         b_boxes = []
 
         for image in range(boxes.shape[0]):
+            bs = []
             for i in range(cfg.grid_shape[0]):
                 for j in range(cfg.grid_shape[1]):
                     cell = boxes[image][j][i]
@@ -546,7 +547,7 @@ class Yolo:
                             box[2] = box[2]/cfg.grid_shape[0]
                             box[3] = box[3]/cfg.grid_shape[1]
                             box_p = np.append(amax, box)
-                            b_boxes.append(box_p)
+                            bs.append(box_p)
                         elif (box[4]>=plot_box[4]):
                             plot_box = box
                             plot_box[0] = plot_box[0]/cfg.grid_shape[0]
@@ -557,6 +558,8 @@ class Yolo:
 
                     if filter_top:
                         plot_box = np.append(amax, plot_box)
-                        b_boxes.append(plot_box)
+                        bs.append(plot_box)
+
+            b_boxes.append(bs)
 
         return np.array(b_boxes)
