@@ -92,7 +92,7 @@ if __name__ == '__main__':
                 confus.append(0)
             confusion.append(confus)
 
-        global_step = tf.Variable(0, trainable=False, dtype=tf.int64)
+        global_step = tf.placeholder(tf.int32)
         batches = math.ceil(len(valid_images)/cfg.batch_size) if cfg.run_all_batches else 1
 
 
@@ -159,16 +159,20 @@ if __name__ == '__main__':
 
             class_totals = []
 
+            with open("errors.csv", "w+") as file:
+                file.write("img,class,error_type,percentage\n")
+
             for i in range(1):
 
                 iou_threshold = 0.5 + (i * 0.05)
 
-                pred_errors = []
-
-                for i in range(len(yolo.names)):
-                    pred_errors.append([0, 0])
-
                 for j in range(valid_batches):
+
+                    pred_errors = []
+
+                    for i in range(len(yolo.names)):
+                        pred_errors.append([0, 0, 0])
+
                     gc.collect()
                     lower_index = j
                     upper_index = j+1
@@ -197,7 +201,7 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: confidence_threshold
                     })
 
-                    labels = yolo.convert_net_to_bb(res, filter_top=True)
+                    labels = yolo.convert_net_to_bb(res, filter_top=True)[0]
 
                     #v_obj_detection = np.zeros_like(v_obj_detection)
 
@@ -216,10 +220,33 @@ if __name__ == '__main__':
                                     c_clazz = v_obj_detection[img,h,w]
                                     confusion[clazz][c_clazz] += 1
                                     totals[c_clazz] += 1
+
+                                    missed_error = np.sum((res[4:5:25]>confidence_threshold).astype(np.float32))
+
+                                    if c_clazz != clazz:
+                                        pred_errors[c_clazz][0] += 1
+                                    if not correct[img][h][w]:
+                                        pred_errors[c_clazz][1] += 1
+                                    if missed_error == 0:
+                                        pred_errors[c_clazz][2] += 1
+
                                 w = w-1
                             h = h-1
                         img = img-1
 
+                    for cli in range(len(pred_errors)):
+                        with open("errors.csv", "a") as file:
+                            total_errors = pred_errors[cli][0] + pred_errors[cli][1] + pred_errors[cli][2]
+                            if (total_errors == 0):
+                                total_errors = 1
+                            file.write(str(j) + "," + yolo.names[cli] + ",classification," +
+                                       str(pred_errors[cli][0]) + "\n")
+
+                            file.write(str(j) + "," + yolo.names[cli] + ",shape," +
+                                       str(pred_errors[cli][1]) + "\n")
+
+                            file.write(str(j) + "," + yolo.names[cli] + ",missed," +
+                                       str(pred_errors[cli][2]) + "\n")
                     for rc in range(len(yolo.names)):
                         if (len(class_predictions) < rc + 1):
                             class_predictions.append([])
@@ -329,7 +356,7 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: confidence_threshold
                     })
 
-                    labels = yolo.convert_net_to_bb(res, filter_top=True)
+                    labels = yolo.convert_net_to_bb(res, filter_top=True)[0]
 
                     img, h, w, = res.shape[:3]
 

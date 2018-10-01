@@ -14,6 +14,19 @@ import time
 import subprocess
 import Xlib
 import time
+from pynput import keyboard
+
+running = True
+
+quit_counter = 3
+
+def on_release(key):
+    global running, quit_counter
+    if key == keyboard.Key.esc:
+        quit_counter -= 1
+        if quit_counter == 0:
+            running = False
+            print("Killing tester.")
 
 def get_window_size(window_name):
     try:
@@ -69,267 +82,263 @@ def generate_input_string():
         return str(random.randint(-10000, 10000))
 
 if __name__ == '__main__':
+    # Collect events until released
+    with keyboard.Listener(on_release=on_release) as listener:
+        if len(sys.argv) > 1:
+            cfg.window_name = sys.argv[1]
 
-    if len(sys.argv) > 1:
-        cfg.window_name = sys.argv[1]
+        with tf.device(cfg.gpu):
 
-    with tf.device(cfg.gpu):
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
 
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
+                event = 0
 
-            event = 0
+                yolo = Yolo()
 
-            yolo = Yolo()
+                yolo.create_network()
 
-            yolo.create_network()
+                yolo.set_training(True)
+                yolo.set_update_ops(update_ops)
 
-            yolo.set_training(True)
-            yolo.set_update_ops(update_ops)
+                saver = tf.train.Saver()
 
-            saver = tf.train.Saver()
+                model_file = os.getcwd() + "/" + cfg.weights_dir + "/model.ckpt"
 
-            model_file = os.getcwd() + "/" + cfg.weights_dir + "/model.ckpt"
+                config = tf.ConfigProto(allow_soft_placement = True)
 
-            config = tf.ConfigProto(allow_soft_placement = True)
+                states = []
 
-            states = []
+                runtime = round(time.time())
 
-            runtime = round(time.time())
+                output_dir = cfg.output_dir + "/" + str(runtime)
 
-            output_dir = cfg.output_dir + "/" + str(runtime)
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
 
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+                if not os.path.exists(output_dir + "/images"):
+                    os.makedirs(output_dir + "/images")
 
-            if not os.path.exists(output_dir + "/images"):
-                os.makedirs(output_dir + "/images")
+                test_file = output_dir + "/test.txt"
 
-            test_file = output_dir + "/test.txt"
+                with open(test_file, "w+") as t_f:
+                    t_f.write("")
 
-            with open(test_file, "w+") as t_f:
-                t_f.write("")
+                with tf.Session(config=config) as sess:
 
-            with tf.Session(config=config) as sess:
+                    init_op = tf.global_variables_initializer()
+                    model = sess.run(init_op)
+                    if os.path.isfile(os.getcwd() + "/" + cfg.weights_dir + "/checkpoint"):
+                        saver.restore(sess, model_file)
+                        print("Restored model")
+                    yolo.set_training(False)
 
-                init_op = tf.global_variables_initializer()
-                model = sess.run(init_op)
-                if os.path.isfile(os.getcwd() + "/" + cfg.weights_dir + "/checkpoint"):
-                    saver.restore(sess, model_file)
-                    print("Restored model")
-                yolo.set_training(False)
+                    anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
 
-                anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
+                    start_time = time.time()
 
-                start_time = time.time()
+                    last_image = None
 
-                last_image = None
+                    boxes = []
 
-                boxes = []
+                    interactions = []
 
-                interactions = []
+                    runtime = 300 #5 mins
 
-                runtime = 300
+                    last_u_input = ""
 
+                    while (time.time() - start_time < runtime) and running:
 
-                while (time.time() - start_time < runtime):
+                        os.system("killall firefox")
 
-                    os.system("killall firefox")
-
-                    app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
-
-                    while app_w == 0:
-                        time.sleep(1)
                         app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
+
+                        while app_w == 0:
+                            time.sleep(1)
+                            app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
+                            if time.time() - start_time > runtime:
+                                print("Couldn't find application window!")
+                                break
+
                         if time.time() - start_time > runtime:
-                            print("Couldn't find application window!")
                             break
 
-                    if time.time() - start_time > runtime:
-                        break
+                        image = pyautogui.screenshot().convert("L")
 
-                    image = pyautogui.screenshot().convert("L")
+                        image = np.array(image)
 
-                    image = np.array(image)
+                        raw_image = image[app_y:app_y+app_h, app_x:app_x+app_w]
 
-                    raw_image = image[app_y:app_y+app_h, app_x:app_x+app_w]
+                        image = cv2.resize(raw_image, (cfg.width, cfg.height))
 
-                    image = cv2.resize(raw_image, (cfg.width, cfg.height))
+                        images = np.reshape(image, [1, cfg.width, cfg.height, 1])
 
-                    images = np.reshape(image, [1, cfg.width, cfg.height, 1])
+                        imgs = (images/127.5)-1
+                        gen_boxes = True
 
-                    imgs = (images/127.5)-1
-                    gen_boxes = True
+                        for l in states:
+                            diff = np.sum(np.square(image-l[0]))/image.size
+                            if diff < 2:
+                                gen_boxes = False
+                                proc_boxes = l[1]
 
-                    for l in states:
-                        diff = np.sum(np.square(image-l[0]))/image.size
-                        if diff < 2:
-                            gen_boxes = False
-                            proc_boxes = l[1]
+                        last_image = image
 
-                    last_image = image
+                        if gen_boxes or len(proc_boxes) < 3:
 
-                    if gen_boxes or len(proc_boxes) < 3:
+                            print("New state found!", len(states), "states found total.")
 
-                        print("New state found!", len(states), "states found total.")
+                            boxes = sess.run(yolo.output, feed_dict={
+                                yolo.x: imgs,
+                                yolo.anchors: anchors,
+                            })
 
-                        boxes = sess.run(yolo.output, feed_dict={
-                            yolo.x: imgs,
-                            yolo.anchors: anchors,
-                        })
+                            p_boxes = yolo.convert_net_to_bb(boxes, filter_top=False)[0]
 
-                        p_boxes = yolo.convert_net_to_bb(boxes, filter_top=False)[0]
+                            total = np.sum(p_boxes[:,5])
 
-                        total = np.sum(p_boxes[:,5])
+                            p_boxes[:,5] = p_boxes[:,5]/total
 
-                        print(total)
+                            proc_boxes = p_boxes.tolist()
 
-                        p_boxes[:,5] = p_boxes[:,5]/total
+                            states.append([image, proc_boxes])
 
-                        print(np.sum(p_boxes[:,5]))
+                        for box_num in range(5):
 
-                        proc_boxes = p_boxes.tolist()
+                            input_string = generate_input_string()
 
-                        states.append([image, proc_boxes])
+                            #highest_conf = proc_boxes[0][5]
+                            best_box = proc_boxes[0]
 
-                    for box_num in range(5):
+                            rand_num = random.random()
 
-                        input_string = generate_input_string()
+                            for b in proc_boxes:
+                                #if (b[5] > highest_conf):
+                                rand_num -= b[5]
+                                if rand_num <= 0:
+                                    #highest_conf = b[5]
+                                    best_box = b
+                                    break;
 
-                        #highest_conf = proc_boxes[0][5]
-                        best_box = proc_boxes[0]
+                            height, width = raw_image.shape
 
-                        rand_num = random.random()
-
-                        for b in proc_boxes:
-                            #if (b[5] > highest_conf):
-                            rand_num -= b[5]
-                            if rand_num <= 0:
-                                #highest_conf = b[5]
-                                best_box = b
-                                break;
-
-                        print(best_box)
-
-                        height, width = raw_image.shape
-
-                        x = int(max(app_x, min(app_x + app_w - 10, app_x + (best_box[1]*app_w))))
-                        y = int(max(app_y, min(app_y + app_h - 10, app_y + (best_box[2]*app_h))))
-
-                        y_start = max(app_y, min(app_y + height - 10, app_y + int(height*(best_box[2] - best_box[4]/2))-10))
-                        y_end = max(app_y+10, min(app_y + height, app_y + int(height*(best_box[2]+best_box[4]/2))+10))
-
-                        x_start = max(app_x, min(app_x + width - 10, app_x + int(width*(best_box[1]-best_box[3]/2))-10))
-                        x_end = max(app_x + 10, min(app_x + width, app_x + int(width*(best_box[1]+best_box[3]/2))+10))
-                        image_clicked = raw_image[y_start:y_end,
-                                                  x_start:x_end]
-
-                        output_img = output_dir + "/images/" + str(event)
-
-                        np.save(output_img, image_clicked)
-
-                        cv2.imwrite(output_img + ".jpg", image_clicked)
-
-                        widget = yolo.names[int(best_box[0])]
-
-                        interactions.append([widget, event, input_string])
-
-
-                        with open(test_file, "a+") as t_f:
-                            t_f.write(widget + "," + str(event) + "\n")
-
-                        event = event + 1
-
-                        if widget == "button" or widget == "tabs" or widget == "menu" \
-                                or widget == "menu_item" or widget == "toggle_button":
-                            if (random.random() < 0.5):
-                                pyautogui.click(x, y)
-                            else:
-                                pyautogui.rightClick(x, y)
-                        elif widget == "list" or widget == "scroll_bar" or widget == "slider":
-                            x = random.randint(x_start, x_end)
-                            y = random.randint(y_start, y_end)
-                            if (random.random() < 0.5):
-                                pyautogui.click(x, y)
-                            else:
-                                pyautogui.rightClick(x, y)
-                        elif widget == "tree":
-                            x = random.randint(x_start, x_end)
-                            y = random.randint(y_start, y_end)
-
-                            if (random.random() < 0.5):
-                                pyautogui.doubleClick(x, y)
-                            else:
-                                pyautogui.rightClick(x, y)
-
-                            x = random.randint(x_start, x_end)
-                            y = random.randint(y_start, y_end)
-
-                            pyautogui.click(x, y)
-                        elif widget == "text_field":
-                            if (random.random() < 0.5):
-                                pyautogui.click(x, y)
-                            else:
-                                pyautogui.rightClick(x, y)
-                            pyautogui.typewrite(input_string, interval=0.01)
-                        elif widget == "combo_box":
-                            if (random.random() < 0.5):
-                                pyautogui.click(x, y)
-                            else:
-                                pyautogui.rightClick(x, y)
-                            event = event + 1
-                            next_y = best_box[2]+random.random()*0.5
                             x = int(max(app_x, min(app_x + app_w - 10, app_x + (best_box[1]*app_w))))
-                            y = int(max(app_y, min(app_y + app_h - 10, app_y + ((next_y)*app_h))))
+                            y = int(max(app_y, min(app_y + app_h - 10, app_y + (best_box[2]*app_h))))
 
-                            y_start = max(0, min(height, int(height*(next_y - best_box[4]/2))-10))
-                            y_end = max(0, min(height, int(height*(next_y+best_box[4]/2))+10))
+                            y_start = max(app_y, min(app_y + height - 10, app_y + int(height*(best_box[2] - best_box[4]/2))-10))
+                            y_end = max(app_y+10, min(app_y + height, app_y + int(height*(best_box[2]+best_box[4]/2))+10))
 
-                            x_start = max(0, min(width, int(width*(best_box[1]-best_box[3]/2))-10))
-                            x_end = max(0, min(width, int(width*(best_box[1]+best_box[3]/2))+10))
+                            x_start = max(app_x, min(app_x + width - 10, app_x + int(width*(best_box[1]-best_box[3]/2))-10))
+                            x_end = max(app_x + 10, min(app_x + width, app_x + int(width*(best_box[1]+best_box[3]/2))+10))
                             image_clicked = raw_image[y_start:y_end,
-                                            x_start:x_end]
+                                                      x_start:x_end]
 
                             output_img = output_dir + "/images/" + str(event)
 
                             np.save(output_img, image_clicked)
 
                             cv2.imwrite(output_img + ".jpg", image_clicked)
-                        else:
-                            print(widget, "unrecognised")
 
-                        #proc_boxes.remove(best_box)
+                            widget = yolo.names[int(best_box[0])]
 
-                print("Writing concrete tests")
+                            interactions.append([widget, event, input_string])
 
-                # write python regression test
-                python_file = output_dir + "/test.py"
 
-                # write visual test
-                html_file = output_dir + "/test.html"
+                            with open(test_file, "a+") as t_f:
+                                t_f.write(widget + "," + str(event) + "\n")
 
-                with open(python_file, "w+") as p_f:
-                    # TODO: Write python functions for click, type, etc
-                    p_f.write("")
+                            event = event + 1
 
-                with open(html_file, "w+") as h_f:
-                    h_f.write("<html><head><title>Test " + str(runtime) + "</title></head>\n"
-                                "<body>")
+                            if widget == "button" or widget == "tabs" or widget == "menu" \
+                                    or widget == "menu_item" or widget == "toggle_button":
+                                if (random.random() < 0.5):
+                                    pyautogui.click(x, y)
+                                else:
+                                    pyautogui.rightClick(x, y)
+                            elif widget == "list" or widget == "scroll_bar" or widget == "slider":
+                                x = random.randint(x_start, x_end)
+                                y = random.randint(y_start, y_end)
+                                if (random.random() < 0.5):
+                                    pyautogui.click(x, y)
+                                else:
+                                    pyautogui.rightClick(x, y)
+                            elif widget == "tree":
+                                x = random.randint(x_start, x_end)
+                                y = random.randint(y_start, y_end)
 
-                for i in interactions:
-                    with open(python_file, "a+") as p_f:
-                        # write python regression test
-                        p_f.write("click(" + str(i[1]) + ")\n")
-                        if i[0] == "text_field":
-                            p_f.write("type(" + i[2] + ")\n")
+                                if (random.random() < 0.5):
+                                    pyautogui.doubleClick(x, y)
+                                else:
+                                    pyautogui.rightClick(x, y)
+
+                                x = random.randint(x_start, x_end)
+                                y = random.randint(y_start, y_end)
+
+                                pyautogui.click(x, y)
+                            elif widget == "text_field":
+                                if (random.random() < 0.5):
+                                    pyautogui.click(x, y)
+                                else:
+                                    pyautogui.rightClick(x, y)
+                                pyautogui.typewrite(input_string, interval=0.01)
+                            elif widget == "combo_box":
+                                if (random.random() < 0.5):
+                                    pyautogui.click(x, y)
+                                else:
+                                    pyautogui.rightClick(x, y)
+                                event = event + 1
+                                next_y = best_box[2]+random.random()*0.5
+                                x = int(max(app_x, min(app_x + app_w - 10, app_x + (best_box[1]*app_w))))
+                                y = int(max(app_y, min(app_y + app_h - 10, app_y + ((next_y)*app_h))))
+
+                                y_start = max(0, min(height, int(height*(next_y - best_box[4]/2))-10))
+                                y_end = max(0, min(height, int(height*(next_y+best_box[4]/2))+10))
+
+                                x_start = max(0, min(width, int(width*(best_box[1]-best_box[3]/2))-10))
+                                x_end = max(0, min(width, int(width*(best_box[1]+best_box[3]/2))+10))
+                                image_clicked = raw_image[y_start:y_end,
+                                                x_start:x_end]
+
+                                output_img = output_dir + "/images/" + str(event)
+
+                                np.save(output_img, image_clicked)
+
+                                cv2.imwrite(output_img + ".jpg", image_clicked)
+                            else:
+                                print(widget, "unrecognised")
+
+                            #proc_boxes.remove(best_box)
+
+                    print("Writing concrete tests")
+
+                    # write python regression test
+                    python_file = output_dir + "/test.py"
+
+                    # write visual test
+                    html_file = output_dir + "/test.html"
+
+                    with open(python_file, "w+") as p_f:
+                        # TODO: Write python functions for click, type, etc
+                        p_f.write("")
+
+                    with open(html_file, "w+") as h_f:
+                        h_f.write("<html><head><title>Test " + str(runtime) + "</title></head>\n"
+                                    "<body>")
+
+                    for i in interactions:
+                        with open(python_file, "a+") as p_f:
+                            # write python regression test
+                            p_f.write("click(" + str(i[1]) + ")\n")
+                            if i[0] == "text_field":
+                                p_f.write("type(" + i[2] + ")\n")
+
+                        with open(html_file, "a+") as h_f:
+                            # write python regression test
+                            output_img = output_dir + "/images/" + str(i[1]) + ".jpg"
+                            h_f.write("<br />click( <img src='" + output_img + "' /> )<br />\n")
+                            if i[0] == "text_field":
+                                h_f.write("type(" + i[2] + ")<br />\n")
+
 
                     with open(html_file, "a+") as h_f:
-                        # write python regression test
-                        output_img = output_dir + "/images/" + str(i[1]) + ".jpg"
-                        h_f.write("<br />click( <img src='" + output_img + "' /> )<br />\n")
-                        if i[0] == "text_field":
-                            h_f.write("type(" + i[2] + ")<br />\n")
-
-
-                with open(html_file, "a+") as h_f:
-                    h_f.write("</body></html>")
+                        h_f.write("</body></html>")

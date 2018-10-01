@@ -49,6 +49,8 @@ if __name__ == '__main__':
         anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
         images, _, _ = load_files(sys.argv[1:])
 
+        img = images[0]
+
         #normalise data  between 0 and 1
         imgs = np.array(images)/127.5-1
 
@@ -60,7 +62,7 @@ if __name__ == '__main__':
         proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()[0]
 
 
-        img = imgs[0]
+
 
         proc_boxes.sort(key=lambda box: -box[5])
 
@@ -123,7 +125,7 @@ if __name__ == '__main__':
 
             color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
-            color = [0, 0, 0]
+            color = [255, 255, 255]
 
             if (box[5]>cfg.object_detection_threshold):
                 print(box)
@@ -147,9 +149,9 @@ if __name__ == '__main__':
             if (box[5]>cfg.object_detection_threshold):
                 height, width = img.shape[:2]
 
-                color = [0, 0, 0]
+                color = [255, 255, 255]
 
-                avg_col = 0 #color[0] + color[1] + color[2]
+                avg_col = color[0] + color[1] + color[2]
 
                 text_col = (255, 255, 255)
 

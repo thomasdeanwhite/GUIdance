@@ -16,6 +16,29 @@ load_data <- function(directory, file){
 
 setwd('/home/thomas/work/GUIdance')
 
+data <- load_data('/home/thomas/work/GUIdance', 'errors.csv')
+
+p = data  %>% 
+  #filter(correct==1) %>%
+  ggplot(aes(x=error_type, y=percentage, fill=error_type)) +
+  geom_bar(stat="sum") +
+  #geom_smooth(method="lm", se=F) +
+  #scale_y_log10() +
+  labs(x="Error Type",
+       y="Quantity",
+       title="Error Type Plot") +
+  #scale_x_discrete() +
+  #scale_y_log10() +
+  facet_wrap(~class) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_colour_colorblind()
+#scale_fill_brewer(palette="Set1") + 
+#scale_color_brewer(palette="BrBG")
+
+ggsave("error.png", p, height=5, width=5, dpi=150)
+
+
 data <- load_data('/home/thomas/work/GUIdance', 'validation.csv')
 
 #data$iou_threshold = data$iou_threshold * 2 + 0.5
@@ -109,7 +132,7 @@ print(p)
 
 data <- load_data('/home/thomas/work/GUIdance', 'confusion.csv')
 
-#data = data[!data$dataset == "real",]
+data = data[!data$dataset == "real",]
 
 data = data %>% group_by(actual_class) %>% mutate(sum = sum(quantity)+1)
 
@@ -126,5 +149,5 @@ p = data %>% ggplot(aes(predicted_class, actual_class)) +
   scale_fill_gradient(low = "#0000FF", high = "#FF0000", na.value = "#00FF00") +
   facet_wrap(~dataset)
 
-ggsave("confusion.png", p, height=10, width=10, dpi=150)
+ggsave("confusion.png", p, height=5, width=5, dpi=150)
 

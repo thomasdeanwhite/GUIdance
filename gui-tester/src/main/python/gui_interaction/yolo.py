@@ -421,7 +421,7 @@ class Yolo:
         self.loss_dimension = tf.reduce_sum(total_dim_loss)
 
         obj_conf = tf.cast(tf.reshape(top_iou,
-                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < cfg.object_detection_threshold, tf.float32) * \
+                                 [-1, cfg.grid_shape[0], cfg.grid_shape[1], 1]) < cfg.threshold, tf.float32) * \
               (1 - truth[...,4]) * cfg.noobj_weight
 
         obj_conf = obj_conf + truth[...,4] * cfg.obj_weight
@@ -513,7 +513,7 @@ class Yolo:
         if (cfg.enable_logging):
             tf.summary.histogram("loss_position", total_pos_loss)
             tf.summary.histogram("loss_dimension", total_dim_loss)
-            tf.summary.histogram("loss_object", object_recognition)
+            tf.summary.histogram("loss_object", total_conf_loss)
             tf.summary.histogram("loss_classification", class_loss)
             tf.summary.scalar("loss_pos", self.loss_position)
             tf.summary.scalar("loss_dim", self.loss_dimension)

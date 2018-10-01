@@ -15,7 +15,7 @@ from data_loader import load_files
 
 debug = False
 
-last_epochs = 30
+last_epochs = 0
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -96,7 +96,7 @@ if __name__ == '__main__':
 
         yolo.create_training()
 
-        global_step = tf.Variable(0, trainable=False, dtype=tf.int64)
+        global_step = tf.placeholder(tf.int32)
         batches = math.ceil(len(training_images)/cfg.batch_size) if cfg.run_all_batches else 1
 
 
