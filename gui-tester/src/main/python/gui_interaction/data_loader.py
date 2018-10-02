@@ -29,6 +29,38 @@ def normalise_label(label):
                label[4]
            ], (cx, cy)
 
+def pad_image(img):
+    image = np.int16(img)
+
+    height, width = image.shape
+
+    aspect = height/width
+
+    padding_x = 0
+    padding_y = 0
+
+    if aspect > 1: # portrait
+        padding_x = round((height-width)/2)
+        for i in range(padding_x):
+            elements = np.transpose(np.expand_dims((np.random.rand(image.shape[0])*255), 0))
+            image = np.append(elements, image, 1)
+        for i in range(padding_x):
+            elements = np.transpose(np.expand_dims((np.random.rand(image.shape[0])*255), 0))
+            image = np.append(image, elements, 1)
+    else: #landscape
+        padding_y = round((width-height)/2)
+        for i in range(padding_y):
+            elements = np.transpose(np.expand_dims((np.random.rand(image.shape[1])*255), 1))
+            image = np.append(elements, image, 0)
+        for i in range(padding_y):
+            elements = np.transpose(np.expand_dims((np.random.rand(image.shape[1])*255), 1))
+            image = np.append(image, elements, 0)
+
+    image = np.uint8(resize(image, (cfg.width, cfg.height)))
+    image = np.reshape(image, [cfg.width, cfg.height, 1])
+
+    return image
+
 def load_files(raw_files):
     raw_files = [f.replace("/data/acp15tdw", "/home/thomas/experiments") for f in raw_files]
     label_files = [f.replace("/images/", "/labels/") for f in raw_files]

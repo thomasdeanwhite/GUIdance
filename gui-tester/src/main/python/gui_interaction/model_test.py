@@ -15,6 +15,7 @@ import subprocess
 import Xlib
 import time
 from pynput import keyboard
+import data_loader
 
 running = True
 
@@ -80,6 +81,16 @@ def generate_input_string():
         return "Hello World!"
     else:
         return str(random.randint(-10000, 10000))
+
+def convert_coords(x, y, w, h, aspect):
+    if aspect > 1: # width is bigger than height
+        h = h / aspect
+        y = y - ((y - 0.5)*(1-1/aspect))
+    elif aspect < 1:
+        w = w * aspect
+        x = x - ((x - 0.5)*(1-aspect))
+
+    return x, y, w, h
 
 if __name__ == '__main__':
     # Collect events until released
@@ -169,7 +180,26 @@ if __name__ == '__main__':
 
                         raw_image = image[app_y:app_y+app_h, app_x:app_x+app_w]
 
+                        ih, iw = raw_image.shape[:2]
+
+                        aspect = iw/ih
+
+                        raw_image = data_loader.pad_image(raw_image)
+
                         image = cv2.resize(raw_image, (cfg.width, cfg.height))
+
+                        # for ii in range(10):
+                        #     for jj in range(10):
+                        #         x, y, w, h = convert_coords(ii/10, jj/10, 0.5, 0.5, aspect)
+                        #         print(jj, y, aspect)
+                        #         cv2.rectangle(image,
+                        #                       (int(x*cfg.width), int(y*cfg.height)),
+                        #                       (int(x+w*cfg.width), int(y+h*cfg.height)),
+                        #                       (1, 1, 0.3), -1, 8)
+                        #
+                        # cv2.imshow('image',image)
+                        # cv2.waitKey(0)
+                        # cv2.destroyAllWindows()
 
                         images = np.reshape(image, [1, cfg.width, cfg.height, 1])
 
@@ -220,7 +250,11 @@ if __name__ == '__main__':
                                     best_box = b
                                     break;
 
-                            height, width = raw_image.shape
+                            height, width = raw_image.shape[:2]
+
+                            print(best_box)
+                            best_box[1:5] = convert_coords(best_box[1], best_box[2], best_box[3], best_box[4], aspect)
+                            print(aspect, best_box)
 
                             x = int(max(app_x, min(app_x + app_w - 10, app_x + (best_box[1]*app_w))))
                             y = int(max(app_y, min(app_y + app_h - 10, app_y + (best_box[2]*app_h))))
