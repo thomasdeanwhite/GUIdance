@@ -12,16 +12,13 @@ import pickle
 import re
 from data_loader import load_files, disable_transformation
 
-one_class = True
+one_class = False
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
 totals = []
 
 disable_transformation()
-
-area_thresholds = [180621.0, 243500.0, 316602.0]
-quantity_thresholds = [3.0, 5.0, 7.0 ]
 
 if __name__ == '__main__':
 
@@ -78,8 +75,8 @@ if __name__ == '__main__':
             valid_images.append(l.strip())
 
     #valid_images = random.sample(valid_images, cfg.batch_size)
-    #
-    #valid_images = valid_images[:100]
+
+    valid_images = valid_images[:100]
 
     with tf.device(cfg.gpu):
 
@@ -156,15 +153,14 @@ if __name__ == '__main__':
             print("anchors", anchors.shape)
 
             random.shuffle(valid_images)
-            header_string = "iou_threshold,dataset,class,rank,correct,precision,recall,confidence,iou,size_cat,busy_cat"
+            header_string = "iou_threshold,dataset,class,rank,correct,precision,recall,confidence,iou"
             with open("validation.csv", "w") as file:
                 file.write(header_string + "\n")
 
             yolo.set_training(False)
 
-            base_iou_threshold = 0.5
-            iou_threshold = base_iou_threshold
-            confidence_threshold = 0.15
+            iou_threshold = 0.3
+            confidence_threshold = 0.01
 
 
 
@@ -173,9 +169,7 @@ if __name__ == '__main__':
 
             for i in range(1):
 
-                #iou_threshold = base_iou_threshold + (i * 0.05)
-
-                #confidence_threshold = (i * 0.1)
+                iou_threshold = 0.5 + (i * 0.05)
 
                 progress = 0.0
 
@@ -205,21 +199,6 @@ if __name__ == '__main__':
                     lower_index = j
                     upper_index = j+1
 
-                    img = imread(valid_images[lower_index].replace("/data/acp15tdw", "/home/thomas/experiments"), 0)
-
-                    height, width = img.shape
-
-                    area = height*width
-
-                    size_cat = "xl"
-
-                    if area < area_thresholds[0]:
-                        size_cat = "xs"
-                    elif area < area_thresholds[1]:
-                        size_cat = "s"
-                    elif area < area_thresholds[2]:
-                        size_cat = "l"
-
                     v_imgs, v_labels, v_obj_detection = load_files(
                         valid_images[lower_index:upper_index])
 
@@ -227,26 +206,12 @@ if __name__ == '__main__':
 
                     v_labels = np.array(v_labels)
 
-                    widget_q = np.sum(v_labels[..., 4])
-
-                    busy_cat = "crowded"
-
-                    if widget_q < quantity_thresholds[0]:
-                        busy_cat = "desolate"
-                    elif widget_q < quantity_thresholds[1]:
-                        busy_cat = "few"
-                    elif widget_q < quantity_thresholds[2]:
-                        busy_cat = "many"
-
                     v_obj_detection = np.array(v_obj_detection)
 
                     cfg.object_detection_threshold = confidence_threshold
 
                     if len(v_labels) == 0:
                         continue
-
-                    if one_class:
-                        v_obj_detection = np.zeros_like(v_obj_detection)
 
                     res, correct, iou = sess.run([
                         yolo.output, yolo.matches, yolo.best_iou], feed_dict={
@@ -260,16 +225,14 @@ if __name__ == '__main__':
 
                     labels = yolo.convert_net_to_bb(res, filter_top=True)[0]
 
-                    if one_class:
-                        labels[..., 0] = 0
-
                     #v_obj_detection = np.zeros_like(v_obj_detection)
 
                     o_img, o_h, o_w, = res.shape[:3]
 
                     img = o_img-1
 
-
+                    if one_class:
+                        v_obj_detection = np.zeros_like(v_obj_detection)
 
                     while img >= 0:
                         h = o_h-1
@@ -330,7 +293,6 @@ if __name__ == '__main__':
                                     label = labels[(jc*cfg.grid_shape[0]) + ic]
 
                                     if label[5] > confidence_threshold and int(label[0]) == rc:
-
                                         class_predictions[rc].append([labels[(jc*cfg.grid_shape[1]) + ic][5], correct[0][ic][jc], iou[0][ic][jc][0][0]])
 
                     del v_imgs
@@ -361,8 +323,7 @@ if __name__ == '__main__':
                             continue
 
                         sens_string = str(iou_threshold) + ",synthetic," + yolo.names[rc] + "," + str(pred_count) + "," + str(correct_n) + "," + \
-                                      str(correct_n / pred_count) + "," + str(correct_n/total_count) + "," + str(total_count) + "," + \
-                                      str(confidence_threshold) + "," + size_cat + "," + busy_cat + "\n"
+                                      str(correct_n / pred_count) + "," + str(correct_n/total_count) + "," + "0,0" + "\n"
 
                         with open("validation.csv", "a") as file:
                             file.write(sens_string + "\n")
@@ -411,20 +372,6 @@ if __name__ == '__main__':
                     lower_index = j
                     upper_index = j+1
 
-                    img = imread(real_images[lower_index].replace("/data/acp15tdw", "/home/thomas/experiments"), 0)
-
-                    height, width = img.shape
-
-                    area = height*width
-                    size_cat = "xl"
-
-                    if area < area_thresholds[0]:
-                        size_cat = "xs"
-                    elif area < area_thresholds[1]:
-                        size_cat = "s"
-                    elif area < area_thresholds[2]:
-                        size_cat = "l"
-
                     v_imgs, v_labels, v_obj_detection = load_files(
                         real_images[lower_index:upper_index])
 
@@ -436,23 +383,8 @@ if __name__ == '__main__':
 
                     cfg.object_detection_threshold = confidence_threshold
 
-                    widget_q = np.sum(v_labels[..., 4])
-
-                    busy_cat = "crowded"
-
-                    if widget_q < quantity_thresholds[0]:
-                        busy_cat = "desolate"
-                    elif widget_q < quantity_thresholds[1]:
-                        busy_cat = "few"
-                    elif widget_q < quantity_thresholds[2]:
-                        busy_cat = "many"
-
                     if len(v_labels) == 0:
-                            continue
-
-
-                    if one_class:
-                        v_obj_detection = np.zeros_like(v_obj_detection)
+                        continue
 
                     res, correct, iou = sess.run([
                         yolo.output, yolo.matches, yolo.best_iou], feed_dict={
@@ -466,10 +398,6 @@ if __name__ == '__main__':
 
                     labels = yolo.convert_net_to_bb(res, filter_top=True)[0]
 
-
-                    if one_class:
-                        labels[..., 0] = 0
-
                     img, h, w, = res.shape[:3]
 
                     img -= 1
@@ -479,6 +407,9 @@ if __name__ == '__main__':
                     o_img, o_h, o_w, = res.shape[:3]
 
                     img = o_img-1
+
+                    if one_class:
+                        v_obj_detection = np.zeros_like(v_obj_detection)
 
                     while img >= 0:
                         h = o_h-1
@@ -547,8 +478,7 @@ if __name__ == '__main__':
                             total_count = 1
 
                         sens_string = str(iou_threshold) + ",real," + yolo.names[rc] + "," + str(pred_count) + "," + str(correct_n) + "," + \
-                                      str(correct_n / pred_count) + "," + str(correct_n/total_count) + "," + str(total_count) + "," + \
-                                      str(confidence_threshold) + "," + size_cat + "," + busy_cat + "\n"
+                                      str(correct_n / pred_count) + "," + str(correct_n/total_count) + "," + "0,0" + "\n"
 
                         with open("validation.csv", "a") as file:
                             file.write(sens_string + "\n")

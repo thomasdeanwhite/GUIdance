@@ -47,15 +47,64 @@ data$iou_threshold = factor(data$iou_threshold)
 
 #data = data[!data$class == "menu_item",]
 
-data = data[!data$dataset == "real",]
+#data = data[!data$dataset == "real",]
 
-#data$class = "Widget"
+data$class = "Widget"
 
 average_precision = data[FALSE,]
 
 classes = unique(data$class)
 datasets = unique(data$dataset)
 iou_thresholds = unique(data$iou_threshold)
+
+# p = data  %>%
+#   #filter(iou_threshold == 0.5) %>%
+#   #filter(correct==1) %>%
+#   ggplot(aes(x=dataset, y=precision, fill=dataset, )) +
+#   geom_boxplot() +
+#   #geom_bar(position = "dodge", stat = "summary", fun.y = "mean") +
+#   #geom_smooth(method="lm", se=F) +
+#   #scale_y_log10() +
+#   labs(x="Dataset",
+#        y="Precision",
+#        title="") +
+#   #scale_x_discrete() +
+#   #scale_y_log10() +
+#   #facet_wrap(~class) +
+#   theme_minimal() +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#   scale_fill_grey(start=0.6, end=1.0)
+#   #scale_fill_brewer(palette="Set1") +
+#   #scale_color_brewer(palette="BrBG")
+
+t_data = data %>% gather(Sensitivity, value, precision:recall)
+
+t_data$size_cat = factor(data$size_cat, levels=c('xs', 's', 'l', 'xl'))
+
+t_data$busy_cat = factor(data$busy_cat, levels=c('desolate', 'few', 'many', 'crowded'))
+
+p = t_data  %>%
+  #filter(iou_threshold == 0.5) %>%
+  #filter(correct==1) %>%
+  ggplot(aes(x=busy_cat, y=value, fill=dataset)) +
+  #geom_boxplot() +
+  geom_bar(position = "dodge", stat = "summary", fun.y = "mean") +
+  #geom_smooth(method="lm", se=F) +
+  #scale_y_log10() +
+  labs(x="Widget Quantity",
+       y="",
+       title="") +
+  #scale_x_discrete() +
+  #scale_y_log10() +
+  #facet_wrap(~class) +
+  theme_minimal() +
+  facet_wrap(~Sensitivity) +
+  #theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_fill_grey(start=0.3, end=0.6)
+#scale_fill_brewer(palette="Set1") +
+#scale_color_brewer(palette="BrBG")
+
+print(p)
 
 for (i in 0:11){
   limit = i * 0.1
@@ -65,41 +114,23 @@ for (i in 0:11){
         class_rows = data %>% filter(class == c, dataset == d, iou_threshold == i)
         if (nrow(class_rows) > 0){
           row = head(class_rows, 1)
-
+          
           row$recall = limit
-
+          
           above_rows = class_rows %>% filter(recall >= limit)
-
+          
           if (nrow(above_rows) > 0){
             row$precision = max(above_rows %>% select(precision))
           } else {
             row$precision = 0
           }
-
+          
           average_precision = bind_rows(average_precision, row)
         }
       }
     }
   }
 }
-
-p = data  %>% 
-  #filter(correct==1) %>%
-  ggplot(aes(x=class, y=recall, color=dataset, )) +
-  geom_boxplot() +
-  #geom_smooth(method="lm", se=F) +
-  #scale_y_log10() +
-  labs(x="Widget",
-       y="Recall",
-       title="Average Recall Plots") +
-  #scale_x_discrete() +
-  #scale_y_log10() +
-  #facet_wrap(~class) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_colour_colorblind()
-  #scale_fill_brewer(palette="Set1") + 
-  #scale_color_brewer(palette="BrBG")
 
 for (d in datasets){
   mAP = 0
@@ -128,26 +159,25 @@ for (d in datasets){
 
 }
 
-print(p)
-
-data <- load_data('/home/thomas/work/GUIdance', 'confusion.csv')
-
-data = data[!data$dataset == "real",]
-
-data = data %>% group_by(actual_class) %>% mutate(sum = sum(quantity)+1)
-
-data$percent = data$quantity/data$sum
-
-#data$quantity = data$quantity/max(data$quantity)
-
-p = data %>% ggplot(aes(predicted_class, actual_class)) +
-  geom_tile(aes(fill=percent)) +
-  labs(x="Predicted Class",
-       y="Actual Class",
-       title="Confusion Matrix for Class Prediction") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_fill_gradient(low = "#0000FF", high = "#FF0000", na.value = "#00FF00") +
-  facet_wrap(~dataset)
-
-ggsave("confusion.png", p, height=5, width=5, dpi=150)
+# 
+# data <- load_data('/home/thomas/work/GUIdance', 'confusion.csv')
+# 
+# #data = data[!data$dataset == "real",]
+# 
+# data = data %>% group_by(actual_class) %>% mutate(sum = sum(quantity)+1)
+# 
+# data$percent = data$quantity/data$sum
+# 
+# #data$quantity = data$quantity/max(data$quantity)
+# 
+# p = data %>% ggplot(aes(predicted_class, actual_class)) +
+#   geom_tile(aes(fill=percent)) +
+#   labs(x="Predicted Class",
+#        y="Actual Class",
+#        title="Confusion Matrix for Class Prediction") +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#   scale_fill_gradient(low = "#0000FF", high = "#FF0000", na.value = "#00FF00") +
+#   facet_wrap(~dataset)
+# 
+# ggsave("confusion.png", p, height=5, width=5, dpi=150)
 

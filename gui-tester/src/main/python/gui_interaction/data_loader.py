@@ -34,6 +34,9 @@ def pad_image(img):
 
     height, width = image.shape
 
+    if width == 0:
+        return img
+
     aspect = height/width
 
     padding_x = 0
@@ -41,25 +44,43 @@ def pad_image(img):
 
     if aspect > 1: # portrait
         padding_x = round((height-width)/2)
-        for i in range(padding_x):
-            elements = np.transpose(np.expand_dims((np.random.rand(image.shape[0])*255), 0))
-            image = np.append(elements, image, 1)
-        for i in range(padding_x):
-            elements = np.transpose(np.expand_dims((np.random.rand(image.shape[0])*255), 0))
-            image = np.append(image, elements, 1)
-    else: #landscape
+        elements = np.transpose(np.random.rand(padding_x, image.shape[0])*255)
+        image = np.append(elements, image, 1)
+        elements = np.transpose(np.random.rand(padding_x, image.shape[0])*255)
+        image = np.append(image, elements, 1)
+    elif aspect < 1: #landscape
         padding_y = round((width-height)/2)
-        for i in range(padding_y):
-            elements = np.transpose(np.expand_dims((np.random.rand(image.shape[1])*255), 1))
-            image = np.append(elements, image, 0)
-        for i in range(padding_y):
-            elements = np.transpose(np.expand_dims((np.random.rand(image.shape[1])*255), 1))
-            image = np.append(image, elements, 0)
+        #for i in range(padding_y):
+        elements = np.random.rand(padding_y, image.shape[1])*255
+        image = np.append(elements, image, 0)
+        elements = np.random.rand(padding_y, image.shape[1])*255
+        image = np.append(image, elements, 0)
 
     image = np.uint8(resize(image, (cfg.width, cfg.height)))
     image = np.reshape(image, [cfg.width, cfg.height, 1])
 
+    if debug:
+        cv2.imshow('image',image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
     return image
+
+def load_image(file):
+    img = imread(file, 0)
+    image = np.int16(pad_image(img))
+
+    # contrast = 0.5
+    #
+    # contrast_diff = np.multiply(image - np.median(image), contrast).astype(np.uint8)
+    # image = np.add(image, contrast_diff)
+
+    image = np.uint8(resize(image, (cfg.width, cfg.height)))
+
+    image = np.reshape(image, [cfg.width, cfg.height, 1])
+
+    return image
+
 
 def load_files(raw_files):
     raw_files = [f.replace("/data/acp15tdw", "/home/thomas/experiments") for f in raw_files]
@@ -107,25 +128,19 @@ def load_files(raw_files):
 
             if aspect > 1: # portrait
                 padding_x = round((height-width)/2)
-                for i in range(padding_x):
-                    elements = np.transpose(np.expand_dims((np.random.rand(image.shape[0])*255), 0))
-                    image = np.append(elements, image, 1)
-                for i in range(padding_x):
-                    elements = np.transpose(np.expand_dims((np.random.rand(image.shape[0])*255), 0))
-                    image = np.append(image, elements, 1)
+                elements = np.transpose(np.random.rand(padding_x, image.shape[0])*255)
+                image = np.append(elements, image, 1)
+                elements = np.transpose(np.random.rand(padding_x, image.shape[0])*255)
+                image = np.append(image, elements, 1)
             else: #landscape
                 padding_y = round((width-height)/2)
-                for i in range(padding_y):
-                    elements = np.transpose(np.expand_dims((np.random.rand(image.shape[1])*255), 1))
-                    image = np.append(elements, image, 0)
-                for i in range(padding_y):
-                    elements = np.transpose(np.expand_dims((np.random.rand(image.shape[1])*255), 1))
-                    image = np.append(image, elements, 0)
+                #for i in range(padding_y):
+                elements = np.random.rand(padding_y, image.shape[1])*255
+                image = np.append(elements, image, 0)
+                elements = np.random.rand(padding_y, image.shape[1])*255
+                image = np.append(image, elements, 0)
 
             image = np.uint8(resize(image, (cfg.width, cfg.height)))
-            image = np.reshape(image, [cfg.width, cfg.height, 1])
-
-
             image = np.reshape(image, [cfg.width, cfg.height, 1])
             images.append(image)
 
@@ -421,3 +436,204 @@ def load_files(raw_files):
 
 
     return images, labels, object_detection
+
+
+def load_files_split(raw_files, scale):
+    raw_files = [f.replace("/data/acp15tdw", "/home/thomas/experiments") for f in raw_files]
+    label_files = [f.replace("/images/", "/labels/") for f in raw_files]
+    label_files = [f.replace(".png", ".txt") for f in label_files]
+
+    pickle_files = [f.replace("/images/", "/pickle/") for f in raw_files]
+    pickle_files = [f.replace(".png", ".pickle") for f in pickle_files]
+
+    images = []
+    labels = []
+    object_detection = []
+
+    img_sizes = []
+
+    for i in range(len(raw_files)):
+
+        f = raw_files[i]
+        f_l = label_files[i]
+        if not os.path.isfile(f_l) or not os.path.isfile(f) or f is None:
+            continue
+
+        img = imread(f, 0)
+        if img is None:
+            continue
+        image = np.int16(img)
+
+        height, width = image.shape
+
+        img_sizes.append([width, height])
+
+        if height < 15 or width < 15:
+            continue
+
+        aspect = height/width
+
+        padding_x = 0
+        padding_y = 0
+
+        if aspect > 1: # portrait
+            padding_x = round((height-width)/2)
+            for i in range(padding_x):
+                elements = np.transpose(np.expand_dims((np.random.rand(image.shape[0])*255), 0))
+                image = np.append(elements, image, 1)
+            for i in range(padding_x):
+                elements = np.transpose(np.expand_dims((np.random.rand(image.shape[0])*255), 0))
+                image = np.append(image, elements, 1)
+        else: #landscape
+            padding_y = round((width-height)/2)
+            for i in range(padding_y):
+                elements = np.transpose(np.expand_dims((np.random.rand(image.shape[1])*255), 1))
+                image = np.append(elements, image, 0)
+            for i in range(padding_y):
+                elements = np.transpose(np.expand_dims((np.random.rand(image.shape[1])*255), 1))
+                image = np.append(image, elements, 0)
+
+        image = np.uint8(resize(image, (cfg.width*scale, cfg.height*scale)))
+        image = np.reshape(image, [cfg.width*scale, cfg.height*scale, 1])
+        images.append(image)
+
+
+
+        # read in format [c, x, y, width, height]
+        # store in format [c], [x, y, width, height]
+
+        with open(f_l, "r") as l:
+            obj_detect = [[0 for i in
+                           range(cfg.grid_shape[0]*scale)]for i in
+                          range(cfg.grid_shape[1]*scale)]
+            imglabs = [[[0 for i in
+                         range(5)]for i in
+                        range(cfg.grid_shape[1]*scale)] for i in
+                       range(cfg.grid_shape[0]*scale)]
+
+            for x in range(cfg.grid_shape[0]*scale):
+                for y in range(cfg.grid_shape[1]*scale):
+                    imglabs[x][y][0] = y
+                    imglabs[x][y][1] = x
+
+            for line in l:
+                elements = line.split(" ")
+                #print(elements[1:3])
+
+                if float(elements[3]) <= 0 or float(elements[4]) <= 0:
+                    continue
+
+                normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
+                                                            float(elements[3]), float(elements[4]), 1])
+
+                for icl in range(4):
+                    normalised_label[icl] = normalised_label[icl] * scale
+
+                if padding_x > 0:
+                    ratio = 1-(2*padding_x)/height
+                    newx = scale * cfg.grid_shape[0] * (0.5 + (normalised_label[0]/(cfg.grid_shape[0]*scale) - 0.5)*ratio)
+                    normalised_label[0] = newx
+                    normalised_label[2] = normalised_label[2] * ratio
+                elif padding_y > 0:
+                    ratio = 1-(2*padding_y)/width
+                    newy = scale * cfg.grid_shape[1] * (0.5 + (normalised_label[1]/(cfg.grid_shape[1]*scale) - 0.5)*ratio)
+                    normalised_label[1] = newy
+                    normalised_label[3] = normalised_label[3] * ratio
+
+                x = max(0, min(int(normalised_label[0]), scale*cfg.grid_shape[0]-1))
+                y = max(0, min(int(normalised_label[1]), scale*cfg.grid_shape[1]-1))
+                imglabs[y][x] = normalised_label
+                obj_detect[y][x] = int(elements[0])
+                #obj_detect[y][x][int(elements[0])] = 1
+
+            object_detection.append(obj_detect)
+            labels.append(imglabs)
+
+    img_length = len(images)
+
+    images, labels, object_detection = (np.array(images), np.array(labels), np.array(object_detection))
+
+    raw_data = load_files(raw_files)
+
+    s_images, s_labels, s_object_detection = ([], [], [])
+
+    for im in range(img_length):
+
+        if (img_sizes[im][0] < cfg.width and img_sizes[im][1] < cfg.height):#don't split
+            s_images.append(raw_data[0][im])
+            s_labels.append(raw_data[1][im])
+            s_object_detection.append(raw_data[2][im])
+            continue
+
+        image = images[im]
+
+        labs = labels[im]
+
+        obj = object_detection[im]
+
+        for ic in range(scale):
+            for jc in range(scale):
+                xl, xu = (cfg.grid_shape[0]*ic,cfg.grid_shape[0]*(ic+1))
+                yl, yu = (cfg.grid_shape[1]*jc,cfg.grid_shape[1]*(jc+1))
+                sub_img = image[32*xl:32*xu, 32*yl:32*yu]
+                sub_labs = labs[xl:xu, yl:yu]
+                sub_labs[..., 0] = (sub_labs[..., 0] - (yl))
+                sub_labs[..., 1] = (sub_labs[..., 1] - (xl))
+
+                sub_obj = obj[xl:xu, yl:yu]
+
+                s_images.append(sub_img)
+                s_labels.append(sub_labs)
+                s_object_detection.append(sub_obj)
+
+    for im in range(len(s_images)):
+
+        image = s_images[im]
+
+        labs = s_labels[im]
+
+        if debug:
+            height, width, chan = image.shape
+
+            for lnx in range(len(labs)):
+                for lny in range(len(labs[lnx])):
+
+                    lbl = labs[lnx][lny]
+
+                    col = 0
+
+                    thickness = 1
+
+                    if lbl[4] > 0:
+                        col = 255
+                        thickness = 4
+
+                    lbl[0] = lbl[0] / cfg.grid_shape[0]
+                    lbl[1] = lbl[1] / cfg.grid_shape[1]
+                    lbl[2] = lbl[2] / cfg.grid_shape[0]
+                    lbl[3] = lbl[3] / cfg.grid_shape[1]
+                    x1, y1 = (int(width * (lbl[0] - lbl[2]/2)),
+                              int(height * (lbl[1] - lbl[3]/2)))
+                    x2, y2 = (int(width * (lbl[0] + lbl[2]/2)),
+                              int(height * (lbl[1] + lbl[3]/2)))
+                    cv2.rectangle(image,
+                                  (x1, y1),
+                                  (x2, y2),
+                                  127, 3, 4)
+
+                    cv2.rectangle(image,
+                                  (int((x1+x2)/2-1), int((y1+y2)/2-1)),
+                                  (int((x1+x2)/2+1), int((y1+y2)/2+1)),
+                                  127, 3, 4)
+
+                    cv2.rectangle(image,
+                                  (int(lny/cfg.grid_shape[0]*width), int(lnx/cfg.grid_shape[0]*height)),
+                                  (int((1+lny)/cfg.grid_shape[1]*width), int((1+lnx)/cfg.grid_shape[1]*height)),
+                                  col, thickness, 4)
+
+            cv2.imshow('image',image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+
+    return s_images, s_labels, s_object_detection

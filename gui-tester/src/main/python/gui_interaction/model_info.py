@@ -14,10 +14,7 @@ import re
 tf.logging.set_verbosity(tf.logging.INFO)
 
 totals = []
-yolo = None
-
-for i in range(10):
-    totals.append(0)
+yolo = Yolo()
 
 def normalise_point(point, val):
     i = point*val
@@ -42,6 +39,7 @@ def load_files(raw_files):
     pickle_files = [f.replace("/images/", "/pickle/") for f in raw_files]
     pickle_files = [f.replace(".png", ".pickle") for f in pickle_files]
 
+    areas = []
     images = []
     labels = []
     object_detection = []
@@ -55,6 +53,10 @@ def load_files(raw_files):
             continue
 
         image = np.int16(d)
+
+        height, width = image.shape
+
+        areas.append(height*width)
 
         image = np.uint8(resize(image, (cfg.width, cfg.height)))
         image = np.reshape(image, [cfg.width, cfg.height, 1])
@@ -83,28 +85,31 @@ def load_files(raw_files):
                 y = max(0, min(int(centre[1]), cfg.grid_shape[1]-1))
                 imglabs[y][x] = normalised_label
                 obj_detect[y][x] = int(elements[0])
-                totals[int(elements[0])] += 1
                 #obj_detect[y][x][int(elements[0])] = 1
 
             object_detection.append(obj_detect)
             labels.append(imglabs)
 
-    return images, labels, object_detection
+    return images, labels, object_detection, areas
 
-def print_info(imgs, labels, classes, dataset):
+def print_info(imgs, labels, classes, dataset, areas):
 
     density = np.array([[[0 for i in
-                          range(11)]for i in
+                          range(len(yolo.names)+1)]for i in
                          range(cfg.grid_shape[1])] for i in
                         range(cfg.grid_shape[0])])
 
     pixels = np.array([0 for i in
                        range(30)])
+    quantities = []
+
 
     for i in range(imgs.shape[0]):
 
+        widget_q = 0
+
         class_count = np.array([0 for i in
-                                range(10)])
+                                range(len(yolo.names))])
 
         displacement = 255/30
 
@@ -113,18 +118,22 @@ def print_info(imgs, labels, classes, dataset):
                               (imgs[0] > j*displacement).astype(np.int32)).astype(np.float32)
             pixels[j] += quantity
 
-        for x in range(13):
-            for y in range(13):
+        for x in range(cfg.grid_shape[0]):
+            for y in range(cfg.grid_shape[1]):
                 if (labels[i,x,y,4] == 1):
                     c = classes[i,x,y]
                     density[y,x,0] = density[x,y,0] + 1
                     density[y,x,c+1] = density[x,y,c+1] + 1
                     class_count[c] += 1
 
+                    widget_q += 1
+
                     with open("label_dims.csv", "a") as file:
-                        file.write(str(i) + "," + yolo.names[c] + ",width," + str(labels[i,x,y,2]/13) + "," + dataset + "\n")
-                        file.write(str(i) + "," + yolo.names[c] + ",height," + str(labels[i,x,y,3]/13) + "," + dataset + "\n")
-                        file.write(str(i) + "," + yolo.names[c] + ",area," + str(labels[i,x,y,2] * labels[i,x,y,3]/13) + "," + dataset + "\n")
+                        file.write(str(i) + "," + yolo.names[c] + ",width," + str(labels[i,x,y,2]/cfg.grid_shape[0]) + "," + dataset + "\n")
+                        file.write(str(i) + "," + yolo.names[c] + ",height," + str(labels[i,x,y,3]/cfg.grid_shape[1]) + "," + dataset + "\n")
+                        file.write(str(i) + "," + yolo.names[c] + ",area," + str(labels[i,x,y,2]/cfg.grid_shape[0] * labels[i,x,y,3]/cfg.grid_shape[1]) + "," + dataset + "\n")
+
+        quantities.append(widget_q)
 
         for c in range(len(class_count)):
             with open("class_count.csv", "a") as file:
@@ -136,17 +145,32 @@ def print_info(imgs, labels, classes, dataset):
         with open("img_hist.csv", "a") as file:
             file.write(str(j) + "," + str(pixels[j]) + "," + dataset + "\n")
 
-
-
-    for x in range(13):
-        for y in range(13):
-            for c in range(11):
+    for x in range(cfg.grid_shape[0]):
+        for y in range(cfg.grid_shape[1]):
+            for c in range(len(yolo.names)):
                 with open("label_heat.csv", "a") as file:
                     dens = (density[x, y, c] + 1) / (np.amax(density[..., c]) + 1)
                     cl = "total"
                     if (c > 0):
                         cl = yolo.names[c-1]
                     file.write(str(x) + "," + str(y) + "," + str(dens) + "," + cl + "," + dataset + "\n")
+
+    areas = np.array(areas)
+
+    med_area = np.median(areas)
+
+    lower_quat_area = np.quantile(areas, 0.25)
+    upper_quat_area = np.quantile(areas, 0.75)
+
+    quantities = np.array(quantities)
+
+    med_quantities = np.median(quantities)
+
+    lower_quat_quantities = np.quantile(quantities, 0.25)
+    upper_quat_quantities = np.quantile(quantities, 0.75)
+
+    print("AREAS:", "BIG:", upper_quat_area, "MED:", med_area, "SMALL:", lower_quat_area)
+    print("QUANTITIES:", "BIG:", upper_quat_quantities, "MED:", med_quantities, "SMALL:", lower_quat_quantities)
 
 if __name__ == '__main__':
     training_file = cfg.data_dir + "/../backup/data/train.txt"
@@ -187,9 +211,6 @@ if __name__ == '__main__':
             if file_num <= 243:
                 real_images.append(l.strip())
 
-
-    yolo = Yolo()
-
     with open("img_hist.csv", "w") as file:
         file.write("pixel_value,quantity,dataset" + "\n")
 
@@ -213,11 +234,11 @@ if __name__ == '__main__':
 
     #random.shuffle(valid_images)
 
-    #valid_images = valid_images[:400]
+    #valid_images = valid_images[:40]
 
     with tf.device(cfg.gpu):
 
-        v_imgs, v_labels, v_obj_detection = load_files(
+        v_imgs, v_labels, v_obj_detection, v_areas = load_files(
             valid_images)
 
         v_imgs = np.array(v_imgs)
@@ -228,12 +249,12 @@ if __name__ == '__main__':
 
         print("Validation set ---")
 
-        print_info(v_imgs, v_labels, v_obj_detection, "synthetic")
+        print_info(v_imgs, v_labels, v_obj_detection, "synthetic", v_areas)
 
 
         del(v_imgs, v_labels, v_obj_detection)
 
-        v_imgs, v_labels, v_obj_detection = load_files(
+        v_imgs, v_labels, v_obj_detection, v_areas = load_files(
             real_images)
 
         v_imgs = np.array(v_imgs)
@@ -244,7 +265,7 @@ if __name__ == '__main__':
 
         print("Real set ---")
 
-        print_info(v_imgs, v_labels, v_obj_detection, "real")
+        print_info(v_imgs, v_labels, v_obj_detection, "real", v_areas)
 
 
         del(v_imgs, v_labels, v_obj_detection)

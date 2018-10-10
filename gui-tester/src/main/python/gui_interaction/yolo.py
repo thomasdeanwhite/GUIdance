@@ -467,9 +467,19 @@ class Yolo:
         correct_classes = tf.cast(tf.equal(class_assignments, tf.cast(self.train_object_recognition, tf.int64)), tf.float32)
         #
         identified_objects_tpos = tf.reshape(tf.cast(top_iou >= self.iou_threshold, tf.float32),
-                                            [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
+                                             [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
             tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
-            [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * correct_classes
+            [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
+
+
+        # truth_l = truth[..., 0:2] - truth[..., 2:4]/2
+        # truth_u = truth[..., 0:2] + truth[..., 2:4]/2
+        #
+        # identified_objects_tpos = tf.reshape(tf.cast(tf.abs(matching_boxes[..., 0] - truth[..., 0]) < truth[..., 2]/2 , tf.float32) *
+        #                                      tf.cast(tf.abs(matching_boxes[..., 1] - truth[..., 1]) < truth[..., 3]/2 , tf.float32),
+        #                                      [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
+        #         tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
+        #         [-1, cfg.grid_shape[0], cfg.grid_shape[1]])
 
         # identified_objects_fpos = tf.maximum((1-obj_sens) + (tf.reshape(tf.cast(top_iou < self.iou_threshold, tf.float32),
         #                                      [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * obj_sens), 1) * \
@@ -484,7 +494,7 @@ class Yolo:
         self.average_iou = tf.constant(0) #tf.reduce_sum(top_iou) / (tf.reduce_sum(tf.cast(truth[...,4]>0, tf.float32)) + epsilon)
 
 
-        self.matches = obj_sens * identified_objects_tpos
+        self.matches = identified_objects_tpos
 
         self.true_positives = tf.constant(0)#tf.reduce_sum(obj_sens * identified_objects_tpos)
 
@@ -563,3 +573,19 @@ class Yolo:
             b_boxes.append(bs)
 
         return np.array(b_boxes)
+
+
+    def convert_correct_to_list(self, correct):
+        corr = []
+
+        for image in range(correct.shape[0]):
+            cs = []
+            for i in range(cfg.grid_shape[0]):
+                for j in range(cfg.grid_shape[1]):
+                    cell = correct[image][j][i]
+                    cs.append(cell)
+
+
+            corr.append(cs)
+
+        return np.reshape(np.array(corr), [-1])

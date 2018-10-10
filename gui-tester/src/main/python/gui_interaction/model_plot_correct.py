@@ -9,7 +9,7 @@ import math
 import random
 import os
 from tensorflow.python.tools import inspect_checkpoint as chkp
-from data_loader import load_image, disable_transformation
+from data_loader import load_files, disable_transformation
 
 disable_transformation()
 
@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     yolo.create_network()
     #yolo.set_training(False)
-    #yolo.create_training()
+    yolo.create_training()
 
     learning_rate = tf.placeholder(tf.float64)
     learning_r = cfg.learning_rate_start
@@ -47,24 +47,33 @@ if __name__ == '__main__':
         yolo.set_training(False)
 
         anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
-        images = np.array([load_image(sys.argv[1])])
+        images, labels, obj_detect = load_files([sys.argv[1]])
 
         img = images[0]
 
         #normalise data  between 0 and 1
         imgs = np.array(images)/127.5-1
+        labels = np.array(labels)
+        obj_detect = np.array(obj_detect)
 
-        boxes = sess.run(yolo.output, feed_dict={
+        conf_thresh = 0.1
+
+        boxes, correct = sess.run([yolo.output, yolo.matches], feed_dict={
             yolo.x: imgs,
             yolo.anchors: anchors,
+            yolo.train_bounding_boxes: labels,
+            yolo.train_object_recognition: obj_detect,
+            yolo.iou_threshold: 0.5,
+            yolo.object_detection_threshold: conf_thresh
         })
 
+        proc_correct = yolo.convert_correct_to_list(correct)
         proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()[0]
 
 
 
 
-        proc_boxes.sort(key=lambda box: -box[5])
+        #proc_boxes.sort(key=lambda box: -box[5])
 
         #proc_boxes
 
@@ -74,49 +83,52 @@ if __name__ == '__main__':
         i=0
         while i < len(proc_boxes):
             box = proc_boxes[i]
-            if box[5] < cfg.object_detection_threshold:
-                del proc_boxes[i]
-            else:
-                x, y, w, h = (box[1],box[2],box[3],box[4])
-                box[1] = x - w/2
-                box[2] = y - h/2
-                box[3] = x + w/2
-                box[4] = y + h/2
-                i = i + 1
+            x, y, w, h = (box[1],box[2],box[3],box[4])
+            box[1] = x - w/2
+            box[2] = y - h/2
+            box[3] = x + w/2
+            box[4] = y + h/2
+            i = i + 1
         i = 0
 
+        correct_q = 0
 
-        while i < len(proc_boxes)-1 and trim_overlap:
-            box = proc_boxes[i]
-            j = i+1
-            while j < len(proc_boxes):
-                box2 = proc_boxes[j]
+        #
+        # while i < len(proc_boxes)-1 and trim_overlap:
+        #     box = proc_boxes[i]
+        #     j = i+1
+        #     while j < len(proc_boxes):
+        #         box2 = proc_boxes[j]
+        #
+        #         xA = max(box[1], box2[1])
+        #         yA = max(box[2], box2[2])
+        #         xB = min(box[3], box2[3])
+        #         yB = min(box[4], box2[4])
+        #
+        #         interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+        #
+        #
+        #         boxAArea = (box[2] - box[0] + 1) * (box[3] - box[1] + 1)
+        #         boxBArea = (box2[2] - box2[0] + 1) * (box2[3] - box2[1] + 1)
+        #
+        #         iou = interArea / float(boxAArea + boxBArea - interArea)
+        #
+        #         if iou > 0.8:
+        #             if (box[5] >= box2[5]):
+        #                 del proc_boxes[j]
+        #                 j = j-1
+        #             else:
+        #                 del proc_boxes[i]
+        #                 i = i-1
+        #                 break
+        #         j = j + 1
+        #     i = i+1
 
-                xA = max(box[1], box2[1])
-                yA = max(box[2], box2[2])
-                xB = min(box[3], box2[3])
-                yB = min(box[4], box2[4])
-
-                interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
-
-
-                boxAArea = (box[2] - box[0] + 1) * (box[3] - box[1] + 1)
-                boxBArea = (box2[2] - box2[0] + 1) * (box2[3] - box2[1] + 1)
-
-                iou = interArea / float(boxAArea + boxBArea - interArea)
-
-                if iou > 0.8:
-                    if (box[5] >= box2[5]):
-                        del proc_boxes[j]
-                        j = j-1
-                    else:
-                        del proc_boxes[i]
-                        i = i-1
-                        break
-                j = j + 1
-            i = i+1
-
-        for box in proc_boxes:
+        for bc in range(len(proc_boxes)):
+            box = proc_boxes[bc]
+            if box[5] < conf_thresh:
+                continue
+            cor = proc_correct[bc]
             height, width = img.shape[:2]
 
             cls = yolo.names[int(box[0])]
@@ -125,7 +137,11 @@ if __name__ == '__main__':
 
             color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
-            color = [0, 0, 0]
+            if cor:
+                correct_q += 1
+                color = [255, 255, 255]
+            else:
+                color = [0, 0, 0]
 
             if (box[5]>cfg.object_detection_threshold):
                 print(box)
@@ -137,19 +153,25 @@ if __name__ == '__main__':
 
                 cv2.rectangle(img, (x1, y1),
                               (x2, y2),
-                              (color[0], color[1], color[2]), int(5*box[4] * box[4]), 8)
+                              (color[0], color[1], color[2]), 1+int(5*box[4]), 8)
 
-        for box in proc_boxes:
+        for bc in range(len(proc_boxes)):
+            box = proc_boxes[bc]
+            if box[5] < conf_thresh:
+                continue
+
+            cor = proc_correct[bc]
             cls = yolo.names[int(box[0])]
 
             hex = cls.encode('utf-8').hex()[0:6]
 
-            color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
+            if cor:
+                color = [255, 255, 255]
+            else:
+                color = [0, 0, 0]
 
             if (box[5]>cfg.object_detection_threshold):
                 height, width = img.shape[:2]
-
-                color = [0, 0, 0]
 
                 avg_col = color[0] + color[1] + color[2]
 
@@ -172,6 +194,8 @@ if __name__ == '__main__':
                             (x1, y1-int(10*box[4])-2),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.4, text_col, 1)
+
+        print(correct_q, "correct predictions.")
 
         cv2.imshow('image',img)
         cv2.waitKey(0)

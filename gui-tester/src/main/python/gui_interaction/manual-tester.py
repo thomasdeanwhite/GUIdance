@@ -13,26 +13,7 @@ from operator import itemgetter
 import time
 import subprocess
 import Xlib
-from pynput import keyboard
-import timeit
-
-
 sub_window = False
-
-running = True
-
-debug = False
-
-quit_counter = 3
-
-def on_release(key):
-    global running, quit_counter
-    if key == keyboard.Key.f1:
-        quit_counter -= 1
-        if quit_counter == 0:
-            running = False
-            print("Killing tester.")
-
 def get_window_size(window_name):
     global sub_window
     try:
@@ -95,77 +76,33 @@ def generate_input_string():
         return str(random.randint(-10000, 10000))
 
 if __name__ == '__main__':
-    # Collect events until released
-    with keyboard.Listener(on_release=on_release) as listener:
-        if len(sys.argv) > 1:
-            cfg.window_name = sys.argv[1]
 
-        if len(sys.argv) > 1:
-            cfg.window_name = sys.argv[1]
+    if len(sys.argv) > 1:
+        cfg.window_name = sys.argv[1]
 
-        print("Starting in 5 seconds")
+    print("Starting in 5 seconds")
 
-        time.sleep(5)
+    time.sleep(5)
 
 
-        start_time = time.time()
+    start_time = time.time()
 
-        runtime = cfg.test_time
+    runtime = cfg.test_time
 
-        actions = 0
+    while (time.time() - start_time < runtime):
 
-        while ((time.time() - start_time < runtime and not cfg.use_iterations) or
-               (actions < cfg.test_iterations and cfg.use_iterations)) and running:
+        os.system('wmctrl -c "firefox"')
 
-            iteration_time = time.time()
+        app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
 
-            exec_time = time.time() - start_time
-
-            os.system('wmctrl -c "firefox"')
-
+        while app_w == 0:
+            time.sleep(1)
             app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
-
-            while app_w == 0:
-                time.sleep(1)
-                app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
-                if time.time() - start_time > runtime:
-                    print("Couldn't find application window!")
-                    break
-
             if time.time() - start_time > runtime:
+                print("Couldn't find application window!")
                 break
 
-
-            x = int(max(app_x+5, min(app_x + app_w - 5, app_x + (random.random()*app_w))))
-
-            #app_y+25 for the title screen
-            y = int(max(app_y+25, min(app_y + app_h - 5, app_y + (random.random()*app_h))))
-
-            random_interaction = random.random()
-
-            if random_interaction < 0.888888888888: # just a normal click
-                if random.random() < 0.5:
-                    pyautogui.doubleClick(x, y, interval=0.01)
-                else:
-                    pyautogui.rightClick(x, y)
-            else: # click and type 'Hello world!'
-                pyautogui.click(x, y, interval=0.01)
-                pyautogui.typewrite(generate_input_string(), interval=0.01)
-
-            end_iteration_time = time.time()
-            if debug:
-                print("Iteration Time:", end_iteration_time - iteration_time)
-
-            # write test info
-            csv_file = "test.csv"
-
-            actions += 1
-
-            with open(csv_file, "a") as p_f:
-                # TODO: Write python functions for click, type, etc
-                p_f.write(str(exec_time) + "," + str(actions) + ",detection," + str(iteration_time) + "," + cfg.window_name + "\n")
-            # if sub_window:
-            #     if random.random() < 0.05:
-            #         pyautogui.press('escape')
+        if time.time() - start_time > runtime:
+            break
 
 
