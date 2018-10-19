@@ -9,6 +9,9 @@ import cv2
 
 debug = False
 
+def edge_detection(img):
+    return cv2.Canny(img, 0, 255)
+
 def disable_transformation():
     cfg.brightness_probability = 0
     cfg.contrast_probability = 0
@@ -401,34 +404,34 @@ def load_files(raw_files):
                 for lny in range(len(labs[lnx])):
 
                     lbl = labs[lnx][lny]
-
-                    col = 0
-
-                    if (lbl[4] > 0 and object_detection[im][lnx][lny] > 0):
-                        col = 255
-
-                    lbl[0] = lbl[0] / cfg.grid_shape[0]
-                    lbl[1] = lbl[1] / cfg.grid_shape[1]
-                    lbl[2] = lbl[2] / cfg.grid_shape[0]
-                    lbl[3] = lbl[3] / cfg.grid_shape[1]
-                    x1, y1 = (int(width * (lbl[0] - lbl[2]/2)),
-                              int(height * (lbl[1] - lbl[3]/2)))
-                    x2, y2 = (int(width * (lbl[0] + lbl[2]/2)),
-                              int(height * (lbl[1] + lbl[3]/2)))
-                    cv2.rectangle(image,
-                                  (x1, y1),
-                                  (x2, y2),
-                                  127, 3, 4)
-
-                    cv2.rectangle(image,
-                                  (int((x1+x2)/2-1), int((y1+y2)/2-1)),
-                                  (int((x1+x2)/2+1), int((y1+y2)/2+1)),
-                                  127, 3, 4)
-
-                    cv2.rectangle(image,
-                                  (int(lny/cfg.grid_shape[0]*width), int(lnx/cfg.grid_shape[0]*height)),
-                                  (int((1+lny)/cfg.grid_shape[1]*width), int((1+lnx)/cfg.grid_shape[1]*height)),
-                                  col, 1, 4)
+                    #
+                    # col = 0
+                    #
+                    # if (lbl[4] > 0 and object_detection[im][lnx][lny] > 0):
+                    #     col = 255
+                    #
+                    # lbl[0] = lbl[0] / cfg.grid_shape[0]
+                    # lbl[1] = lbl[1] / cfg.grid_shape[1]
+                    # lbl[2] = lbl[2] / cfg.grid_shape[0]
+                    # lbl[3] = lbl[3] / cfg.grid_shape[1]
+                    # x1, y1 = (int(width * (lbl[0] - lbl[2]/2)),
+                    #           int(height * (lbl[1] - lbl[3]/2)))
+                    # x2, y2 = (int(width * (lbl[0] + lbl[2]/2)),
+                    #           int(height * (lbl[1] + lbl[3]/2)))
+                    # cv2.rectangle(image,
+                    #               (x1, y1),
+                    #               (x2, y2),
+                    #               127, 3, 4)
+                    #
+                    # cv2.rectangle(image,
+                    #               (int((x1+x2)/2-1), int((y1+y2)/2-1)),
+                    #               (int((x1+x2)/2+1), int((y1+y2)/2+1)),
+                    #               127, 3, 4)
+                    #
+                    # cv2.rectangle(image,
+                    #               (int(lny/cfg.grid_shape[0]*width), int(lnx/cfg.grid_shape[0]*height)),
+                    #               (int((1+lny)/cfg.grid_shape[1]*width), int((1+lnx)/cfg.grid_shape[1]*height)),
+                    #               col, 1, 4)
 
             cv2.imshow('image',image)
             cv2.waitKey(0)

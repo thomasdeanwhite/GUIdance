@@ -113,10 +113,14 @@ def print_info(imgs, labels, classes, dataset, areas):
 
         displacement = 255/30
 
+        widget_area = 0
+        image_area = areas[i]
+
         for j in range(30):
             quantity = np.sum((imgs[0] < (j+1)*displacement).astype(np.int32) *
                               (imgs[0] > j*displacement).astype(np.int32)).astype(np.float32)
             pixels[j] += quantity
+
 
         for x in range(cfg.grid_shape[0]):
             for y in range(cfg.grid_shape[1]):
@@ -129,11 +133,16 @@ def print_info(imgs, labels, classes, dataset, areas):
                     widget_q += 1
 
                     with open("label_dims.csv", "a") as file:
+                        area = str(labels[i,x,y,2]/cfg.grid_shape[0] * labels[i,x,y,3]/cfg.grid_shape[1])
                         file.write(str(i) + "," + yolo.names[c] + ",width," + str(labels[i,x,y,2]/cfg.grid_shape[0]) + "," + dataset + "\n")
                         file.write(str(i) + "," + yolo.names[c] + ",height," + str(labels[i,x,y,3]/cfg.grid_shape[1]) + "," + dataset + "\n")
-                        file.write(str(i) + "," + yolo.names[c] + ",area," + str(labels[i,x,y,2]/cfg.grid_shape[0] * labels[i,x,y,3]/cfg.grid_shape[1]) + "," + dataset + "\n")
+                        file.write(str(i) + "," + yolo.names[c] + ",area," + area + "," + dataset + "\n")
+                        widget_area += image_area*labels[i,x,y,2]/cfg.grid_shape[0]*labels[i,x,y,3]/cfg.grid_shape[0]
 
         quantities.append(widget_q)
+
+        with open("white_space.csv", "a") as file:
+            file.write(str(i) + "," + str(image_area) + "," + str(np.sum(class_count)) + "," + str(widget_area) + "," + dataset + "\n")
 
         for c in range(len(class_count)):
             with open("class_count.csv", "a") as file:
@@ -222,6 +231,9 @@ if __name__ == '__main__':
 
     with open("label_dims.csv", "w") as file:
         file.write("img,class,dimension,value,dataset" + "\n")
+
+    with open("white_space.csv", "w+") as file:
+        file.write("img,area,widget_count,widget_area,dataset\n")
 
     valid_file = cfg.data_dir + "/test.txt"
 

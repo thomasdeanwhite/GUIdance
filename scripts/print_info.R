@@ -3,6 +3,7 @@ library(ggplot2)
 library(tidyr)
 library(readr)
 library("RColorBrewer")
+library(ggthemes)
 args = commandArgs(TRUE)
 
 load_data <- function(directory, filename){
@@ -77,5 +78,42 @@ p = data %>% filter(dimension != "area") %>%
   
 ggsave("label_dims.png", p, height=10, width=10, dpi=150)
 
+data <- load_data('/home/thomas/work/GUIdance', "white_space.csv")
+
+p = data %>%
+  ggplot(aes(area, widget_count, color=dataset)) +
+  #geom_boxplot() + 
+  #geom_bar(color="grey40", alpha=0.2, stat="identity") +
+  geom_point()+
+  #geom_smooth(method="lm", se=F) +
+  labs(x="Image Area",
+       y="Widget Count",
+       title="Widget Count against Image Area") +
+  #scale_x_discrete() +
+  #scale_y_log10() +
+  #facet_wrap(~dataset, scales = "free") +
+  theme_minimal() +
+  scale_color_grey(start=0.4, end=1.0)
+#theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+
+ggsave("widget_quant.png", p, height=10, width=10, dpi=150)
+
+p = data %>%
+  ggplot(aes(area, widget_area, color=dataset)) +
+  #geom_boxplot() + 
+  #geom_bar(color="grey40", alpha=0.2, stat="identity") +
+  geom_point()+
+  #geom_smooth(method="lm", se=F) +
+  labs(x="Image Area",
+       y="Widget Count",
+       title="Widget Count against Image Area") +
+  #scale_x_discrete() +
+  #scale_y_log10() +
+  #facet_wrap(~dataset, scales = "free") +
+  theme_minimal() +
+  scale_color_grey(start=0, end=0.7)
+#theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+
+ggsave("widget_area.png", p, height=5, width=5, dpi=150)
 
 print(p)

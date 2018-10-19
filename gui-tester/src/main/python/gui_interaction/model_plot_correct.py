@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
         conf_thresh = 0.1
 
-        boxes, correct = sess.run([yolo.output, yolo.matches], feed_dict={
+        boxes, correct, iou = sess.run([yolo.output, yolo.matches, yolo.best_iou], feed_dict={
             yolo.x: imgs,
             yolo.anchors: anchors,
             yolo.train_bounding_boxes: labels,
@@ -67,13 +67,18 @@ if __name__ == '__main__':
             yolo.object_detection_threshold: conf_thresh
         })
 
-        proc_correct = yolo.convert_correct_to_list(correct)
-        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()[0]
+        proc_correct = yolo.convert_correct_to_list(correct)[0]
+        # proc_iou = yolo.convert_correct_to_list(np.reshape(iou, [-1, cfg.grid_shape[0], cfg.grid_shape[1]]))[0]
+        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True)
+        proc_boxes = yolo.calculate_max_iou(proc_boxes, np.reshape(labels, [labels.shape[0], -1, 5]))
+
+        proc_boxes = proc_boxes.tolist()[0]
 
 
 
 
-        #proc_boxes.sort(key=lambda box: -box[5])
+
+    #proc_boxes.sort(key=lambda box: -box[5])
 
         #proc_boxes
 
@@ -137,7 +142,7 @@ if __name__ == '__main__':
 
             color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
-            if cor:
+            if box[6] > 0.5:
                 correct_q += 1
                 color = [255, 255, 255]
             else:
@@ -165,7 +170,7 @@ if __name__ == '__main__':
 
             hex = cls.encode('utf-8').hex()[0:6]
 
-            if cor:
+            if box[6] > 0.5:
                 color = [255, 255, 255]
             else:
                 color = [0, 0, 0]
@@ -186,12 +191,12 @@ if __name__ == '__main__':
                 y2 = int(height*box[4])
 
                 cv2.rectangle(img,
-                              (x1, y1-int(10*box[4])-15),
-                              (x1 + (5 + len(cls))*7, y1),
+                              (x1, y1-int(10+box[4])),
+                              (x1 + (5 + len(cls)+10)*7, y1),
                               (color[0], color[1], color[2]), -1, 8)
 
-                cv2.putText(img, cls + str(round(box[5]*100)),
-                            (x1, y1-int(10*box[4])-2),
+                cv2.putText(img, cls + " conf:" + str(round(box[5]*100)) + " iou:" + str(round(box[6]*100)),
+                            (x1, y1-3),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.4, text_col, 1)
 
@@ -200,3 +205,5 @@ if __name__ == '__main__':
         cv2.imshow('image',img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+
+        print(proc_iou)

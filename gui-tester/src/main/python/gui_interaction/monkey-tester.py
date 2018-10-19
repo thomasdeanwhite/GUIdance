@@ -14,6 +14,7 @@ import time
 import subprocess
 import Xlib
 from pynput import keyboard
+import signal
 import timeit
 
 
@@ -25,13 +26,43 @@ debug = False
 
 quit_counter = 3
 
+working_dir = ""
+aut_command = ""
+process = -1
+
 def on_release(key):
     global running, quit_counter
     if key == keyboard.Key.f1:
         quit_counter -= 1
         if quit_counter == 0:
             running = False
-            print("Killing tester.")
+            print("[Random] Killing tester.")
+
+def kill_old_process():
+    global process
+
+    if process != -1:
+        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        process = -1
+
+def start_aut():
+    global working_dir, aut_command, process
+
+    if aut_command != "":
+        print("[Random] Starting AUT")
+
+        kill_old_process()
+
+        os.chdir(working_dir)
+
+        with open('stdout.log', "a+") as outfile:
+            with open('stderr.log', "a+") as errfile:
+                outfile.write("\n" + str(time.time()) + "\n")
+                process = subprocess.Popen(aut_command.split(), stdout=outfile, stderr=errfile)
+
+                time.sleep(10)
+    else:
+        print("[Random] Could not find AUT to start!")
 
 def get_window_size(window_name):
     global sub_window
@@ -52,7 +83,7 @@ def get_window_size(window_name):
             tags = window.get_wm_class()
             if tags != None and len(tags) > 1:
                 name = tags[1]
-            print(window.get_wm_class())
+            print("[Random]", window.get_wm_class())
             if isinstance(name, str):
                 for w_n in win_names:
                     if w_n.lower() in name.lower():
@@ -82,10 +113,10 @@ def get_window_size(window_name):
                 app_y += p_geom.y
                 parent_win = parent_win.query_tree().parent
         except Exception as e:
-            print('Screen cap failed: '+ str(e))
+            print('[Random] Screen cap failed: '+ str(e))
         return app_x, app_y, app_w, app_h
     except Exception as e:
-        print('Screen cap failed: '+ str(e))
+        print('[Random] Screen cap failed: '+ str(e))
     return 0, 0, 0, 0
 
 def generate_input_string():
@@ -100,10 +131,13 @@ if __name__ == '__main__':
         if len(sys.argv) > 1:
             cfg.window_name = sys.argv[1]
 
-        if len(sys.argv) > 1:
-            cfg.window_name = sys.argv[1]
+        if len(sys.argv) > 3:
+            working_dir = sys.argv[2]
+            aut_command = sys.argv[3]
 
-        print("Starting in 5 seconds")
+            start_aut()
+
+        print("[Random] Starting in 5 seconds")
 
         time.sleep(5)
 
@@ -126,10 +160,14 @@ if __name__ == '__main__':
             app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
 
             while app_w == 0:
-                time.sleep(1)
+
+                kill_old_process()
+
+                start_aut()
+
                 app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
                 if time.time() - start_time > runtime:
-                    print("Couldn't find application window!")
+                    print("[Random] Couldn't find application window!")
                     break
 
             if time.time() - start_time > runtime:
@@ -154,7 +192,7 @@ if __name__ == '__main__':
 
             end_iteration_time = time.time()
             if debug:
-                print("Iteration Time:", end_iteration_time - iteration_time)
+                print("[Random] Iteration Time:", end_iteration_time - iteration_time)
 
             # write test info
             csv_file = "test.csv"
@@ -167,5 +205,9 @@ if __name__ == '__main__':
             # if sub_window:
             #     if random.random() < 0.05:
             #         pyautogui.press('escape')
+        kill_old_process()
+
+        time.sleep(20)
+        print("[Random] Finished testing!")
 
 

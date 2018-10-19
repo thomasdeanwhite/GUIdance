@@ -68,17 +68,42 @@ if __name__ == '__main__':
     random.shuffle(valid_images)
     valid_images = valid_images[:500]
 
-    for i in ['train.txt', 'test.txt', 'validate.txt']:
+    training_file = cfg.data_dir + "/../backup/data/train.txt"
 
-        valid_file = cfg.data_dir + "/" + i
+    with open(training_file, "r") as tfile:
+        for l in tfile:
 
-        with open(valid_file, "r") as tfile:
-            for l in tfile:
-                file_num = int(pattern.findall(l)[-1])
+            file_num = int(pattern.findall(l)[-1])
 
-                if file_num <= 1:
-                    #print(file_num)
-                    real_images.append(l.strip())
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+
+
+    valid_file = cfg.data_dir + "/../backup/data/validate.txt"
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+    valid_file = cfg.data_dir + "/../backup/data/test.txt"
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+    real_images = [f.replace("/data/acp15tdw", "/data/acp15tdw/backup") for f in real_images]
+
+    real_images_manual = [os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(cfg.data_dir + "/../real/data/images")) for f in fn]
+
+    for ri in real_images_manual:
+        real_images.append(ri)
 
     print("Found", len(real_images), "real GUI screenshots.")
 
@@ -101,7 +126,7 @@ if __name__ == '__main__':
 
 
         learning_rate = tf.train.exponential_decay(0.1, global_step,
-                                                   batches, 0.9, staircase=True)
+                                                   1, 0.95, staircase=True)
         #learning_rate = tf.placeholder(tf.float64)
         #learning_r = cfg.learning_rate_start
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -123,9 +148,8 @@ if __name__ == '__main__':
         if (real_batches < 1):
             real_batches = 1
 
-        gpu_options = tf.GPUOptions(allow_growth=True)
-
-        config = tf.ConfigProto(allow_soft_placement = True)
+        config = tf.ConfigProto(allow_soft_placement = True)#, log_device_placement=True)
+        config.gpu_options.allow_growth = True
 
         with tf.Session(config=config) as sess:
 
@@ -364,7 +388,14 @@ if __name__ == '__main__':
 
                 losses = [0, 0, 0, 0, 0, 0, 0, 0]
 
+                progress_t = 0
+
                 for j in range(batches):
+
+                    if i == 0 and j/batches > progress_t:
+                        print("Progress:", round(100*progress_t), "%.")
+                        progress_t += 0.1
+
                     gc.collect()
                     if (cfg.enable_logging):
                         merge = tf.summary.merge_all()

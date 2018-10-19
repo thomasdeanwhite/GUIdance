@@ -86,19 +86,20 @@ t_data$busy_cat = factor(data$busy_cat, levels=c('desolate', 'few', 'many', 'cro
 p = t_data  %>%
   #filter(iou_threshold == 0.5) %>%
   #filter(correct==1) %>%
-  ggplot(aes(x=busy_cat, y=value, fill=dataset)) +
-  #geom_boxplot() +
-  geom_bar(position = "dodge", stat = "summary", fun.y = "mean") +
+  #group_by(size_cat) %>%
+  ggplot(aes(x=Sensitivity, y=value, fill=dataset)) +
+  geom_boxplot() +
+  #geom_bar(position = "dodge", stat = "summary", fun.y="sum") +
   #geom_smooth(method="lm", se=F) +
   #scale_y_log10() +
-  labs(x="Widget Quantity",
+  labs(x="Image Size",
        y="",
        title="") +
   #scale_x_discrete() +
   #scale_y_log10() +
   #facet_wrap(~class) +
   theme_minimal() +
-  facet_wrap(~Sensitivity) +
+  #facet_wrap(busy_cat~size_cat) +
   #theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   scale_fill_grey(start=0.3, end=0.6)
 #scale_fill_brewer(palette="Set1") +

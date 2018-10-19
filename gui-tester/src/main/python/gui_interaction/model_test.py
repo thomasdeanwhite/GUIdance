@@ -16,6 +16,7 @@ import Xlib
 import time
 from pynput import keyboard
 import data_loader
+import signal
 import timeit
 
 running = True
@@ -24,15 +25,45 @@ debug = False
 
 quit_counter = 3
 
+working_dir = ""
+aut_command = ""
+process = -1
+
 def on_release(key):
     global running, quit_counter
     if key == keyboard.Key.f1:
         quit_counter -= 1
         if quit_counter == 0:
             running = False
-            print("Killing tester.")
+            print("[Detection] Killing tester.")
 
 sub_window = False
+
+def kill_old_process():
+    global process
+
+    if process != -1:
+        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        process = -1
+
+def start_aut():
+    global working_dir, aut_command, process
+
+    if aut_command != "":
+        print("[Detection] Starting AUT")
+
+        kill_old_process()
+
+        os.chdir(working_dir)
+
+        with open('stdout.log', "a+") as outfile:
+            with open('stderr.log', "a+") as errfile:
+                outfile.write("\n" + str(time.time()) + "\n")
+                process = subprocess.Popen(aut_command.split(), stdout=outfile, stderr=errfile)
+
+        time.sleep(10)
+    else:
+        print("[Detection] Could not find AUT to start!")
 
 def get_window_size(window_name):
     global sub_window
@@ -55,7 +86,7 @@ def get_window_size(window_name):
             if tags != None and len(tags) > 1:
                 name = tags[1]
             if debug:
-                print(window.get_wm_class())
+                print("[Detection]", window.get_wm_class())
             if isinstance(name, str):
                 for w_n in win_names:
                     if w_n.lower() in name.lower():
@@ -85,10 +116,10 @@ def get_window_size(window_name):
                 app_y += p_geom.y
                 parent_win = parent_win.query_tree().parent
         except Exception as e:
-            print('Screen cap failed: '+ str(e))
+            print('[Detection] Screen cap failed: '+ str(e))
         return app_x, app_y, app_w, app_h
     except Exception as e:
-        print('Screen cap failed: '+ str(e))
+        print('[Detection] Screen cap failed: '+ str(e))
     return 0, 0, 0, 0
 
 def generate_input_string():
@@ -126,7 +157,7 @@ def perform_interaction(best_box):
     #
     # cv2.imwrite(output_img + ".jpg", image_clicked)
     #
-    # widget = yolo.names[int(best_box[0])]
+    # widget = yolo.names[int(best_box[0   ])]
     #
     # interactions.append([widget, event, input_string])
     #
@@ -246,7 +277,7 @@ def prepare_screenshot(raw_image):
     raw_image = data_loader.pad_image(raw_image)
     et = time.time()
     if debug:
-        print("PADDING:", et - st)
+        print("[Detection] PADDING:", et - st)
     image = cv2.resize(raw_image, (cfg.width, cfg.height))
     #
     # x, y, w, h = convert_coords(0.3, 0.3, 0.4, 0.4, aspect)
@@ -274,226 +305,243 @@ if __name__ == '__main__':
         if len(sys.argv) > 1:
             cfg.window_name = sys.argv[1]
 
-        with tf.device(cfg.gpu):
+        if len(sys.argv) > 3:
+            working_dir = sys.argv[2]
+            aut_command = sys.argv[3]
 
-            event = 0
+            start_aut()
 
-            yolo = Yolo()
+        event = 0
 
-            yolo.create_network()
+        yolo = Yolo()
 
-            saver = tf.train.Saver()
+        yolo.create_network()
 
-            model_file = os.getcwd() + "/" + cfg.weights_dir + "/model.ckpt"
+        saver = tf.train.Saver()
 
-            config = tf.ConfigProto(allow_soft_placement = True)
+        model_file = os.getcwd() + "/" + cfg.weights_dir + "/model.ckpt"
 
-            states = []
+        #config = tf.ConfigProto(allow_soft_placement = True)
 
-            runtime = round(time.time())
+        config = tf.ConfigProto(
+            device_count = {'GPU': 0}
+        )
 
-            output_dir = cfg.output_dir + "/" + str(runtime)
+        states = []
 
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+        runtime = round(time.time())
 
-            if not os.path.exists(output_dir + "/images"):
-                os.makedirs(output_dir + "/images")
+        output_dir = cfg.output_dir + "/" + str(runtime)
 
-            test_file = output_dir + "/test.txt"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
-            with open(test_file, "w+") as t_f:
-                t_f.write("")
+        if not os.path.exists(output_dir + "/images"):
+            os.makedirs(output_dir + "/images")
 
-            with tf.Session(config=config) as sess:
+        test_file = output_dir + "/test.txt"
 
-                init_op = tf.global_variables_initializer()
-                model = sess.run(init_op)
-                if os.path.isfile(os.getcwd() + "/" + cfg.weights_dir + "/checkpoint"):
-                    saver.restore(sess, model_file)
-                    print("Restored model")
-                yolo.set_training(False)
+        with open(test_file, "w+") as t_f:
+            t_f.write("")
 
-                anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
+        with tf.Session(config=config) as sess:
 
-                start_time = time.time()
+            init_op = tf.global_variables_initializer()
+            model = sess.run(init_op)
+            if os.path.isfile(os.getcwd() + "/" + cfg.weights_dir + "/checkpoint"):
+                saver.restore(sess, model_file)
+                print("[Detection] Restored model")
+            yolo.set_training(False)
 
-                last_image = None
+            anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
 
-                boxes = []
+            start_time = time.time()
 
-                interactions = []
+            last_image = None
 
-                runtime = cfg.test_time #5 mins
+            boxes = []
 
-                last_u_input = ""
+            interactions = []
 
-                actions = 0
+            runtime = cfg.test_time #5 mins
 
-                while ((time.time() - start_time < runtime and not cfg.use_iterations) or
-                       (actions < cfg.test_iterations and cfg.use_iterations)) and running:
-                    iteration_time = time.time()
+            last_u_input = ""
 
-                    exec_time = time.time() - start_time
+            actions = 0
 
-                    os.system('wmctrl -c "firefox"')
+            while ((time.time() - start_time < runtime and not cfg.use_iterations) or
+                   (actions < cfg.test_iterations and cfg.use_iterations)) and running:
+                iteration_time = time.time()
+
+                exec_time = time.time() - start_time
+
+                os.system('wmctrl -c "firefox"')
+
+                app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
+
+                while app_w == 0:
+
+                    start_aut()
 
                     app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
-
-                    while app_w == 0:
-                        time.sleep(1)
-                        app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
-                        if time.time() - start_time > runtime:
-                            print("Couldn't find application window!")
-                            break
-
                     if time.time() - start_time > runtime:
+                        print("[Detection] Couldn't find application window!")
                         break
 
-                    image = pyautogui.screenshot(region=(app_x, app_y, app_w, app_h)).convert("L")
+                if time.time() - start_time > runtime:
+                    break
 
-                    image = np.array(image)
+                image = pyautogui.screenshot(region=(app_x, app_y, app_w, app_h)).convert("L")
 
-                    # raw_image = image[app_y:app_y+app_h, app_x:app_x+app_w]
+                image = np.array(image)
 
-                    ih, iw = image.shape[:2]
+                # raw_image = image[app_y:app_y+app_h, app_x:app_x+app_w]
 
-                    aspect = iw/ih
+                ih, iw = image.shape[:2]
 
-                    imgs = prepare_screenshot(image)
+                aspect = iw/ih
 
-                    gen_boxes = True
+                imgs = prepare_screenshot(image)
 
-                    for l in states:
-                        diff = np.sum(np.square(image-l[0]))/image.size
-                        if diff < 2:
-                            gen_boxes = False
-                            proc_boxes = l[1]
+                gen_boxes = True
 
-                    last_image = image
+                for l in states:
+                    diff = np.sum(np.square(image-l[0]))/image.size
+                    if diff < 2:
+                        gen_boxes = False
+                        proc_boxes = l[1]
 
-                    if gen_boxes or len(proc_boxes) < 3:
+                last_image = image
 
-                        #print("New state found!", len(states), "states found total.")
+                if gen_boxes or len(proc_boxes) < 3:
 
-                        st = time.time()
+                    #print("New state found!", len(states), "states found total.")
 
-                        boxes = sess.run(yolo.output, feed_dict={
-                            yolo.x: imgs,
-                            yolo.anchors: anchors,
-                        })
+                    st = time.time()
 
-                        et = time.time()
-                        if debug:
-                            print("ANN:", et - st)
+                    boxes = sess.run(yolo.output, feed_dict={
+                        yolo.x: imgs,
+                        yolo.anchors: anchors,
+                    })
 
-                        st = time.time()
-                        p_boxes = convert_boxes(boxes)
-                        # pbi = 0
-                        # while pbi < p_boxes.shape[0]:
-                        #     pb = p_boxes[pbi]
-                        #     if pb[5] < cfg.object_detection_threshold:
-                        #         p_boxes = np.delete(p_boxes, pbi, axis=0)
-                        #     else:
-                        #         pbi += 1
-
-                        et = time.time()
-                        if debug:
-                            print("CONVERT:", et - st)
-
-                        total = np.sum(p_boxes[:,5])
-
-                        p_boxes[:,5] = p_boxes[:,5]/total
-
-                        proc_boxes = p_boxes#.tolist()
-
-                        #states.append([image, proc_boxes])
-
-                    for box_num in range(5):
-
-                        if len(proc_boxes) < 1:
-                            cfg.object_detection_threshold *= 0.9
-                            continue
-
-                        input_string = generate_input_string()
-
-                        #highest_conf = proc_boxes[0][5]
-                        #best_box = proc_boxes[0]
-
-                        best_box = select_random_box(proc_boxes)
-
-                        #best_box = random.sample(proc_boxes, 1)[0]
-
-                        rand_num = random.random()
-
-                        # for b in proc_boxes:
-                        #     #if (b[5] > highest_conf):
-                        #     rand_num -= b[5]
-                        #     if rand_num <= 0:
-                        #         #highest_conf = b[5]
-                        #         best_box = b
-                        #         break;
-
-                        np.delete(proc_boxes, best_box)
-
-                        height, width = image.shape[:2]
-
-                        current_box = best_box
-
-                        best_box[1:5] = convert_coords(best_box[1], best_box[2], best_box[3], best_box[4], aspect)
-
-                        perform_interaction(best_box)
-
-                        actions += 1
-
-                        # proc_boxes.remove(current_box)
-
-                    # if sub_window:
-                    #     if random.random() < 0.05:
-                    #         pyautogui.press('escape')
-
-                    end_iteration_time = time.time()
+                    et = time.time()
                     if debug:
-                        print("Iteration Time:", end_iteration_time - iteration_time)
+                        print("[Detection] ANN:", et - st)
 
-                    # write test info
-                    csv_file = "test.csv"
+                    st = time.time()
+                    p_boxes = convert_boxes(boxes)
+                    # pbi = 0
+                    # while pbi < p_boxes.shape[0]:
+                    #     pb = p_boxes[pbi]
+                    #     if pb[5] < cfg.object_detection_threshold:
+                    #         p_boxes = np.delete(p_boxes, pbi, axis=0)
+                    #     else:
+                    #         pbi += 1
 
-                    with open(csv_file, "a") as p_f:
-                        p_f.write(str(exec_time) + "," + str(actions) + ",detection," + str(iteration_time) + "," + cfg.window_name + "\n")
+                    et = time.time()
+                    if debug:
+                        print("[Detection] CONVERT:", et - st)
+
+                    total = np.sum(p_boxes[:,5])
+
+                    p_boxes[:,5] = p_boxes[:,5]/total
+
+                    proc_boxes = p_boxes#.tolist()
+
+                    #states.append([image, proc_boxes])
+
+                for box_num in range(5):
+
+                    if len(proc_boxes) < 1:
+                        cfg.object_detection_threshold *= 0.9
+                        continue
+
+                    input_string = generate_input_string()
+
+                    #highest_conf = proc_boxes[0][5]
+                    #best_box = proc_boxes[0]
+
+                    best_box = select_random_box(proc_boxes)
+
+                    #best_box = random.sample(proc_boxes, 1)[0]
+
+                    rand_num = random.random()
+
+                    # for b in proc_boxes:
+                    #     #if (b[5] > highest_conf):
+                    #     rand_num -= b[5]
+                    #     if rand_num <= 0:
+                    #         #highest_conf = b[5]
+                    #         best_box = b
+                    #         break;
+
+                    np.delete(proc_boxes, best_box)
+
+                    height, width = image.shape[:2]
+
+                    current_box = best_box
+
+                    best_box[1:5] = convert_coords(best_box[1], best_box[2], best_box[3], best_box[4], aspect)
+
+                    perform_interaction(best_box)
+
+                    actions += 1
+
+                    # proc_boxes.remove(current_box)
+
+                # if sub_window:
+                #     if random.random() < 0.05:
+                #         pyautogui.press('escape')
+
+                end_iteration_time = time.time()
+                if debug:
+                    print("[Detection] Iteration Time:", end_iteration_time - iteration_time)
+
+                # write test info
+                csv_file = "test.csv"
+
+                with open(csv_file, "a") as p_f:
+                    p_f.write(str(exec_time) + "," + str(actions) + ",detection," + str(iteration_time) + "," + cfg.window_name + "\n")
 
 
 
-                print("Writing concrete tests")
+            # print("Writing concrete tests")
+            #
+            # # write python regression test
+            # python_file = output_dir + "/test.py"
+            #
+            # # write visual test
+            # html_file = output_dir + "/test.html"
+            #
+            # with open(python_file, "w+") as p_f:
+            #     # TODO: Write python functions for click, type, etc
+            #     p_f.write("")
+            #
+            # with open(html_file, "w+") as h_f:
+            #     h_f.write("<html><head><title>Test " + str(runtime) + "</title></head>\n"
+            #                 "<body>")
+            #
+            # for i in interactions:
+            #     with open(python_file, "a+") as p_f:
+            #         # write python regression test
+            #         p_f.write("click(" + str(i[1]) + ")\n")
+            #         if i[0] == "text_field":
+            #             p_f.write("type(" + i[2] + ")\n")
+            #
+            #     with open(html_file, "a+") as h_f:
+            #         # write python regression test
+            #         output_img = output_dir + "/images/" + str(i[1]) + ".jpg"
+            #         h_f.write("<br />click( <img src='" + output_img + "' /> )<br />\n")
+            #         if i[0] == "text_field":
+            #             h_f.write("type(" + i[2] + ")<br />\n")
+            #
+            #
+            # with open(html_file, "a+") as h_f:
+            #     h_f.write("</body></html>")
 
-                # write python regression test
-                python_file = output_dir + "/test.py"
+            kill_old_process()
 
-                # write visual test
-                html_file = output_dir + "/test.html"
-
-                with open(python_file, "w+") as p_f:
-                    # TODO: Write python functions for click, type, etc
-                    p_f.write("")
-
-                with open(html_file, "w+") as h_f:
-                    h_f.write("<html><head><title>Test " + str(runtime) + "</title></head>\n"
-                                "<body>")
-
-                for i in interactions:
-                    with open(python_file, "a+") as p_f:
-                        # write python regression test
-                        p_f.write("click(" + str(i[1]) + ")\n")
-                        if i[0] == "text_field":
-                            p_f.write("type(" + i[2] + ")\n")
-
-                    with open(html_file, "a+") as h_f:
-                        # write python regression test
-                        output_img = output_dir + "/images/" + str(i[1]) + ".jpg"
-                        h_f.write("<br />click( <img src='" + output_img + "' /> )<br />\n")
-                        if i[0] == "text_field":
-                            h_f.write("type(" + i[2] + ")<br />\n")
+            time.sleep(20)
+            print("[Detection] Finished testing!")
 
 
-                with open(html_file, "a+") as h_f:
-                    h_f.write("</body></html>")

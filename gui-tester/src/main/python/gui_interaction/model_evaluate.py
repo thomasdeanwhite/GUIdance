@@ -35,6 +35,8 @@ if __name__ == '__main__':
 
     pattern = re.compile(".*\/([0-9]+).*")
 
+    training_file = cfg.data_dir + "/../backup/data/train.txt"
+
     with open(training_file, "r") as tfile:
         for l in tfile:
 
@@ -54,13 +56,6 @@ if __name__ == '__main__':
             if file_num <= 243:
                 real_images.append(l.strip())
 
-    real_images = [f.replace("/data/acp15tdw", "/data/acp15tdw/backup") for f in real_images]
-
-    real_images_manual = [os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(cfg.data_dir + "/../real/data/images")) for f in fn]
-
-    for ri in real_images_manual:
-        real_images.append(ri)
-
     valid_file = cfg.data_dir + "/../backup/data/test.txt"
 
     with open(valid_file, "r") as tfile:
@@ -70,6 +65,13 @@ if __name__ == '__main__':
             if file_num <= 243:
                 real_images.append(l.strip())
 
+    real_images = [f.replace("/data/acp15tdw", "/data/acp15tdw/backup") for f in real_images]
+
+    real_images_manual = [os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(cfg.data_dir + "/../real/data/images")) for f in fn]
+
+    for ri in real_images_manual:
+        real_images.append(ri)
+
     valid_file = cfg.data_dir + "/test.txt"
 
     with open(valid_file, "r") as tfile:
@@ -77,9 +79,9 @@ if __name__ == '__main__':
             file_num = int(pattern.findall(l)[-1])
             valid_images.append(l.strip())
 
-    #valid_images = random.sample(valid_images, cfg.batch_size)
+    # valid_images = random.sample(valid_images, cfg.batch_size)
     #
-    #valid_images = valid_images[:100]
+    # valid_images = valid_images[:100]
 
     with tf.device(cfg.gpu):
 
@@ -164,7 +166,7 @@ if __name__ == '__main__':
 
             base_iou_threshold = 0.5
             iou_threshold = base_iou_threshold
-            confidence_threshold = 0.15
+            confidence_threshold = 0.1
 
 
 
@@ -258,10 +260,16 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: confidence_threshold
                     })
 
-                    labels = yolo.convert_net_to_bb(res, filter_top=True)[0]
+                    boxes = yolo.convert_net_to_bb(res, filter_top=True)
+
+                    boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels, [boxes.shape[0], -1, 5]))
 
                     if one_class:
-                        labels[..., 0] = 0
+                        boxes[..., 0] = 0
+
+
+                    labels = boxes[0]
+
 
                     #v_obj_detection = np.zeros_like(v_obj_detection)
 
@@ -331,7 +339,7 @@ if __name__ == '__main__':
 
                                     if label[5] > confidence_threshold and int(label[0]) == rc:
 
-                                        class_predictions[rc].append([labels[(jc*cfg.grid_shape[1]) + ic][5], correct[0][ic][jc], iou[0][ic][jc][0][0]])
+                                        class_predictions[rc].append([label[5], label[6]>iou_threshold, label[6]])
 
                     del v_imgs
                     del v_labels
@@ -464,7 +472,15 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: confidence_threshold
                     })
 
-                    labels = yolo.convert_net_to_bb(res, filter_top=True)[0]
+                    boxes = yolo.convert_net_to_bb(res, filter_top=True)
+
+                    boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels, [boxes.shape[0], -1, 5]))
+
+                    if one_class:
+                        boxes[..., 0] = 0
+
+
+                    labels = boxes[0]
 
 
                     if one_class:
@@ -518,7 +534,7 @@ if __name__ == '__main__':
                                     label = labels[(jc*cfg.grid_shape[0]) + ic]
 
                                     if label[5] > confidence_threshold and int(label[0]) == rc:
-                                        class_predictions[rc].append([labels[(jc*cfg.grid_shape[1]) + ic][5], correct[0][ic][jc], iou[0][ic][jc][0][0]])
+                                        class_predictions[rc].append([label[5], label[6]>iou_threshold, label[6]])
 
                     del v_imgs
                     del v_labels

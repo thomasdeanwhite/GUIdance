@@ -588,4 +588,113 @@ class Yolo:
 
             corr.append(cs)
 
-        return np.reshape(np.array(corr), [-1])
+        return np.array(corr)
+
+    def calc_iou(self, r_box, p_boxes):
+
+        # r_b = np.append(real_box[1]-real_box[3]/2,
+        #        [real_box[2]-real_box[4]/2,
+        #        real_box[1]+real_box[3]/2,
+        #        real_box[2]+real_box[4]/2])
+        #
+        # p_b = np.transpose([pred_boxes[..., 1]-pred_boxes[...,3]/2,
+        #        pred_boxes[..., 2]-pred_boxes[...,4]/2,
+        #        pred_boxes[..., 1]+pred_boxes[...,3]/2,
+        #        pred_boxes[..., 2]+pred_boxes[...,4]/2])
+        #
+        # x11, y11, x12, y12 = (r_b[0],r_b[1],r_b[2],r_b[3])
+        # x21, y21, x22, y22 = (p_b[..., 0], p_b[..., 1], p_b[..., 2], p_b[..., 3])
+        #
+        # xA = np.maximum(x11, np.transpose(x21))
+        # yA = np.maximum(y11, np.transpose(y21))
+        # xB = np.minimum(x12, np.transpose(x22))
+        # yB = np.minimum(y12, np.transpose(y22))
+        #
+        # interArea = np.maximum((xB - xA + 1), 0) * np.maximum((yB - yA + 1), 0)
+        #
+        # boxAArea = (x12 - x11 + 1) * (y12 - y11 + 1)
+        # boxBArea = (x22 - x21 + 1) * (y22 - y21 + 1)
+        #
+        # iou = interArea / (boxAArea + np.transpose(boxBArea) - interArea)
+        #
+        # return iou
+
+        truth_boxes = np.stack([r_box[..., 0]-r_box[...,2]/2,
+                            r_box[..., 1]-r_box[...,3]/2,
+                            r_box[..., 0]+r_box[...,2]/2,
+                            r_box[..., 1]+r_box[...,3]/2], axis=-1)/cfg.grid_shape[0]
+
+        pred_boxes = np.stack([p_boxes[..., 1]-p_boxes[...,3]/2,
+               p_boxes[..., 2]-p_boxes[...,4]/2,
+               p_boxes[..., 1]+p_boxes[...,3]/2,
+               p_boxes[..., 2]+p_boxes[...,4]/2], axis=-1)
+
+        pred_boxes_xy = pred_boxes[..., 0:2]
+        pred_boxes_wh = pred_boxes[..., 2:4]
+
+        pred_wh_half = pred_boxes_wh/2
+        pred_min = pred_boxes_xy - pred_wh_half
+        pred_max = pred_boxes_xy + pred_wh_half
+
+        truth_boxes_xy = truth_boxes[..., 0:2]
+        truth_boxes_wh = truth_boxes[..., 2:4]
+
+        true_wh_half = truth_boxes_wh / 2
+        true_min = truth_boxes_xy - true_wh_half
+        true_max = truth_boxes_xy + true_wh_half
+
+        intersect_mins = np.maximum(pred_min,  true_min)
+        intersect_maxes = np.minimum(pred_max, true_max)
+        intersect_wh = np.maximum(intersect_maxes - intersect_mins, 0)
+        intersect_areas = intersect_wh[..., 0] * intersect_wh[..., 1]
+
+        true_areas = truth_boxes_wh[..., 0] * truth_boxes_wh[..., 1]
+        pred_areas = pred_boxes_wh[..., 0] * pred_boxes_wh[..., 1]
+
+        union_areas = pred_areas + true_areas - intersect_areas
+
+        self.loss_layers['intersect_areas'] = intersect_areas
+        self.loss_layers['union_areas'] = union_areas
+        self.loss_layers['true_areas'] = true_areas
+        self.loss_layers['pred_areas'] = pred_areas
+
+        iou = np.true_divide(intersect_areas, union_areas)
+
+        return iou
+
+
+    def calculate_max_iou(self, boxes, real_boxes):
+        ious = []
+        for i in range(boxes.shape[0]):
+            calc_iou_func = np.vectorize(self.calc_iou)
+
+            real_b = real_boxes[i]
+
+            real_b = real_b[real_b[..., 4]>0]
+
+            if real_b.shape[0] == 0:
+                ious.append(np.zeros([boxes.shape[1]]))
+                continue
+
+            iou = self.calc_iou(np.tile(np.expand_dims(real_b, 1), [1, boxes.shape[1], 1]),
+                                np.tile(np.expand_dims(boxes[i], 0), [real_b.shape[0], 1, 1]))
+            # iou = [self.calc_iou(x, boxes[i]) for x in real_b]
+
+            iou_tiledmax = np.tile(np.expand_dims(np.amax(iou, axis=1), -1), [1, boxes.shape[1]])
+
+            iou = np.where(np.equal(iou, iou_tiledmax), iou, np.zeros_like(iou))
+
+            max_iou = iou.max(0)
+
+            ious.append(max_iou)
+
+        ious = np.array(np.expand_dims(ious, -1))
+
+        return np.concatenate((boxes, ious), axis=-1)
+
+        # new_boxes = np.append(boxes, np.array(ious), axis=-1)
+        #
+        # print(new_boxes)
+        #
+        # return new_boxes
+
