@@ -10,12 +10,13 @@ import cv2
 debug = False
 
 def edge_detection(img):
-    return cv2.Canny(img, 0, 255)
+    return cv2.Canny(img.astype(np.uint8), 0, 255)
 
 def disable_transformation():
     cfg.brightness_probability = 0
     cfg.contrast_probability = 0
     cfg.invert_probability = 0
+    cfg.edge_detection_probability = 0
 
 def normalise_point(point, val):
     i = point*val
@@ -242,6 +243,9 @@ def load_files(raw_files):
 
         if random.random() < cfg.invert_probability:
             image = 255 - image
+
+        if random.random() < cfg.edge_detection_probability:
+            image = edge_detection(image)
 
         if random.random() < cfg.dimension_probability:
             # crop or padd image

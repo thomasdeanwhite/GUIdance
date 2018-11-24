@@ -56,7 +56,7 @@ if __name__ == '__main__':
         labels = np.array(labels)
         obj_detect = np.array(obj_detect)
 
-        conf_thresh = 0.1
+        conf_thresh = cfg.object_detection_threshold
 
         boxes, correct, iou = sess.run([yolo.output, yolo.matches, yolo.best_iou], feed_dict={
             yolo.x: imgs,
@@ -97,6 +97,7 @@ if __name__ == '__main__':
         i = 0
 
         correct_q = 0
+        predicted_boxes = 0
 
         #
         # while i < len(proc_boxes)-1 and trim_overlap:
@@ -151,6 +152,8 @@ if __name__ == '__main__':
             if (box[5]>cfg.object_detection_threshold):
                 print(box)
 
+                predicted_boxes += 1
+
                 x1 = max(int(width*box[1]), 0)
                 y1 = max(int(height*box[2]), 0)
                 x2 = int(width*box[3])
@@ -200,7 +203,15 @@ if __name__ == '__main__':
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.4, text_col, 1)
 
-        print(correct_q, "correct predictions.")
+        actual_labels = np.sum(labels[..., 4])
+
+        print(predicted_boxes, ":", actual_labels)
+
+        predicted_boxes = predicted_boxes if predicted_boxes > 0 else 1
+        actual_labels = actual_labels if actual_labels > 0 else 1
+
+        print(correct_q, "correct predictions. Precision:", correct_q / (predicted_boxes), "Recall:",
+              correct_q / actual_labels)
 
         cv2.imshow('image',img)
         cv2.waitKey(0)

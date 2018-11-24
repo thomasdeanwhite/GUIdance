@@ -23,7 +23,7 @@ data = data[data$epoch > 1,]
 data = data[data$loss != "mAP",]
 data = data[data$loss != "precision",]
 data = data[data$loss != "recall",]
-data = data[data$dataset != "Real",]
+#data = data[data$dataset != "Real",]
 
 
 p = data %>%

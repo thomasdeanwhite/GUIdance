@@ -36,7 +36,7 @@ def on_release(key):
         quit_counter -= 1
         if quit_counter == 0:
             running = False
-            print("[Random] Killing tester.")
+            print("[Manual] Killing tester.")
 
 def kill_old_process():
     global process_id
@@ -50,7 +50,7 @@ def start_aut():
 
     if aut_command != "":
 
-        print("[Random] Starting AUT")
+        print("[Manual] Starting AUT")
 
         kill_old_process()
 
@@ -63,7 +63,7 @@ def start_aut():
 
                 time.sleep(10)
     else:
-        print("[Random] Could not find AUT to start!")
+        print("[Manual] Could not find AUT to start!")
 
 def get_window_size(window_name):
     global sub_window
@@ -98,16 +98,13 @@ def get_window_size(window_name):
                         wid = windowID
                         win = window
                         windows.append(win)
-                        # window.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
-                        # window.configure(stack_mode=Xlib.X.Above)
+                        window.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
+                        window.configure(stack_mode=Xlib.X.Above)
                         #prop = window.get_full_property(display.intern_atom('_NET_WM_PID'), Xlib.X.AnyPropertyType)
                         #pid = prop.value[0] # PID
 
         if len(windows) > 1 and cfg.multiple_windows:
             win = random.sample(windows, 1)[0]
-
-        win.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
-        win.configure(stack_mode=Xlib.X.Above)
 
         geom = win.get_geometry()
 
@@ -123,10 +120,10 @@ def get_window_size(window_name):
                 app_y += p_geom.y
                 parent_win = parent_win.query_tree().parent
         except Exception as e:
-            print('[Random] Screen cap failed: '+ str(e))
+            print('[Manual] Screen cap failed: '+ str(e))
         return app_x, app_y, app_w, app_h
     except Exception as e:
-        print('[Random] Screen cap failed: '+ str(e))
+        print('[Manual] Screen cap failed: '+ str(e))
     return 0, 0, 0, 0
 
 def generate_input_string():
@@ -147,7 +144,7 @@ if __name__ == '__main__':
 
             start_aut()
 
-        print("[Random] Starting")
+        print("[Manual] Starting")
 
         start_time = time.time()
 
@@ -162,6 +159,8 @@ if __name__ == '__main__':
 
         while ((time.time() - start_time < runtime and not cfg.use_iterations) or
                (actions < cfg.test_iterations and cfg.use_iterations)) and running:
+
+            time.sleep(5)
 
             iteration_time = time.time()
 
@@ -179,35 +178,11 @@ if __name__ == '__main__':
 
                 app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
                 if time.time() - start_time > runtime:
-                    print("[Random] Couldn't find application window!")
+                    print("[Manual] Couldn't find application window!")
                     break
 
             if time.time() - start_time > runtime:
                 break
-
-
-            x = int(max(app_x+5, min(app_x + app_w - 5, app_x + (random.random()*app_w))))
-
-            #app_y+25 for the title screen
-            y = int(max(app_y+25, min(app_y + app_h - 5, app_y + (random.random()*app_h))))
-
-            random_interaction = random.random()
-
-            if random_interaction < 0.888888888888: # just a normal click
-                if random.random() < 0.5:
-                    pyautogui.doubleClick(x, y, interval=0.01)
-                else:
-                    pyautogui.rightClick(x, y)
-            else: # click and type 'Hello world!'
-                pyautogui.click(x, y, interval=0.01)
-                pyautogui.typewrite(generate_input_string(), interval=0.01)
-
-            end_iteration_time = time.time()
-            if debug:
-                print("[Random] Iteration Time:", end_iteration_time - iteration_time)
-
-            # write test info
-            actions += 1
 
             with open(csv_file, "a+") as p_f:
                 # TODO: Write python functions for click, type, etc
@@ -218,6 +193,6 @@ if __name__ == '__main__':
         kill_old_process()
 
         time.sleep(20)
-        print("[Random] Finished testing!")
+        print("[Manual] Finished testing!")
 
 

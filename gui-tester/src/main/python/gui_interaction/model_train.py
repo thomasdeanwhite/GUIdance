@@ -105,6 +105,12 @@ if __name__ == '__main__':
     for ri in real_images_manual:
         real_images.append(ri)
 
+    # random.seed(cfg.random_seed)
+    # random.shuffle(real_images)
+    # training_images = real_images[:100]
+    #
+    # real_images = real_images[100:]
+
     print("Found", len(real_images), "real GUI screenshots.")
 
     #valid_images = random.sample(valid_images, cfg.batch_size)
@@ -126,7 +132,7 @@ if __name__ == '__main__':
 
 
         learning_rate = tf.train.exponential_decay(0.1, global_step,
-                                                   1, 0.95, staircase=True)
+                                                   1, 0.9, staircase=True)
         #learning_rate = tf.placeholder(tf.float64)
         #learning_r = cfg.learning_rate_start
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -134,7 +140,7 @@ if __name__ == '__main__':
         with tf.control_dependencies(update_ops):
             yolo.set_update_ops(update_ops)
 
-            train_step = tf.train.AdadeltaOptimizer(learning_rate). \
+            train_step = tf.train.AdamOptimizer(1e-5). \
                 minimize(yolo.loss)
 
         saver = tf.train.Saver()
@@ -388,12 +394,13 @@ if __name__ == '__main__':
 
                 losses = [0, 0, 0, 0, 0, 0, 0, 0]
 
-                progress_t = 0
+                progress_t = 0.1
 
                 for j in range(batches):
 
-                    if i == 0 and j/batches > progress_t:
-                        print("Progress:", round(100*progress_t), "%.")
+                    if j/batches > progress_t:
+                        sys.stdout.write("50%" if progress_t == 0.5 else "== ")
+                        sys.stdout.flush()
                         progress_t += 0.1
 
                     gc.collect()

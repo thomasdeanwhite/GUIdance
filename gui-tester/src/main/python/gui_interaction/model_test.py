@@ -27,7 +27,7 @@ quit_counter = 3
 
 working_dir = ""
 aut_command = ""
-process = -1
+process_id = -1
 
 def on_release(key):
     global running, quit_counter
@@ -40,16 +40,17 @@ def on_release(key):
 sub_window = False
 
 def kill_old_process():
-    global process
+    global process_id
 
-    if process != -1:
-        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-        process = -1
+    if process_id != -1:
+        os.killpg(os.getpgid(process_id.pid), signal.SIGTERM)
+        process_id = -1
 
 def start_aut():
-    global working_dir, aut_command, process
+    global working_dir, aut_command, process_id
 
     if aut_command != "":
+
         print("[Detection] Starting AUT")
 
         kill_old_process()
@@ -59,7 +60,7 @@ def start_aut():
         with open('stdout.log', "a+") as outfile:
             with open('stderr.log', "a+") as errfile:
                 outfile.write("\n" + str(time.time()) + "\n")
-                process = subprocess.Popen(aut_command.split(), stdout=outfile, stderr=errfile)
+                process_id = subprocess.Popen(aut_command.split(), stdout=outfile, stderr=errfile, preexec_fn=os.setsid)
 
         time.sleep(10)
     else:
@@ -79,6 +80,7 @@ def get_window_size(window_name):
         windowIDs = root.get_full_property(display.intern_atom('_NET_CLIENT_LIST'), Xlib.X.AnyPropertyType).value
         wid = 0
         win = None
+        windows = []
         for windowID in windowIDs:
             window = display.create_resource_object('window', windowID)
             name = window.get_wm_name() # Title
@@ -97,10 +99,17 @@ def get_window_size(window_name):
                         #         os.system("xkill -id " + wid)
                         wid = windowID
                         win = window
-                        window.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
-                        window.configure(stack_mode=Xlib.X.Above)
+                        windows.append(win)
+                        # window.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
+                        # window.configure(stack_mode=Xlib.X.Above)
                         #prop = window.get_full_property(display.intern_atom('_NET_WM_PID'), Xlib.X.AnyPropertyType)
                         #pid = prop.value[0] # PID
+
+        if len(windows) > 1 and cfg.multiple_windows:
+            win = random.sample(windows, 1)[0]
+
+        win.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
+        win.configure(stack_mode=Xlib.X.Above)
 
         geom = win.get_geometry()
 
@@ -264,11 +273,11 @@ def perform_interaction(best_box):
         pyautogui.typewrite(generate_input_string(), interval=0.01)
 
 def select_random_box(proc_boxes):
-    prob_dist = proc_boxes[..., 5] / sum(proc_boxes[..., 5])
+    # prob_dist = proc_boxes[..., 5] / sum(proc_boxes[..., 5])
+    #
+    # rand_index = np.random.choice(proc_boxes.shape[0], 1, p=prob_dist)
 
-    rand_index = np.random.choice(proc_boxes.shape[0], 1, p=prob_dist)
-
-    best_box = proc_boxes.tolist()[rand_index[0]]
+    best_box = random.sample(proc_boxes.tolist(), 1)[0]
 
     return best_box
 
@@ -304,12 +313,6 @@ if __name__ == '__main__':
     with keyboard.Listener(on_release=on_release) as listener:
         if len(sys.argv) > 1:
             cfg.window_name = sys.argv[1]
-
-        if len(sys.argv) > 3:
-            working_dir = sys.argv[2]
-            aut_command = sys.argv[3]
-
-            start_aut()
 
         event = 0
 
@@ -351,6 +354,16 @@ if __name__ == '__main__':
             if os.path.isfile(os.getcwd() + "/" + cfg.weights_dir + "/checkpoint"):
                 saver.restore(sess, model_file)
                 print("[Detection] Restored model")
+            else:
+                print("Cannot find weights file!", os.getcwd() + "/" + cfg.weights_dir + "/checkpoint", "not found!" )
+                sys.exit(1)
+
+            if len(sys.argv) > 3:
+                working_dir = sys.argv[2]
+                aut_command = sys.argv[3]
+
+                start_aut()
+
             yolo.set_training(False)
 
             anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
@@ -368,6 +381,11 @@ if __name__ == '__main__':
             last_u_input = ""
 
             actions = 0
+
+            csv_file = cfg.log_dir + "/" + str(start_time) + "-test.csv"
+
+            with open(csv_file, "w+") as p_f:
+                p_f.write("time,actions,technique,iteration_time,window_name\n")
 
             while ((time.time() - start_time < runtime and not cfg.use_iterations) or
                    (actions < cfg.test_iterations and cfg.use_iterations)) and running:
@@ -442,15 +460,17 @@ if __name__ == '__main__':
                     if debug:
                         print("[Detection] CONVERT:", et - st)
 
-                    total = np.sum(p_boxes[:,5])
+                    # total = np.sum(p_boxes[:,5])
+                    #
+                    # p_boxes[:,5] = p_boxes[:,5]/total
 
-                    p_boxes[:,5] = p_boxes[:,5]/total
+                    p_boxes = p_boxes[p_boxes[..., 5] > cfg.object_detection_threshold]
 
                     proc_boxes = p_boxes#.tolist()
 
                     #states.append([image, proc_boxes])
 
-                for box_num in range(5):
+                for box_num in range(1):
 
                     if len(proc_boxes) < 1:
                         cfg.object_detection_threshold *= 0.9
@@ -498,8 +518,6 @@ if __name__ == '__main__':
                     print("[Detection] Iteration Time:", end_iteration_time - iteration_time)
 
                 # write test info
-                csv_file = "test.csv"
-
                 with open(csv_file, "a") as p_f:
                     p_f.write(str(exec_time) + "," + str(actions) + ",detection," + str(iteration_time) + "," + cfg.window_name + "\n")
 

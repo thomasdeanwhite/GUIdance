@@ -591,34 +591,6 @@ class Yolo:
         return np.array(corr)
 
     def calc_iou(self, r_box, p_boxes):
-
-        # r_b = np.append(real_box[1]-real_box[3]/2,
-        #        [real_box[2]-real_box[4]/2,
-        #        real_box[1]+real_box[3]/2,
-        #        real_box[2]+real_box[4]/2])
-        #
-        # p_b = np.transpose([pred_boxes[..., 1]-pred_boxes[...,3]/2,
-        #        pred_boxes[..., 2]-pred_boxes[...,4]/2,
-        #        pred_boxes[..., 1]+pred_boxes[...,3]/2,
-        #        pred_boxes[..., 2]+pred_boxes[...,4]/2])
-        #
-        # x11, y11, x12, y12 = (r_b[0],r_b[1],r_b[2],r_b[3])
-        # x21, y21, x22, y22 = (p_b[..., 0], p_b[..., 1], p_b[..., 2], p_b[..., 3])
-        #
-        # xA = np.maximum(x11, np.transpose(x21))
-        # yA = np.maximum(y11, np.transpose(y21))
-        # xB = np.minimum(x12, np.transpose(x22))
-        # yB = np.minimum(y12, np.transpose(y22))
-        #
-        # interArea = np.maximum((xB - xA + 1), 0) * np.maximum((yB - yA + 1), 0)
-        #
-        # boxAArea = (x12 - x11 + 1) * (y12 - y11 + 1)
-        # boxBArea = (x22 - x21 + 1) * (y22 - y21 + 1)
-        #
-        # iou = interArea / (boxAArea + np.transpose(boxBArea) - interArea)
-        #
-        # return iou
-
         truth_boxes = np.stack([r_box[..., 0]-r_box[...,2]/2,
                             r_box[..., 1]-r_box[...,3]/2,
                             r_box[..., 0]+r_box[...,2]/2,
@@ -659,6 +631,11 @@ class Yolo:
         self.loss_layers['pred_areas'] = pred_areas
 
         iou = np.true_divide(intersect_areas, union_areas)
+
+        #iou = np.where(np.logical_and(p_boxes[1] < truth_boxes[2],
+        #               p_boxes[2] < truth_boxes[3],
+        #               p_boxes[1] > truth_boxes[0],
+        #               p_boxes[2] > truth_boxes[1]), 1.0, 0.0)
 
         return iou
 

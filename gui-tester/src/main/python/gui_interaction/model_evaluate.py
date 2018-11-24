@@ -20,8 +20,8 @@ totals = []
 
 disable_transformation()
 
-area_thresholds = [180621.0, 243500.0, 316602.0]
-quantity_thresholds = [3.0, 5.0, 7.0 ]
+area_thresholds = [ 402657.5, 652736.0, 917411.0]
+quantity_thresholds = [5.0, 7.0, 10.0]
 
 if __name__ == '__main__':
 
@@ -72,6 +72,10 @@ if __name__ == '__main__':
     for ri in real_images_manual:
         real_images.append(ri)
 
+    random.seed(cfg.random_seed)
+    random.shuffle(real_images)
+    real_images = real_images[100:]
+
     valid_file = cfg.data_dir + "/test.txt"
 
     with open(valid_file, "r") as tfile:
@@ -112,13 +116,13 @@ if __name__ == '__main__':
                                                    batches, 0.9, staircase=True)
         #learning_rate = tf.placeholder(tf.float64)
         #learning_r = cfg.learning_rate_start
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        #
+        # with tf.control_dependencies(update_ops):
+        #     yolo.set_update_ops(update_ops)
 
-        with tf.control_dependencies(update_ops):
-            yolo.set_update_ops(update_ops)
-
-            train_step = tf.train.AdadeltaOptimizer(learning_rate). \
-                minimize(yolo.loss)
+        train_step = tf.train.AdamOptimizer(1e-4). \
+            minimize(yolo.loss)
 
         saver = tf.train.Saver()
 
@@ -166,7 +170,7 @@ if __name__ == '__main__':
 
             base_iou_threshold = 0.5
             iou_threshold = base_iou_threshold
-            confidence_threshold = 0.1
+            confidence_threshold = 0.15
 
 
 
@@ -179,7 +183,7 @@ if __name__ == '__main__':
 
                 #confidence_threshold = (i * 0.1)
 
-                progress = 0.0
+                progress = 0.1
 
                 for j in range(valid_batches):
 
@@ -193,7 +197,8 @@ if __name__ == '__main__':
                         totals.append(0)
 
                     if (j/valid_batches > progress):
-                        print((progress*100), "% complete.")
+                        sys.stdout.write("50%" if progress == 0.5 else " = ")
+                        sys.stdout.flush()
                         progress += 0.1
 
 
