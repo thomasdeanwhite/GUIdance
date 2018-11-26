@@ -140,10 +140,10 @@ def generate_input_string():
 def convert_coords(x, y, w, h, aspect):
     if aspect > 1: # width is bigger than height
         h = h * aspect
-        y = y - ((y - 0.5)*(1-aspect))
+        y = 0.5 + ((y - 0.5)*aspect)
     elif aspect < 1:
-        w = w * aspect
-        x = x - ((x - 0.5)*(1-1/aspect))
+        w = w / aspect
+        x = 0.5 + ((x - 0.5)/aspect)
 
     return x, y, w, h
 

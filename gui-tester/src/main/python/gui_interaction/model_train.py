@@ -107,9 +107,9 @@ if __name__ == '__main__':
 
     # random.seed(cfg.random_seed)
     # random.shuffle(real_images)
-    # training_images = real_images[:100]
-    #
-    # real_images = real_images[100:]
+    training_images = real_images[:100]
+
+    real_images = real_images[100:]
 
     print("Found", len(real_images), "real GUI screenshots.")
 

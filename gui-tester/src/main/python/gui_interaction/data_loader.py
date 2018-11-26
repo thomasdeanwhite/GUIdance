@@ -70,6 +70,10 @@ def pad_image(img):
 
     return image
 
+def load_raw_image(file):
+    img = imread(file, 0)
+    return img
+
 def load_image(file):
     img = imread(file, 0)
     image = np.int16(pad_image(img))

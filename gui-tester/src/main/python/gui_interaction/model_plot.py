@@ -9,9 +9,19 @@ import math
 import random
 import os
 from tensorflow.python.tools import inspect_checkpoint as chkp
-from data_loader import load_image, disable_transformation
+from data_loader import load_image, load_raw_image, disable_transformation
 
 disable_transformation()
+
+def convert_coords(x, y, w, h, aspect):
+    if aspect > 1: # width is bigger than height
+        h = h * aspect
+        y = 0.5 + ((y - 0.5)*aspect)
+    elif aspect < 1:
+        w = w / aspect
+        x = 0.5 + ((x - 0.5)/aspect)
+
+    return x, y, w, h
 
 if __name__ == '__main__':
 
@@ -61,6 +71,8 @@ if __name__ == '__main__':
 
         proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()[0]
 
+        img = load_raw_image(sys.argv[1])
+
 
 
 
@@ -69,7 +81,9 @@ if __name__ == '__main__':
         #proc_boxes
 
 
-        trim_overlap = True
+        trim_overlap = False
+
+        height, width = img.shape[:2]
 
         i=0
         while i < len(proc_boxes):
@@ -77,12 +91,18 @@ if __name__ == '__main__':
             if box[5] < cfg.object_detection_threshold:
                 del proc_boxes[i]
             else:
+
+                box[1:5] = convert_coords(box[1], box[2], box[3], box[4], width/height)
+
                 x, y, w, h = (box[1],box[2],box[3],box[4])
                 box[1] = x - w/2
                 box[2] = y - h/2
                 box[3] = x + w/2
                 box[4] = y + h/2
                 i = i + 1
+
+
+
         i = 0
 
 
@@ -117,7 +137,6 @@ if __name__ == '__main__':
             i = i+1
 
         for box in proc_boxes:
-            height, width = img.shape[:2]
 
             cls = yolo.names[int(box[0])]
 
@@ -130,6 +149,8 @@ if __name__ == '__main__':
             if (box[5]>cfg.object_detection_threshold):
                 print(box)
 
+
+
                 x1 = max(int(width*box[1]), 0)
                 y1 = max(int(height*box[2]), 0)
                 x2 = int(width*box[3])
@@ -137,9 +158,13 @@ if __name__ == '__main__':
 
                 cv2.rectangle(img, (x1, y1),
                               (x2, y2),
-                              (color[0], color[1], color[2]), int(5*box[4] * box[4]), 8)
+                              (color[0], color[1], color[2]), int(5*box[4] * box[5]), 8)
+        print("------------")
 
         for box in proc_boxes:
+
+            print(box)
+
             cls = yolo.names[int(box[0])]
 
             hex = cls.encode('utf-8').hex()[0:6]

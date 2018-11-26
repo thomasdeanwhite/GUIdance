@@ -170,7 +170,7 @@ if __name__ == '__main__':
 
             base_iou_threshold = 0.5
             iou_threshold = base_iou_threshold
-            confidence_threshold = 0.15
+            confidence_threshold = 0.1
 
 
 
@@ -265,7 +265,7 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: confidence_threshold
                     })
 
-                    boxes = yolo.convert_net_to_bb(res, filter_top=True)
+                    boxes = yolo.convert_net_to_bb(res, filter_top=False)
 
                     boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels, [boxes.shape[0], -1, 5]))
 
@@ -477,7 +477,7 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: confidence_threshold
                     })
 
-                    boxes = yolo.convert_net_to_bb(res, filter_top=True)
+                    boxes = yolo.convert_net_to_bb(res, filter_top=False)
 
                     boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels, [boxes.shape[0], -1, 5]))
 
