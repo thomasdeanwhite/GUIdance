@@ -319,6 +319,13 @@ if __name__ == '__main__':
                 p_f.write(str(exec_time) + "," + str(actions) + ",detection," + str(iteration_time) + "," + cfg.window_name + "\n")
 
 
+
+        # Take screenshot
+        pic = pyautogui.screenshot()
+
+        # Save the image
+        pic.save('Screenshot.png')
+
         kill_old_process()
 
         time.sleep(20)
