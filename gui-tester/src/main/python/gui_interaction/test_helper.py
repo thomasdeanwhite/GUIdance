@@ -32,7 +32,7 @@ def get_window_size(window_name):
 
         win_names = window_name.split(":")
 
-        win_names.append("java") # java file browser
+        #win_names.append("java") # java file browser
 
         #windowIDs = root.get_full_property(display.intern_atom('_NET_CLIENT_LIST'), Xlib.X.AnyPropertyType).value
 

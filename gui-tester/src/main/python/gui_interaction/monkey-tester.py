@@ -104,7 +104,7 @@ if __name__ == '__main__':
 
             exec_time = time.time() - start_time
 
-            os.system('wmctrl -c "firefox"')
+            os.system('killall "firefox"')
 
             app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
 
