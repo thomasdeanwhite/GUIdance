@@ -23,7 +23,7 @@ import pyscreenshot as ImageGrab
 
 running = True
 
-debug = True
+debug = False
 
 quit_counter = 3
 
