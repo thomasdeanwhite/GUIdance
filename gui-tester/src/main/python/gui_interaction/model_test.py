@@ -19,16 +19,18 @@ import data_loader
 import signal
 import timeit
 from test_helper import get_window_size
+import pyscreenshot as ImageGrab
 
 running = True
 
-debug = False
+debug = True
 
 quit_counter = 3
 
 working_dir = ""
 aut_command = ""
 process_id = -1
+
 
 def on_release(key):
     global running, quit_counter
@@ -38,7 +40,9 @@ def on_release(key):
             running = False
             print("[Detection] Killing tester.")
 
+
 sub_window = False
+
 
 def kill_old_process():
     global process_id
@@ -46,6 +50,7 @@ def kill_old_process():
     if process_id != -1:
         os.killpg(os.getpgid(process_id.pid), signal.SIGTERM)
         process_id = -1
+
 
 def start_aut():
     global working_dir, aut_command, process_id
@@ -67,25 +72,28 @@ def start_aut():
     else:
         print("[Detection] Could not find AUT to start!")
 
+
 def generate_input_string():
     if random.random() < 0.5:
         return "Hello World!"
     else:
         return str(random.randint(-10000, 10000))
 
+
 def convert_coords(x, y, w, h, aspect):
-    if aspect > 1: # width is bigger than height
+    if aspect > 1:  # width is bigger than height
         h = h * aspect
-        y = 0.5 + ((y - 0.5)*aspect)
+        y = 0.5 + ((y - 0.5) * aspect)
     elif aspect < 1:
         w = w / aspect
-        x = 0.5 + ((x - 0.5)/aspect)
+        x = 0.5 + ((x - 0.5) / aspect)
 
     return x, y, w, h
 
+
 def perform_interaction(best_box):
-    x = int(max(app_x+5, min(app_x + app_w - 5, app_x + (best_box[1]*app_w))))
-    y = int(max(app_y+25, min(app_y + app_h - 5, app_y + (best_box[2]*app_h))))
+    x = int(max(app_x + 5, min(app_x + app_w - 5, app_x + (best_box[1] * app_w))))
+    y = int(max(app_y + 25, min(app_y + app_h - 5, app_y + (best_box[2] * app_h))))
 
     # y_start = max(app_y, min(app_y + height - 5, app_y + int(height*(best_box[2] - best_box[4]/2))-5))
     # y_end = max(app_y+5, min(app_y + height, app_y + int(height*(best_box[2]+best_box[4]/2))+5))
@@ -199,14 +207,15 @@ def perform_interaction(best_box):
 
     random_interaction = random.random()
 
-    if random_interaction < 0.888888888888: # just a normal click
+    if random_interaction < 0.888888888888:  # just a normal click
         if random.random() < 0.8:
             pyautogui.click(x, y)
         else:
             pyautogui.rightClick(x, y)
-    else: # click and type 'Hello world!'
+    else:  # click and type 'Hello world!'
         pyautogui.click(x, y)
         pyautogui.typewrite(generate_input_string(), interval=0.01)
+
 
 def select_random_box(proc_boxes):
     # prob_dist = proc_boxes[..., 5] / sum(proc_boxes[..., 5])
@@ -217,12 +226,18 @@ def select_random_box(proc_boxes):
 
     return best_box
 
+
 def prepare_screenshot(raw_image):
     st = time.time()
     raw_image = data_loader.pad_image(raw_image)
     et = time.time()
     if debug:
         print("[Detection] PADDING:", et - st)
+        cv2.imshow('image',raw_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+
     image = cv2.resize(raw_image, (cfg.width, cfg.height))
     #
     # x, y, w, h = convert_coords(0.3, 0.3, 0.4, 0.4, aspect)
@@ -237,12 +252,14 @@ def prepare_screenshot(raw_image):
 
     images = np.reshape(image, [1, cfg.width, cfg.height, 1])
 
-    imgs = (images/127.5)-1
+    imgs = (images / 127.5) - 1
 
     return imgs
 
+
 def convert_boxes(boxes):
     return yolo.convert_net_to_bb(boxes, filter_top=False)[0]
+
 
 if __name__ == '__main__':
     # Collect events until released
@@ -260,10 +277,10 @@ if __name__ == '__main__':
 
         model_file = os.getcwd() + "/" + cfg.weights_dir + "/model.ckpt"
 
-        #config = tf.ConfigProto(allow_soft_placement = True)
+        # config = tf.ConfigProto(allow_soft_placement = True)
 
         config = tf.ConfigProto(
-            device_count = {'GPU': 0}
+            device_count={'GPU': 0}
         )
 
         states = []
@@ -291,7 +308,7 @@ if __name__ == '__main__':
                 saver.restore(sess, model_file)
                 print("[Detection] Restored model")
             else:
-                print("Cannot find weights file!", os.getcwd() + "/" + cfg.weights_dir + "/checkpoint", "not found!" )
+                print("Cannot find weights file!", os.getcwd() + "/" + cfg.weights_dir + "/checkpoint", "not found!")
                 sys.exit(1)
 
             if len(sys.argv) > 3:
@@ -312,7 +329,7 @@ if __name__ == '__main__':
 
             interactions = []
 
-            runtime = cfg.test_time #5 mins
+            runtime = cfg.test_time  # 5 mins
 
             last_u_input = ""
 
@@ -346,11 +363,14 @@ if __name__ == '__main__':
                         print("[Detection] Couldn't find application window!")
                         break
 
-
                 if time.time() - start_time > runtime:
                     break
 
-                image = pyautogui.screenshot(region=(app_x, app_y, app_w, app_h)).convert("L")
+                # image = pyautogui.screenshot(region=(app_x, app_y, app_w, app_h)).convert("L")
+
+                image = ImageGrab.grab(bbox=(app_x, app_y, app_w, app_h)).convert("L")
+
+
 
                 image = np.array(image)
 
@@ -358,14 +378,14 @@ if __name__ == '__main__':
 
                 ih, iw = image.shape[:2]
 
-                aspect = iw/ih
+                aspect = iw / ih
 
                 imgs = prepare_screenshot(image)
 
                 gen_boxes = True
 
                 for l in states:
-                    diff = np.sum(np.square(image-l[0]))/image.size
+                    diff = np.sum(np.square(image - l[0])) / image.size
                     if diff < 2:
                         gen_boxes = False
                         proc_boxes = l[1]
@@ -374,7 +394,7 @@ if __name__ == '__main__':
 
                 if gen_boxes or len(proc_boxes) < 3:
 
-                    #print("New state found!", len(states), "states found total.")
+                    # print("New state found!", len(states), "states found total.")
 
                     st = time.time()
 
@@ -407,9 +427,9 @@ if __name__ == '__main__':
 
                     p_boxes = p_boxes[p_boxes[..., 5] > cfg.object_detection_threshold]
 
-                    proc_boxes = p_boxes#.tolist()
+                    proc_boxes = p_boxes  # .tolist()
 
-                    #states.append([image, prappoc_boxes])
+                    # states.append([image, prappoc_boxes])
 
                 for box_num in range(1):
 
@@ -419,12 +439,12 @@ if __name__ == '__main__':
 
                     input_string = generate_input_string()
 
-                    #highest_conf = proc_boxes[0][5]
-                    #best_box = proc_boxes[0]
+                    # highest_conf = proc_boxes[0][5]
+                    # best_box = proc_boxes[0]
 
                     best_box = select_random_box(proc_boxes)
 
-                    #best_box = random.sample(proc_boxes, 1)[0]
+                    # best_box = random.sample(proc_boxes, 1)[0]
 
                     rand_num = random.random()
 
@@ -436,7 +456,7 @@ if __name__ == '__main__':
                     #         best_box = b
                     #         break;
 
-                    #np.delete(proc_boxes, best_box)
+                    # np.delete(proc_boxes, best_box)
 
                     height, width = image.shape[:2]
 
@@ -460,9 +480,8 @@ if __name__ == '__main__':
 
                 # write test info
                 with open(csv_file, "a") as p_f:
-                    p_f.write(str(exec_time) + "," + str(actions) + ",detection," + str(iteration_time) + "," + cfg.window_name + "\n")
-
-
+                    p_f.write(str(exec_time) + "," + str(actions) + ",detection," + str(
+                        iteration_time) + "," + cfg.window_name + "\n")
 
             # print("Writing concrete tests")
             #
@@ -502,5 +521,3 @@ if __name__ == '__main__':
 
             time.sleep(20)
             print("[Detection] Finished testing!")
-
-
