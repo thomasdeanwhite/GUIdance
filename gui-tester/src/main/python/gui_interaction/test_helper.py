@@ -3,8 +3,26 @@ import random
 import subprocess
 import config as cfg
 import traceback
-
+import os
+import cv2
 debug = False
+import time
+
+
+def screenshot():
+    img_file = os.environ.get("OUT_DIR", "./"+str(time.time()))
+    if not img_file.endswith("/"):
+        img_file += "/"
+
+    if not os.path.isdir(img_file):
+        os.makedirs(img_file)
+    img_file += "screenshot.png"
+
+    os.system("import -window root " + img_file)
+    img = cv2.imread(img_file, 0)
+
+    return img
+
 
 def get_window_size(window_name):
     sub_window = False

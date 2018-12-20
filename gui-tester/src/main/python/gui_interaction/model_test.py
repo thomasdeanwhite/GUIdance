@@ -18,8 +18,7 @@ from pynput import keyboard
 import data_loader
 import signal
 import timeit
-from test_helper import get_window_size
-import pyscreenshot as ImageGrab
+from test_helper import get_window_size, screenshot
 
 running = True
 
@@ -368,9 +367,8 @@ if __name__ == '__main__':
 
                 # image = pyautogui.screenshot(region=(app_x, app_y, app_w, app_h)).convert("L")
 
-                image = ImageGrab.grab(bbox=(app_x, app_y, app_w, app_h)).convert("L")
-
-
+                # image = ImageGrab.grab(bbox=(app_x, app_y, app_w, app_h)).convert("L")
+                image = screenshot()[app_y:app_y+app_h, app_x:app_x+app_w]
 
                 image = np.array(image)
 
