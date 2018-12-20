@@ -591,10 +591,10 @@ class Yolo:
         return np.array(corr)
 
     def calc_iou(self, r_box, p_boxes):
-        truth_boxes = np.stack([r_box[..., 0]-r_box[...,2]/2,
-                            r_box[..., 1]-r_box[...,3]/2,
-                            r_box[..., 0]+r_box[...,2]/2,
-                            r_box[..., 1]+r_box[...,3]/2], axis=-1)/cfg.grid_shape[0]
+        truth_boxes = np.stack([r_box[..., 1]-r_box[...,3]/2,
+                            r_box[..., 2]-r_box[...,4]/2,
+                            r_box[..., 1]+r_box[...,3]/2,
+                            r_box[..., 2]+r_box[...,4]/2], axis=-1)/cfg.grid_shape[0]
 
         pred_boxes = np.stack([p_boxes[..., 1]-p_boxes[...,3]/2,
                p_boxes[..., 2]-p_boxes[...,4]/2,
@@ -631,6 +631,8 @@ class Yolo:
         self.loss_layers['pred_areas'] = pred_areas
 
         iou = np.true_divide(intersect_areas, union_areas)
+
+        iou = np.where(r_box[...,0] == p_boxes[...,0], iou, 0)
 
         #iou = np.where(np.logical_and(p_boxes[1] < truth_boxes[2],
         #               p_boxes[2] < truth_boxes[3],

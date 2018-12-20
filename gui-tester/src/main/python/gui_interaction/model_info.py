@@ -10,6 +10,7 @@ import random
 import os
 import pickle
 import re
+import cv2
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -58,11 +59,6 @@ def load_files(raw_files):
 
         areas.append(height*width)
 
-        image = np.uint8(resize(image, (cfg.width, cfg.height)))
-        image = np.reshape(image, [cfg.width, cfg.height, 1])
-
-
-        image = np.reshape(image, [cfg.width, cfg.height, 1])
         images.append(image)
 
         # read in format [c, x, y, width, height]
@@ -116,9 +112,13 @@ def print_info(imgs, labels, classes, dataset, areas):
         widget_area = 0
         image_area = areas[i]
 
+        img = imgs[i]
+
         for j in range(30):
-            quantity = np.sum((imgs[0] < (j+1)*displacement).astype(np.int32) *
-                              (imgs[0] > j*displacement).astype(np.int32)).astype(np.float32)
+            ub = (j+1)*displacement
+            lb = j*displacement
+            quantity = np.sum((img < ub).astype(np.int32) *
+                              (img > lb).astype(np.int32)).astype(np.float32)
             pixels[j] += quantity
 
 
@@ -211,7 +211,7 @@ if __name__ == '__main__':
 
     real_images = [f.replace("/data/acp15tdw", "/data/acp15tdw/backup") for f in real_images]
 
-    valid_file = cfg.data_dir + "/../backup/data/test.txt"
+    valid_file = cfg.data_dir + "/test.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
@@ -235,7 +235,7 @@ if __name__ == '__main__':
     with open("white_space.csv", "w+") as file:
         file.write("img,area,widget_count,widget_area,dataset\n")
 
-    valid_file = cfg.data_dir + "/test.txt"
+    valid_file = cfg.data_dir + "/../data-bk/test.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
@@ -281,8 +281,6 @@ if __name__ == '__main__':
 
 
         del(v_imgs, v_labels, v_obj_detection)
-
-
 
         gc.collect()
 

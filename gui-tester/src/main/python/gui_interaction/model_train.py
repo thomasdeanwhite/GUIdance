@@ -107,9 +107,9 @@ if __name__ == '__main__':
 
     # random.seed(cfg.random_seed)
     # random.shuffle(real_images)
-    training_images = real_images[:100]
+    #training_images = real_images[:100]
 
-    real_images = real_images[100:]
+    #real_images = real_images[100:]
 
     print("Found", len(real_images), "real GUI screenshots.")
 
@@ -140,7 +140,7 @@ if __name__ == '__main__':
         with tf.control_dependencies(update_ops):
             yolo.set_update_ops(update_ops)
 
-            train_step = tf.train.AdamOptimizer(1e-5). \
+            train_step = tf.train.AdamOptimizer(5e-5). \
                 minimize(yolo.loss)
 
         saver = tf.train.Saver()

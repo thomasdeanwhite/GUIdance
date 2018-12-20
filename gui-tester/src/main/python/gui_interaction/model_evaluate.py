@@ -12,7 +12,7 @@ import pickle
 import re
 from data_loader import load_files, disable_transformation
 
-one_class = True
+one_class = False
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -181,7 +181,7 @@ if __name__ == '__main__':
 
                 #iou_threshold = base_iou_threshold + (i * 0.05)
 
-                #confidence_threshold = (i * 0.1)
+                #confidence_
 
                 progress = 0.1
 
@@ -255,6 +255,8 @@ if __name__ == '__main__':
                     if one_class:
                         v_obj_detection = np.zeros_like(v_obj_detection)
 
+                    v_labels_classes = np.append(np.expand_dims(v_obj_detection, axis=-1), v_labels, axis=-1)
+
                     res, correct, iou = sess.run([
                         yolo.output, yolo.matches, yolo.best_iou], feed_dict={
                         yolo.train_bounding_boxes: v_labels,
@@ -265,9 +267,9 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: confidence_threshold
                     })
 
-                    boxes = yolo.convert_net_to_bb(res, filter_top=False)
+                    boxes = yolo.convert_net_to_bb(res, filter_top=True)
 
-                    boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels, [boxes.shape[0], -1, 5]))
+                    boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels_classes, [boxes.shape[0], -1, 6]))
 
                     if one_class:
                         boxes[..., 0] = 0
@@ -467,6 +469,9 @@ if __name__ == '__main__':
                     if one_class:
                         v_obj_detection = np.zeros_like(v_obj_detection)
 
+                    v_labels_classes = np.append(np.expand_dims(v_obj_detection, axis=-1), v_labels, axis=-1)
+
+
                     res, correct, iou = sess.run([
                         yolo.output, yolo.matches, yolo.best_iou], feed_dict={
                         yolo.train_bounding_boxes: v_labels,
@@ -477,9 +482,9 @@ if __name__ == '__main__':
                         yolo.object_detection_threshold: confidence_threshold
                     })
 
-                    boxes = yolo.convert_net_to_bb(res, filter_top=False)
+                    boxes = yolo.convert_net_to_bb(res, filter_top=True)
 
-                    boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels, [boxes.shape[0], -1, 5]))
+                    boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels_classes, [boxes.shape[0], -1, 6]))
 
                     if one_class:
                         boxes[..., 0] = 0
