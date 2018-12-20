@@ -153,13 +153,6 @@ if __name__ == '__main__':
             #     if random.random() < 0.05:
             #         pyautogui.press('escape')
 
-
-        # Take screenshot
-        pic = pyautogui.screenshot()
-
-        # Save the image
-        pic.save('Screenshot.png')
-
         kill_old_process()
 
         time.sleep(20)

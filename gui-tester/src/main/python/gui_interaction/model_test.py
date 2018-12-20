@@ -498,12 +498,6 @@ if __name__ == '__main__':
             # with open(html_file, "a+") as h_f:
             #     h_f.write("</body></html>")
 
-            # Take screenshot
-            pic = pyautogui.screenshot()
-
-            # Save the image
-            pic.save('Screenshot.png')
-
             kill_old_process()
 
             time.sleep(20)

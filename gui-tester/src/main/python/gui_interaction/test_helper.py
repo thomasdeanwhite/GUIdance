@@ -2,6 +2,7 @@ import Xlib
 import random
 import subprocess
 import config as cfg
+import traceback
 
 debug = False
 
@@ -44,7 +45,7 @@ def get_window_size(window_name):
                     continue
 
                 if debug:
-                    print("[Detection]", window.get_wm_class())
+                    print("[Window]", window.get_wm_class())
 
                 if isinstance(name, str):
                     for w_n in win_names:
@@ -57,7 +58,7 @@ def get_window_size(window_name):
                             #wid = windowID
                             win = window
                             windows.append(win)
-                            # window.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
+                            # window.set_input_focus(Xlib.X.RevertToParent, Xli b.X.CurrentTime)
                             # window.configure(stack_mode=Xlib.X.Above)
                             #prop = window.get_full_property(display.intern_atom('_NET_WM_PID'), Xlib.X.AnyPropertyType)
                             #pid = prop.value[0] # PID
@@ -93,8 +94,10 @@ def get_window_size(window_name):
                 app_y += p_geom.y
                 parent_win = parent_win.query_tree().parent
         except Exception as e:
-            print('[Detection] Screen cap failed: '+ str(e))
+            print('[Window] Screen cap failed: '+ str(e))
+            traceback.print_stack()
         return app_x, app_y, app_w, app_h
     except Exception as e:
-        print('[Detection] Screen cap failed: '+ str(e))
+        print('[Window] Screen cap failed: '+ str(e))
+        traceback.print_stack()
     return 0, 0, 0, 0
