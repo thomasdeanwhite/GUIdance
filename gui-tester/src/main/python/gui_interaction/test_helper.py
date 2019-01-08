@@ -23,8 +23,8 @@ def screenshot():
 
     return img
 
-
 def get_window_size(window_name):
+    global true_window
     sub_window = False
     try:
         display = Xlib.display.Display()
@@ -32,7 +32,7 @@ def get_window_size(window_name):
 
         win_names = window_name.split(":")
 
-        #win_names.append("java") # java file browser
+        win_names.append("java") # java file browser
 
         #windowIDs = root.get_full_property(display.intern_atom('_NET_CLIENT_LIST'), Xlib.X.AnyPropertyType).value
 
@@ -48,48 +48,67 @@ def get_window_size(window_name):
             #window = display.create_resource_object('window', windowID)
             try: # to handle bad windows
 
+                matched = False
+
+
+                win_name = window.get_wm_name() # Title
+                name = win_name
+                tag = ""
+                tags = window.get_wm_class()
+                if tags != None and len(tags) > 1:
+                    tag = tags[1]
+
                 children = window.query_tree().children
 
                 if (not children is None) and len(children) > 0:
                     for w_c in children:
                         all_windows.append(w_c)
 
-                name = window.get_wm_name() # Title
-                tags = window.get_wm_class()
-                if tags != None and len(tags) > 1:
-                    name = tags[1]
-
-                if name == None:
+                if name is None or window.get_wm_normal_hints() is None or window.get_attributes().map_state != Xlib.X.IsViewable:
                     continue
 
-                if debug:
-                    print("[Window]", window.get_wm_class())
-
-                if isinstance(name, str):
+                if isinstance(name, str) or isinstance(tag, str):
                     for w_n in win_names:
-                        if w_n.lower() in name.lower():
+                        if w_n.lower() in name.lower() or w_n.lower() in tag:
                             # if wid != 0:
-                            #     sub_window = True
+                            #     sub_window = Truem
                             #     if random.random() < 0.05:
                             #         print("Killing window")
                             #         os.system("xkill -id " + wid)
                             #wid = windowID
+                            matched = True
                             win = window
                             windows.append(win)
+                            break
                             # window.set_input_focus(Xlib.X.RevertToParent, Xli b.X.CurrentTime)
                             # window.configure(stack_mode=Xlib.X.Above)
                             #prop = window.get_full_property(display.intern_atom('_NET_WM_PID'), Xlib.X.AnyPropertyType)
                             #pid = prop.value[0] # PID
+
+                if debug:
+                    print("[Window]", window.get_wm_name(), window.get_wm_class())
             except:
                 pass
 
+        if debug:
+            print("--------------------")
+            for window in windows:
+                print("[Selected Window]", window.get_wm_name(), window.get_wm_class())
+
         if len(windows) > 1 and cfg.multiple_windows:
-            win = random.sample(windows, 1)[0]
+            win_sel = None
+            while (win_sel is None or not win_sel.get_wm_icon_size() is None) and len(windows) > 0:
+                c_win = windows.pop(random.randint(0, len(windows)-1))
+
+                win_sel = c_win
+
+            if not win_sel is None:
+                win = win_sel
+
+        else:
+            win = windows[0]
 
         name = win.get_wm_name() # Title
-        tags = win.get_wm_class()
-        if tags != None and len(tags) > 1:
-            name = tags[1]
 
         try:
             win_activate = subprocess.Popen("xdotool search \"" + name + "\" windowactivate --sync", shell=True)
@@ -112,10 +131,10 @@ def get_window_size(window_name):
                 app_y += p_geom.y
                 parent_win = parent_win.query_tree().parent
         except Exception as e:
-            print('[Window] Screen cap failed: '+ str(e))
+            print('[Window Parent Error] Screen cap failed: '+ str(e))
             traceback.print_stack()
         return app_x, app_y, app_w, app_h
     except Exception as e:
-        print('[Window] Screen cap failed: '+ str(e))
+        print('[Window Error] Screen cap failed: '+ str(e))
         traceback.print_stack()
     return 0, 0, 0, 0
