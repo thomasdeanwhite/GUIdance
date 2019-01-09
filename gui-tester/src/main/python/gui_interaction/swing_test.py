@@ -23,7 +23,7 @@ from test_helper import get_window_size, screenshot
 
 running = True
 
-debug = True
+debug = False
 
 quit_counter = 3
 
