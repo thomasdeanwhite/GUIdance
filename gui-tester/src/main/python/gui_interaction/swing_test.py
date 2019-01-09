@@ -18,7 +18,7 @@ import data_loader
 import signal
 import timeit
 import signal
-from test_helper import get_window_size
+from test_helper import get_window_size, screenshot
 
 
 running = True
@@ -223,7 +223,7 @@ if __name__ == '__main__':
             if time.time() - start_time > runtime:
                 break
 
-            image = pyautogui.screenshot(region=(app_x, app_y, app_w, app_h)).convert("L")
+            image = screenshot()[app_y:app_y+app_h, app_x:app_x+app_w]
 
             image = np.array(image)
 
