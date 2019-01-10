@@ -103,3 +103,4 @@ enable_logging = False
 run_all_batches = True
 
 fullscreen = False
+resolution = [1920, 1080]
