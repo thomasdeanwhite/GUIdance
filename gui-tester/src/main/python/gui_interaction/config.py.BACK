@@ -101,3 +101,5 @@ window_name = "Firefox"
 enable_logging = False
 
 run_all_batches = True
+
+fullscreen = False

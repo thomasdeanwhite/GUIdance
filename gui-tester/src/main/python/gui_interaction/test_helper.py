@@ -26,6 +26,10 @@ def screenshot():
 def get_window_size(window_name):
     global true_window
     sub_window = False
+
+    if cfg.fullscreen:
+        return 0, 0, 1280, 1024
+
     try:
         display = Xlib.display.Display()
         root = display.screen().root
