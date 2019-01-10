@@ -18,7 +18,7 @@ import data_loader
 import signal
 import timeit
 import signal
-from test_helper import get_window_size, screenshot
+from test_helper import get_window_size, screenshot, perform_interaction
 
 
 running = True
@@ -99,21 +99,6 @@ def convert_coords(x, y, w, h, aspect):
         x = 0.5 + ((x - 0.5)/aspect)
 
     return x, y, w, h
-
-def perform_interaction(best_box):
-    x = int(max(app_x+5, min(app_x + app_w - 5, app_x + (best_box[1]*app_w))))
-    y = int(max(app_y+25, min(app_y + app_h - 5, app_y + (best_box[2]*app_h))))
-
-    random_interaction = random.random()
-
-    if random_interaction < 0.888888888888: # just a normal click
-        if random.random() < 0.8:
-            pyautogui.click(x, y)
-        else:
-            pyautogui.rightClick(x, y)
-    else: # click and type 'Hello world!'
-        pyautogui.click(x, y)
-        pyautogui.typewrite(generate_input_string(), interval=0.01)
 
 def select_random_box(proc_boxes):
     best_box = random.sample(proc_boxes.tolist(), 1)[0]
@@ -300,13 +285,13 @@ if __name__ == '__main__':
 
                 rand_num = random.random()
 
-                np.delete(proc_boxes, best_box)
+                #np.delete(proc_boxes, best_box)
 
                 height, width = image.shape[:2]
 
                 current_box = best_box
 
-                perform_interaction(best_box)
+                perform_interaction(best_box, app_x, app_y, app_w, app_h, input_string)
 
                 actions += 1
 

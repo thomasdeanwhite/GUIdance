@@ -7,7 +7,7 @@ import os
 import cv2
 debug = False
 import time
-
+import pyautogui
 
 def screenshot():
     img_file = os.environ.get("OUT_DIR", "./"+str(time.time()))
@@ -22,6 +22,133 @@ def screenshot():
     img = cv2.imread(img_file, 0)
 
     return img
+
+def perform_interaction(best_box, app_x, app_y, app_w, app_h, input_string):
+    x_mod = (0.5-random.random())*best_box[3]
+    y_mod = (0.5-random.random())*best_box[4]
+    x = int(max(app_x+5, min(app_x + app_w - 5, app_x + ((best_box[1]+x_mod)*app_w))))
+    y = int(max(app_y+25, min(app_y + app_h - 5, app_y + ((best_box[2]+y_mod)*app_h))))
+
+    # y_start = max(app_y, min(app_y + height - 5, app_y + int(height*(best_box[2] - best_box[4]/2))-5))
+    # y_end = max(app_y+5, min(app_y + height, app_y + int(height*(best_box[2]+best_box[4]/2))+5))
+    #
+    # x_start = max(app_x, min(app_x + width - 5, app_x + int(width*(best_box[1]-best_box[3]/2))-5))
+    # x_end = max(app_x + 5, min(app_x + width, app_x + int(width*(best_box[1]+best_box[3]/2))+5))
+    #
+    # image_clicked = raw_image[y_start:y_end,
+    #                           x_start:x_end]
+    #
+    # output_img = output_dir + "/images/" + str(event)
+    #
+    # np.save(output_img, image_clicked)
+    #
+    # cv2.imwrite(output_img + ".jpg", image_clicked)
+    #
+    # widget = yolo.names[int(best_box[0   ])]
+    #
+    # interactions.append([widget, event, input_string])
+    #
+    #
+    # with open(test_file, "a+") as t_f:
+    #     t_f.write(widget + "," + str(event) + "\n")
+    #
+    # pyautogui.moveTo(x, y)
+    #
+    # event = event + 1
+    #
+    # if widget == "button" or widget == "tabs" or widget == "menu" \
+    #         or widget == "menu_item" or widget == "toggle_button":
+    #     if (random.random() < 0.5):
+    #         pyautogui.click(x, y)
+    #     else:
+    #         pyautogui.rightClick(x, y)
+    # elif widget == "list" or widget == "scroll_bar" or widget == "slider":
+    #     x = random.randint(x_start, x_end)
+    #     y = random.randint(y_start, y_end)
+    #     pyautogui.moveTo(x, y)
+    #     action = random.random()
+    #     if action < 0.4:
+    #         pyautogui.click(x, y)
+    #     elif action < 0.5:
+    #         pyautogui.rightClick(x, y)
+    #     else:
+    #         pyautogui.click(x, y)
+    #         x = random.randint(x_start, x_end)
+    #         y = random.randint(y_start, y_end)
+    #         pyautogui.dragTo(x, y)
+    #         pyautogui.mouseUp(x, y)
+    #         pyautogui.click(x, y)
+    # elif widget == "tree":
+    #     pyautogui.click(x, y)
+    #     x = random.randint(x_start, x_end)
+    #     y = random.randint(y_start, y_end)
+    #     pyautogui.moveTo(x, y)
+    #
+    #     if (random.random() < 0.5):
+    #         pyautogui.doubleClick(x, y)
+    #     else:
+    #         pyautogui.rightClick(x, y)
+    #
+    #     x = random.randint(x_start, x_end)
+    #     y = random.randint(y_start, y_end)
+    #
+    #     pyautogui.moveTo(x, y)
+    #
+    #     pyautogui.click(x, y)
+    # elif widget == "text_field":
+    #     if (random.random() < 0.5):
+    #         pyautogui.click(x, y)
+    #     else:
+    #         pyautogui.rightClick(x, y)
+    #     pyautogui.typewrite(input_string, interval=0.01)
+    #     # if random.random() < 0.2:
+    #     #     pyautogui.press('enter')
+    # elif widget == "combo_box":
+    #
+    #     if (random.random() < 0.2): #press right button of cbox
+    #         x = x_start + ((x_end-x_start)*0.85)
+    #
+    #     if (random.random() < 0.5):
+    #         pyautogui.click(x, y)
+    #     else:
+    #         pyautogui.rightClick(x, y)
+    #
+    #     event = event + 1
+    #     next_y = best_box[2]+random.random()*0.5
+    #     x = int(max(app_x, min(app_x + app_w - 10, app_x + (best_box[1]*app_w))))
+    #     y = int(max(app_y, min(app_y + app_h - 10, app_y + ((next_y)*app_h))))
+    #
+    #     pyautogui.click(x, y)
+    #
+    #     y_start = max(0, min(height, int(height*(next_y - best_box[4]/2))-10))
+    #     y_end = max(0, min(height, int(height*(next_y+best_box[4]/2))+10))
+    #
+    #     x_start = max(0, min(width, int(width*(best_box[1]-best_box[3]/2))-10))
+    #     x_end = max(0, min(width, int(width*(best_box[1]+best_box[3]/2))+10))
+    #     image_clicked = raw_image[y_start:y_end,
+    #                     x_start:x_end]
+    #
+    #     output_img = output_dir + "/images/" + str(event)
+    #
+    #     np.save(output_img, image_clicked)
+    #
+    #     cv2.imwrite(output_img + ".jpg", image_clicked)
+    # else:
+    #     print(widget, "unrecognised")
+    #
+
+    # pyautogui.mouseUp(x, y)
+
+    random_interaction = random.random()
+
+    if random_interaction < 0.888888888888: # just a normal click
+        if random.random() < 0.8:
+            pyautogui.click(x, y)
+        else:
+            pyautogui.rightClick(x, y)
+    else: # click and type 'Hello world!'
+        pyautogui.click(x, y)
+        pyautogui.typewrite(input_string, interval=0.01)
 
 def get_window_size(window_name):
     global true_window
