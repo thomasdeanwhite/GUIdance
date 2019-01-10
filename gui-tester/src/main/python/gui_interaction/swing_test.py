@@ -245,7 +245,7 @@ if __name__ == '__main__':
 
             last_image = image
 
-            if gen_boxes or len(proc_boxes) < 3:
+            if True: #gen_boxes or len(proc_boxes) < 3:
 
                 #print("New state found!", len(states), "states found total.")
 
