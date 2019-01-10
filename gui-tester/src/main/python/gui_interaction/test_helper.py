@@ -27,9 +27,6 @@ def get_window_size(window_name):
     global true_window
     sub_window = False
 
-    if cfg.fullscreen:
-        return 0, 0, cfg.resolution[0], cfg.resolution[1]
-
     try:
         display = Xlib.display.Display()
         root = display.screen().root
@@ -137,7 +134,10 @@ def get_window_size(window_name):
         except Exception as e:
             print('[Window Parent Error] Screen cap failed: '+ str(e))
             traceback.print_stack()
-        return app_x, app_y, app_w, app_h
+        if cfg.fullscreen:
+            return 0, 0, cfg.resolution[0], cfg.resolution[1]
+        else:
+            return app_x, app_y, app_w, app_h
     except Exception as e:
         print('[Window Error] Screen cap failed: '+ str(e))
         traceback.print_stack()
