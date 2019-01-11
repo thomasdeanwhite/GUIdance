@@ -209,9 +209,8 @@ if __name__ == '__main__':
             if file_num <= 243:
                 real_images.append(l.strip())
 
-    real_images = [f.replace("/data/acp15tdw", "/data/acp15tdw/backup") for f in real_images]
 
-    valid_file = cfg.data_dir + "/test.txt"
+    valid_file = cfg.data_dir + "/../backup/data//test.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
@@ -219,6 +218,9 @@ if __name__ == '__main__':
 
             if file_num <= 243:
                 real_images.append(l.strip())
+
+    real_images = [f.replace("/data/acp15tdw", "/data/acp15tdw/backup") for f in real_images]
+
 
     with open("img_hist.csv", "w") as file:
         file.write("pixel_value,quantity,dataset" + "\n")
@@ -235,12 +237,15 @@ if __name__ == '__main__':
     with open("white_space.csv", "w+") as file:
         file.write("img,area,widget_count,widget_area,dataset\n")
 
-    valid_file = cfg.data_dir + "/../data-bk/test.txt"
+    valid_file = cfg.data_dir + "/train-10000.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
             file_num = int(pattern.findall(l)[-1])
             valid_images.append(l.strip())
+
+    valid_images = [f.replace("/home/thomas/work/GuiImages/public", "/data/acp15tdw/data") for f in valid_images]
+
 
     #valid_images = random.sample(valid_images, cfg.batch_size)
 

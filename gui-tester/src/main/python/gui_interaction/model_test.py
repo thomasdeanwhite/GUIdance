@@ -283,6 +283,7 @@ if __name__ == '__main__':
 
                     st = time.time()
                     p_boxes = convert_boxes(boxes)
+
                     # pbi = 0
                     # while pbi < p_boxes.shape[0]:
                     #     pb = p_boxes[pbi]

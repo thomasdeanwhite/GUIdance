@@ -42,7 +42,7 @@ def modify_learning_rate(epoch):
 
 if __name__ == '__main__':
 
-    training_file = cfg.data_dir + "/" + cfg.train_file
+    training_file = cfg.data_dir + "/train-10000.txt"
 
     pattern = re.compile(".*\/([0-9]+).*")
 
@@ -55,7 +55,7 @@ if __name__ == '__main__':
             file_num = int(pattern.findall(l)[-1])
             training_images.append(l.strip())
 
-
+    training_images = [f.replace("/home/thomas/work/GuiImages/public", "/data/acp15tdw/data") for f in training_images]
 
     valid_file = cfg.data_dir + "/" + cfg.validate_file
 

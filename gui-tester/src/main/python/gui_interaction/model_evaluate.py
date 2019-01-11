@@ -76,12 +76,8 @@ if __name__ == '__main__':
     random.shuffle(real_images)
     real_images = real_images[100:]
 
-    valid_file = cfg.data_dir + "/test.txt"
+    valid_file = cfg.data_dir + "/train-5.txt"
 
-    with open(valid_file, "r") as tfile:
-        for l in tfile:
-            file_num = int(pattern.findall(l)[-1])
-            valid_images.append(l.strip())
 
     # valid_images = random.sample(valid_images, cfg.batch_size)
     #
