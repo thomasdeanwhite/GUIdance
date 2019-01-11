@@ -20,22 +20,24 @@ setwd('/home/thomas/work/GUIdance/pdfs')
 data <- load_data('/home/thomas/work/GUIdance', "img_hist.csv")
 
 data$pixel_value = data$pixel_value * 8.5
-
+data$quantity = sqrt(data$quantity)
 p_data = data
 
 p = data %>%
   ggplot(aes(pixel_value, quantity)) +
   #geom_boxplot() + 
-  geom_bar(color="grey40", alpha=0.2, stat="identity") +
+  geom_bar(aes(x=pixel_value, y=quantity), color="grey40", alpha=0.2, stat="identity") +
   #geom_smooth(method="lm", se=F) +
   labs(x="Pixel Value",
-       y="Quantity",
+       y="sqrt(Quantity)",
        title=paste("Pixel Histogram for dataset images")) +
   #scale_x_discrete() +
-  scale_y_log10() +
+  #scale_y_log10() +
   facet_wrap(~dataset, scales = "free") +
   theme_minimal()
   #theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+
+print(p)
 
 ggsave("hist.png", p, height=4, width=6, dpi=150)
 
@@ -43,7 +45,7 @@ data <- load_data('/home/thomas/work/GUIdance', "label_heat.csv")
 
 p = data %>% ggplot(aes(x,y)) +
   geom_raster(aes(fill=density)) +
-  facet_wrap(class~dataset, scales="free") +
+  facet_wrap(class~dataset) +
   scale_fill_gradient(low = "#0000FF", high = "#FF0000", na.value = "#00FF00") +
   scale_y_reverse()
 

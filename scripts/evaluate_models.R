@@ -49,7 +49,7 @@ data$iou_threshold = factor(data$iou_threshold)
 
 #data = data[!data$dataset == "real",]
 
-data$class = "Widget"
+#data$class = "Widget"
 
 average_precision = data[FALSE,]
 
@@ -97,7 +97,7 @@ p = t_data  %>%
        title="") +
   #scale_x_discrete() +
   #scale_y_log10() +
-  #facet_wrap(~class) +
+  facet_wrap(~class) +
   theme_minimal() +
   #facet_wrap(busy_cat~size_cat) +
   #theme(axis.text.x = element_text(angle = 45, hjust = 1))+
