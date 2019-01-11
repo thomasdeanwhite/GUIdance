@@ -199,7 +199,7 @@ def get_window_size(window_name):
                     for w_n in win_names:
                         if w_n.lower() in name.lower() or w_n.lower() in tag:
                             # if wid != 0:
-                            #     sub_window = Truem
+                            #     sub_window = True
                             #     if random.random() < 0.05:
                             #         print("Killing window")
                             #         os.system("xkill -id " + wid)

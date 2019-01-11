@@ -182,8 +182,6 @@ if __name__ == '__main__':
         while ((time.time() - start_time < runtime and not cfg.use_iterations) or
                (actions < cfg.test_iterations and cfg.use_iterations)) and running:
 
-            signal.alarm(60)
-
             iteration_time = time.time()
 
             time.sleep(1)
@@ -193,6 +191,8 @@ if __name__ == '__main__':
             os.system('killall "firefox"')
 
             app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
+
+            signal.alarm(60)
 
             counter = 0
 
@@ -245,6 +245,8 @@ if __name__ == '__main__':
                 while len(line) > 1:
                     line = process_id.stdout.readline()
 
+                    print(line)
+
                     if "AUT Not Supported!" in line:
                         print(line)
                         kill_old_process()
@@ -262,6 +264,8 @@ if __name__ == '__main__':
 
                 #p_boxes = np.array(p_boxes)
 
+                print(p_boxes)
+
                 if len(p_boxes) == 0:
                     error_count += 1
 
@@ -273,6 +277,35 @@ if __name__ == '__main__':
                     continue
 
                 proc_boxes = np.array(p_boxes)
+
+            height, width = image.shape
+
+            for box in range(len(proc_boxes)):
+                lbl = proc_boxes[box]
+
+                col = 0
+
+                # lbl[0] = lbl[0] / cfg.grid_shape[0]
+                # lbl[1] = lbl[1] / cfg.grid_shape[1]
+                # lbl[2] = lbl[2] / cfg.grid_shape[0]
+                # lbl[3] = lbl[3] / cfg.grid_shape[1]
+                x1, y1 = (int(width * (lbl[1] - lbl[3]/2)),
+                          int(height * (lbl[2] - lbl[4]/2)))
+                x2, y2 = (int(width * (lbl[1] + lbl[3]/2)),
+                          int(height * (lbl[2] + lbl[4]/2)))
+                cv2.rectangle(image,
+                              (x1, y1),
+                              (x2, y2),
+                              127, 3, 4)
+
+                cv2.rectangle(image,
+                              (int((x1+x2)/2-1), int((y1+y2)/2-1)),
+                              (int((x1+x2)/2+1), int((y1+y2)/2+1)),
+                              127, 3, 4)
+
+            cv2.imshow('image',image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
             for box_num in range(1):
 
