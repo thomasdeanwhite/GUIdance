@@ -30,6 +30,8 @@ working_dir = ""
 aut_command = ""
 process_id = -1
 
+pyautogui.FAILSAFE = False # disables the fail-safe
+
 
 def on_release(key):
     global running, quit_counter
