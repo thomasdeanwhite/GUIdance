@@ -24,8 +24,8 @@ def screenshot():
     return img
 
 def perform_interaction(best_box, app_x, app_y, app_w, app_h, input_string):
-    x_mod = (0.5-random.random())*best_box[3]
-    y_mod = (0.5-random.random())*best_box[4]
+    x_mod = 0#(0.5-random.random())*best_box[3]
+    y_mod = 0#(0.5-random.random())*best_box[4]
     x = int(max(app_x, min(app_x + app_w, app_x + ((best_box[1]+x_mod)*app_w))))
     y = int(max(app_y, min(app_y + app_h, app_y + ((best_box[2]+y_mod)*app_h))))
 
