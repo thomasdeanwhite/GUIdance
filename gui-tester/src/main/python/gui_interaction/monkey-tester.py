@@ -16,7 +16,7 @@ import Xlib
 from pynput import keyboard
 import signal
 import timeit
-from test_helper import get_window_size
+from test_helper import get_window_size, is_running
 
 sub_window = False
 
@@ -99,8 +99,7 @@ if __name__ == '__main__':
         with open(csv_file, "w+") as p_f:
             p_f.write("time,actions,technique,iteration_time,window_name\n")
 
-        while ((time.time() - start_time < runtime and not cfg.use_iterations) or
-               (actions < cfg.test_iterations and cfg.use_iterations)) and running:
+        while is_running(start_time, runtime, actions, running):
             time.sleep(1)
             iteration_time = time.time()
 
@@ -121,7 +120,7 @@ if __name__ == '__main__':
                     print("[Detection] Couldn't find application window!")
                     break
 
-            if time.time() - start_time > runtime:
+            if not is_running(start_time, runtime, actions, running):
                 break
 
 

@@ -18,7 +18,7 @@ from pynput import keyboard
 import data_loader
 import signal
 import timeit
-from test_helper import get_window_size, screenshot, perform_interaction
+from test_helper import get_window_size, screenshot, perform_interaction, is_running
 
 running = True
 
@@ -209,13 +209,15 @@ if __name__ == '__main__':
 
             actions = 0
 
+
+
             csv_file = cfg.log_dir + "/" + str(start_time) + "-test.csv"
 
             with open(csv_file, "w+") as p_f:
                 p_f.write("time,actions,technique,iteration_time,window_name\n")
 
-            while ((time.time() - start_time < runtime and not cfg.use_iterations) or
-                   (actions < cfg.test_iterations and cfg.use_iterations)) and running:
+            while is_running(start_time, runtime, actions, running):
+
                 iteration_time = time.time()
 
                 time.sleep(1)
@@ -237,7 +239,7 @@ if __name__ == '__main__':
                         print("[Detection] Couldn't find application window!")
                         break
 
-                if time.time() - start_time > runtime:
+                if not is_running(start_time, runtime, actions, running):
                     break
 
                 # image = pyautogui.screenshot(region=(app_x, app_y, app_w, app_h)).convert("L")

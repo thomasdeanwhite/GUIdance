@@ -18,7 +18,7 @@ import data_loader
 import signal
 import timeit
 import signal
-from test_helper import get_window_size, screenshot, perform_interaction
+from test_helper import get_window_size, screenshot, perform_interaction, is_running
 
 
 running = True
@@ -181,8 +181,7 @@ if __name__ == '__main__':
         with open(csv_file, "w+") as p_f:
             p_f.write("time,actions,technique,iteration_time,window_name\n")
 
-        while ((time.time() - start_time < runtime and not cfg.use_iterations) or
-               (actions < cfg.test_iterations and cfg.use_iterations)) and running:
+        while is_running(start_time, runtime, actions, running):
 
             signal.alarm(60)
 
@@ -207,7 +206,7 @@ if __name__ == '__main__':
                     print("[Swing Test] Couldn't find application window!")
                     break
 
-            if time.time() - start_time > runtime:
+            if not is_running(start_time, runtime, actions, running):
                 break
 
             image = screenshot()[app_y:app_y+app_h, app_x:app_x+app_w]

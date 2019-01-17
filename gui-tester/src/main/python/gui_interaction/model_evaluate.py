@@ -12,7 +12,7 @@ import pickle
 import re
 from data_loader import load_files, disable_transformation
 
-one_class = False
+one_class = True
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -74,9 +74,14 @@ if __name__ == '__main__':
 
     random.seed(cfg.random_seed)
     random.shuffle(real_images)
-    real_images = real_images[100:]
+    #real_images = real_images[100:]
 
-    valid_file = cfg.data_dir + "/train-5.txt"
+    valid_file = cfg.data_dir + "/test.txt"
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+            valid_images.append(l.strip())
 
 
     # valid_images = random.sample(valid_images, cfg.batch_size)
@@ -265,10 +270,12 @@ if __name__ == '__main__':
 
                     boxes = yolo.convert_net_to_bb(res, filter_top=True)
 
-                    boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels_classes, [boxes.shape[0], -1, 6]))
-
                     if one_class:
                         boxes[..., 0] = 0
+
+                    boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels_classes, [boxes.shape[0], -1, 6]))
+
+
 
 
                     labels = boxes[0]
@@ -480,10 +487,10 @@ if __name__ == '__main__':
 
                     boxes = yolo.convert_net_to_bb(res, filter_top=True)
 
-                    boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels_classes, [boxes.shape[0], -1, 6]))
-
                     if one_class:
                         boxes[..., 0] = 0
+
+                    boxes = yolo.calculate_max_iou(boxes, np.reshape(v_labels_classes, [boxes.shape[0], -1, 6]))
 
 
                     labels = boxes[0]

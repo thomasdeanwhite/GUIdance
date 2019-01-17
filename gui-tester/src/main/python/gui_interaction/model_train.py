@@ -57,6 +57,11 @@ if __name__ == '__main__':
 
     training_images = [f.replace("/home/thomas/work/GuiImages/public", "/data/acp15tdw/data") for f in training_images]
 
+    while len(training_images) < 100000:
+        training_images = training_images + training_images
+
+    training_images = training_images[:100000]
+
     valid_file = cfg.data_dir + "/" + cfg.validate_file
 
     valid_images = []
@@ -92,7 +97,7 @@ if __name__ == '__main__':
     valid_file = cfg.data_dir + "/../backup/data/test.txt"
 
     with open(valid_file, "r") as tfile:
-        for l in tfile:
+    
             file_num = int(pattern.findall(l)[-1])
 
             if file_num <= 243:
@@ -131,7 +136,7 @@ if __name__ == '__main__':
         batches = math.ceil(len(training_images)/cfg.batch_size) if cfg.run_all_batches else 1
 
 
-        learning_rate = tf.train.exponential_decay(0.1, global_step,
+        learning_rate = tf.train.exponential_decay(0.01, global_step,
                                                    1, 0.9, staircase=True)
         #learning_rate = tf.placeholder(tf.float64)
         #learning_r = cfg.learning_rate_start
@@ -140,7 +145,7 @@ if __name__ == '__main__':
         with tf.control_dependencies(update_ops):
             yolo.set_update_ops(update_ops)
 
-            train_step = tf.train.AdamOptimizer(5e-5). \
+            train_step = tf.train.AdamOptimizer(2e-5). \
                 minimize(yolo.loss)
 
         saver = tf.train.Saver()

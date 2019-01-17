@@ -9,9 +9,9 @@ import math
 import random
 import os
 from tensorflow.python.tools import inspect_checkpoint as chkp
-from data_loader import load_image, load_raw_image, disable_transformation
-
-disable_transformation()
+from data_loader import load_files, load_raw_image, disable_transformation
+import data_loader
+import re
 
 def convert_coords(x, y, w, h, aspect):
     if aspect > 1: # width is bigger than height
@@ -25,23 +25,122 @@ def convert_coords(x, y, w, h, aspect):
 
 if __name__ == '__main__':
 
+    data_loader.debug = True
+
+    training_file = cfg.data_dir + "/train-25000.txt"
+
+    pattern = re.compile(".*\/([0-9]+).*")
+
+    training_images = []
+
+    real_images = []
+
+    with open(training_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+            training_images.append(l.strip())
+
+    training_images = [f.replace("/home/thomas/work/GuiImages/public", "/data/acp15tdw/data") for f in training_images]
+
+    while len(training_images) < 100000:
+        training_images = training_images + training_images
+
+    training_images = training_images[:100000]
+
+    valid_file = cfg.data_dir + "/" + cfg.validate_file
+
+    valid_images = []
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            valid_images.append(l.strip())
+
+    random.shuffle(valid_images)
+    valid_images = valid_images[:500]
+
+    training_file = cfg.data_dir + "/../backup/data/train.txt"
+
+    with open(training_file, "r") as tfile:
+        for l in tfile:
+
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+
+
+    valid_file = cfg.data_dir + "/../backup/data/validate.txt"
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+    valid_file = cfg.data_dir + "/../backup/data/test.txt"
+
+    with open(valid_file, "r") as tfile:
+        for l in tfile:
+            file_num = int(pattern.findall(l)[-1])
+
+            if file_num <= 243:
+                real_images.append(l.strip())
+
+    real_images = [f.replace("/data/acp15tdw", "/data/acp15tdw/backup") for f in real_images]
+
+    real_images_manual = [os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(cfg.data_dir + "/../real/data/images")) for f in fn]
+
+    for ri in real_images_manual:
+        real_images.append(ri)
+
+    # random.seed(cfg.random_seed)
+    # random.shuffle(real_images)
+    #training_images = real_images[:100]
+
+    #real_images = real_images[100:]
+
+    print("Found", len(real_images), "real GUI screenshots.")
+
+    #valid_images = random.sample(valid_images, cfg.batch_size)
+
     tf.reset_default_graph()
+
     yolo = Yolo()
 
     yolo.create_network()
-    #yolo.set_training(False)
-    #yolo.create_training()
 
-    learning_rate = tf.placeholder(tf.float64)
-    learning_r = cfg.learning_rate_start
+    yolo.set_training(True)
+
+    yolo.create_training()
+
+    global_step = tf.placeholder(tf.int32)
+    batches = math.ceil(len(training_images)/cfg.batch_size) if cfg.run_all_batches else 1
+
+
+    learning_rate = tf.train.exponential_decay(0.01, global_step,
+                                               1, 0.9, staircase=True)
+    #learning_rate = tf.placeholder(tf.float64)
+    #learning_r = cfg.learning_rate_start
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
+    with tf.control_dependencies(update_ops):
+        yolo.set_update_ops(update_ops)
+
+        train_step = tf.train.AdamOptimizer(5e-5). \
+            minimize(yolo.loss)
 
     saver = tf.train.Saver()
 
-    model_file = os.getcwd() + "/" + cfg.weights_dir + "/model.ckpt"
+    model_file = cfg.weights_dir + "/model.ckpt"
 
-    #chkp.print_tensors_in_checkpoint_file(model_file, tensor_name='', all_tensors=True)
+    valid_batches = math.ceil(len(valid_images)/cfg.batch_size) if cfg.run_all_batches else 1
 
-    gpu_options = tf.GPUOptions(allow_growth=True)
+    real_batches = math.ceil(len(real_images)/cfg.batch_size) if cfg.run_all_batches else 1
+
+    if (real_batches < 1):
+        real_batches = 1
 
     config = tf.ConfigProto(
         device_count = {'GPU': 0}
@@ -50,154 +149,28 @@ if __name__ == '__main__':
     with tf.Session(config=config) as sess:
 
         init_op = tf.global_variables_initializer()
+
+        print("Initialising Memory Values")
         model = sess.run(init_op)
-        if os.path.isfile(os.getcwd() + "/" + cfg.weights_dir + "/checkpoint"):
-            saver.restore(sess, model_file)
-            print("Restored model")
+
+        random.shuffle(valid_images)
+
+        random.shuffle(training_images)
         yolo.set_training(False)
 
-        anchors = np.reshape(np.array(cfg.anchors), [-1, 2])
-        images = np.array([load_image(sys.argv[1])])
+        losses = [0, 0, 0, 0, 0, 0, 0, 0]
 
-        img = images[0]
+        for j in range(valid_batches):
+            gc.collect()
 
-        #normalise data  between 0 and 1
-        imgs = np.array(images)/127.5-1
+            lower_index = j*cfg.batch_size
+            upper_index = min(len(valid_images), ((j+1)*cfg.batch_size))
 
-        boxes = sess.run(yolo.output, feed_dict={
-            yolo.x: imgs,
-            yolo.anchors: anchors,
-        })
+            v_imgs, v_labels, v_obj_detection = load_files(
+                valid_images[lower_index:upper_index])
 
-        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()[0]
+            v_imgs = (np.array(v_imgs)/127.5)-1
 
-        img = load_raw_image(sys.argv[1])
+            v_labels = np.array(v_labels)
 
-
-
-
-        proc_boxes.sort(key=lambda box: -box[5])
-
-        #proc_boxes
-
-
-        trim_overlap = False
-
-        height, width = img.shape[:2]
-
-        i=0
-        while i < len(proc_boxes):
-            box = proc_boxes[i]
-            if box[5] < cfg.object_detection_threshold:
-                del proc_boxes[i]
-            else:
-
-                box[1:5] = convert_coords(box[1], box[2], box[3], box[4], width/height)
-
-                x, y, w, h = (box[1],box[2],box[3],box[4])
-                box[1] = x - w/2
-                box[2] = y - h/2
-                box[3] = x + w/2
-                box[4] = y + h/2
-                i = i + 1
-
-
-
-        i = 0
-
-
-        while i < len(proc_boxes)-1 and trim_overlap:
-            box = proc_boxes[i]
-            j = i+1
-            while j < len(proc_boxes):
-                box2 = proc_boxes[j]
-
-                xA = max(box[1], box2[1])
-                yA = max(box[2], box2[2])
-                xB = min(box[3], box2[3])
-                yB = min(box[4], box2[4])
-
-                interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
-
-
-                boxAArea = (box[2] - box[0] + 1) * (box[3] - box[1] + 1)
-                boxBArea = (box2[2] - box2[0] + 1) * (box2[3] - box2[1] + 1)
-
-                iou = interArea / float(boxAArea + boxBArea - interArea)
-
-                if iou > 0.8:
-                    if (box[5] >= box2[5]):
-                        del proc_boxes[j]
-                        j = j-1
-                    else:
-                        del proc_boxes[i]
-                        i = i-1
-                        break
-                j = j + 1
-            i = i+1
-
-        for box in proc_boxes:
-
-            cls = yolo.names[int(box[0])]
-
-            hex = cls.encode('utf-8').hex()[0:6]
-
-            color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
-
-            color = [0, 0, 0]
-
-            if (box[5]>cfg.object_detection_threshold):
-                print(box)
-
-
-
-                x1 = max(int(width*box[1]), 0)
-                y1 = max(int(height*box[2]), 0)
-                x2 = int(width*box[3])
-                y2 = int(height*box[4])
-
-                cv2.rectangle(img, (x1, y1),
-                              (x2, y2),
-                              (color[0], color[1], color[2]), int(5*box[4] * box[5]), 8)
-        print("------------")
-
-        for box in proc_boxes:
-
-            print(box)
-
-            cls = yolo.names[int(box[0])]
-
-            hex = cls.encode('utf-8').hex()[0:6]
-
-            color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
-
-            if (box[5]>cfg.object_detection_threshold):
-                height, width = img.shape[:2]
-
-                color = [0, 0, 0]
-
-                avg_col = color[0] + color[1] + color[2]
-
-                text_col = (255, 255, 255)
-
-                if avg_col > 127:
-                    text_col = (0, 0, 0)
-
-                x1 = max(int(width*box[1]), 0)
-                y1 = max(int(height*box[2]), 0)
-                x2 = int(width*box[3])
-                y2 = int(height*box[4])
-
-                cv2.rectangle(img,
-                              (x1, y1-int(10*box[4])-15),
-                              (x1 + (5 + len(cls))*7, y1),
-                              (color[0], color[1], color[2]), -1, 8)
-
-                cv2.putText(img, cls + str(round(box[5]*100)),
-                            (x1, y1-int(10*box[4])-2),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.4, text_col, 1)
-
-        cv2.imshow('image',img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+            v_obj_detection = np.array(v_obj_detection)

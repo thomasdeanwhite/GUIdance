@@ -99,8 +99,17 @@ def print_info(imgs, labels, classes, dataset, areas):
                        range(30)])
     quantities = []
 
+    lim = imgs.shape[0]
 
-    for i in range(imgs.shape[0]):
+    last_prog = 0
+
+
+    for i in range(lim):
+
+        c_prog = i/float(lim)
+        if c_prog >= last_prog:
+            print(last_prog * 100, "%")
+            last_prog += 0.1
 
         widget_q = 0
 
@@ -159,6 +168,10 @@ def print_info(imgs, labels, classes, dataset, areas):
             for c in range(len(yolo.names)):
                 with open("label_heat.csv", "a") as file:
                     dens = (density[x, y, c] + 1) / (np.amax(density[..., c]) + 1)
+
+                    if (density[x, y, c] == 0):
+                        dens = 0
+
                     cl = "total"
                     if (c > 0):
                         cl = yolo.names[c-1]
@@ -210,7 +223,7 @@ if __name__ == '__main__':
                 real_images.append(l.strip())
 
 
-    valid_file = cfg.data_dir + "/../backup/data//test.txt"
+    valid_file = cfg.data_dir + "/../backup/data/test.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
@@ -237,7 +250,7 @@ if __name__ == '__main__':
     with open("white_space.csv", "w+") as file:
         file.write("img,area,widget_count,widget_area,dataset\n")
 
-    valid_file = cfg.data_dir + "/train-10000.txt"
+    valid_file = cfg.data_dir + "/train-5.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
@@ -247,46 +260,38 @@ if __name__ == '__main__':
     valid_images = [f.replace("/home/thomas/work/GuiImages/public", "/data/acp15tdw/data") for f in valid_images]
 
 
-    #valid_images = random.sample(valid_images, cfg.batch_size)
+    v_imgs, v_labels, v_obj_detection, v_areas = load_files(
+        valid_images)
 
-    #random.shuffle(valid_images)
+    v_imgs = np.array(v_imgs)
 
-    #valid_images = valid_images[:40]
+    v_labels = np.array(v_labels)
 
-    with tf.device(cfg.gpu):
+    v_obj_detection = np.array(v_obj_detection)
 
-        v_imgs, v_labels, v_obj_detection, v_areas = load_files(
-            valid_images)
+    print("Validation set ---")
 
-        v_imgs = np.array(v_imgs)
-
-        v_labels = np.array(v_labels)
-
-        v_obj_detection = np.array(v_obj_detection)
-
-        print("Validation set ---")
-
-        print_info(v_imgs, v_labels, v_obj_detection, "synthetic", v_areas)
+    print_info(v_imgs, v_labels, v_obj_detection, "synthetic", v_areas)
 
 
-        del(v_imgs, v_labels, v_obj_detection)
+    del(v_imgs, v_labels, v_obj_detection)
 
-        v_imgs, v_labels, v_obj_detection, v_areas = load_files(
-            real_images)
+    v_imgs, v_labels, v_obj_detection, v_areas = load_files(
+        real_images)
 
-        v_imgs = np.array(v_imgs)
+    v_imgs = np.array(v_imgs)
 
-        v_labels = np.array(v_labels)
+    v_labels = np.array(v_labels)
 
-        v_obj_detection = np.array(v_obj_detection)
+    v_obj_detection = np.array(v_obj_detection)
 
-        print("Real set ---")
+    print("Real set ---")
 
-        print_info(v_imgs, v_labels, v_obj_detection, "real", v_areas)
+    print_info(v_imgs, v_labels, v_obj_detection, "real", v_areas)
 
 
-        del(v_imgs, v_labels, v_obj_detection)
+    del(v_imgs, v_labels, v_obj_detection)
 
-        gc.collect()
+    gc.collect()
 
 sys.exit()

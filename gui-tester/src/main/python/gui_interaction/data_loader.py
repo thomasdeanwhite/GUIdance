@@ -234,15 +234,20 @@ def load_files(raw_files):
         #
         #             labels[im][lnx][lny] = [0, 0, 0, 0, 0]
         #             object_detection[im][lnx][lny] = 0
-
+        image = image.astype(np.int16)
         if random.random() < cfg.brightness_probability:
-            brightness = int(random.random()*cfg.brightness_var*2)-cfg.brightness_var
-            image = np.maximum(0, np.minimum(255, np.add(image, brightness)))
+
+
+
+            brightness = int((random.random()*cfg.brightness_var*2)-cfg.brightness_var)
+            image = np.add(image, brightness)
+
+            image = np.maximum(0, np.minimum(255, image))
 
         if random.random() < cfg.contrast_probability:
             contrast = (random.random() * cfg.contrast_var * 2) - cfg.contrast_var
 
-            contrast_diff = np.multiply(image - np.mean(image), contrast).astype(np.uint8)
+            contrast_diff = np.multiply(image - np.mean(image), contrast).astype(np.int16)
             image = np.maximum(0, np.minimum(255, np.add(image, contrast_diff)))
 
         if random.random() < cfg.invert_probability:
@@ -399,6 +404,8 @@ def load_files(raw_files):
                                 labels[im][int(lbc2[1])][int(lbc2[0])] = lbc2
                                 object_detection[im][int(lbc2[1])][int(lbc2[0])] = obj_det[lnx][lny]
 
+        image = image.astype(np.uint8)
+
         image = cv2.resize(image, (cfg.height, cfg.width))
 
         image = np.reshape(image, [cfg.width, cfg.height, 1])
@@ -412,34 +419,34 @@ def load_files(raw_files):
                 for lny in range(len(labs[lnx])):
 
                     lbl = labs[lnx][lny]
-                    #
-                    # col = 0
-                    #
-                    # if (lbl[4] > 0 and object_detection[im][lnx][lny] > 0):
-                    #     col = 255
-                    #
-                    # lbl[0] = lbl[0] / cfg.grid_shape[0]
-                    # lbl[1] = lbl[1] / cfg.grid_shape[1]
-                    # lbl[2] = lbl[2] / cfg.grid_shape[0]
-                    # lbl[3] = lbl[3] / cfg.grid_shape[1]
-                    # x1, y1 = (int(width * (lbl[0] - lbl[2]/2)),
-                    #           int(height * (lbl[1] - lbl[3]/2)))
-                    # x2, y2 = (int(width * (lbl[0] + lbl[2]/2)),
-                    #           int(height * (lbl[1] + lbl[3]/2)))
-                    # cv2.rectangle(image,
-                    #               (x1, y1),
-                    #               (x2, y2),
-                    #               127, 3, 4)
-                    #
-                    # cv2.rectangle(image,
-                    #               (int((x1+x2)/2-1), int((y1+y2)/2-1)),
-                    #               (int((x1+x2)/2+1), int((y1+y2)/2+1)),
-                    #               127, 3, 4)
-                    #
-                    # cv2.rectangle(image,
-                    #               (int(lny/cfg.grid_shape[0]*width), int(lnx/cfg.grid_shape[0]*height)),
-                    #               (int((1+lny)/cfg.grid_shape[1]*width), int((1+lnx)/cfg.grid_shape[1]*height)),
-                    #               col, 1, 4)
+
+                    col = 0
+
+                    if (lbl[4] > 0 and object_detection[im][lnx][lny] > 0):
+                        col = 255
+
+                    lbl[0] = lbl[0] / cfg.grid_shape[0]
+                    lbl[1] = lbl[1] / cfg.grid_shape[1]
+                    lbl[2] = lbl[2] / cfg.grid_shape[0]
+                    lbl[3] = lbl[3] / cfg.grid_shape[1]
+                    x1, y1 = (int(width * (lbl[0] - lbl[2]/2)),
+                              int(height * (lbl[1] - lbl[3]/2)))
+                    x2, y2 = (int(width * (lbl[0] + lbl[2]/2)),
+                              int(height * (lbl[1] + lbl[3]/2)))
+                    cv2.rectangle(image,
+                                  (x1, y1),
+                                  (x2, y2),
+                                  127, 3, 4)
+
+                    cv2.rectangle(image,
+                                  (int((x1+x2)/2-1), int((y1+y2)/2-1)),
+                                  (int((x1+x2)/2+1), int((y1+y2)/2+1)),
+                                  127, 3, 4)
+
+                    cv2.rectangle(image,
+                                  (int(lny/cfg.grid_shape[0]*width), int(lnx/cfg.grid_shape[0]*height)),
+                                  (int((1+lny)/cfg.grid_shape[1]*width), int((1+lnx)/cfg.grid_shape[1]*height)),
+                                  col, 1, 4)
 
             cv2.imshow('image',image)
             cv2.waitKey(0)
