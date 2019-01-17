@@ -88,8 +88,7 @@ def load_files(raw_files):
 
     return images, labels, object_detection, areas
 
-def print_info(imgs, labels, classes, dataset, areas):
-
+def proc_subset(imgs, labels, classes, dataset, areas):
     density = np.array([[[0 for i in
                           range(len(yolo.names)+1)]for i in
                          range(cfg.grid_shape[1])] for i in
@@ -157,6 +156,53 @@ def print_info(imgs, labels, classes, dataset, areas):
             with open("class_count.csv", "a") as file:
                 file.write(str(i) + "," + yolo.names[c] + "," + str(class_count[c]/np.sum(class_count)) + "," + dataset + "\n")
 
+        return density, pixels, quantities
+
+def print_info(imgs, labels, classes, dataset, areas):
+
+    density, pixels, quantities = proc_subset(imgs, labels, classes, dataset, areas)
+
+    return density, pixels, quantities
+
+def run_dataset(files, dataset):
+
+    density = np.array([[[0 for i in
+                          range(len(yolo.names)+1)]for i in
+                         range(cfg.grid_shape[1])] for i in
+                        range(cfg.grid_shape[0])])
+
+    pixels = np.array([0 for i in
+                       range(30)])
+    quantities = []
+
+    max_run = 500
+
+    iterations = 1 + int(len(files) / max_run)
+
+    print(dataset, "set ---")
+
+    for i in range(iterations):
+        f_s = files[i*max_run:max((i+1)*max_run, len(files))]
+
+        v_imgs, v_labels, v_obj_detection, areas = load_files(
+            f_s)
+
+        v_imgs = np.array(v_imgs)
+
+        v_labels = np.array(v_labels)
+
+        v_obj_detection = np.array(v_obj_detection)
+
+
+
+        density_p, pixels_p, quantities_p = print_info(v_imgs, v_labels, v_obj_detection, dataset, areas)
+
+        density += density_p
+        pixels += pixels_p
+        quantities += quantities_p
+
+        del(v_imgs, v_labels, v_obj_detection)
+
     print("img_hist:", pixels)
 
     for j in range(30):
@@ -176,6 +222,8 @@ def print_info(imgs, labels, classes, dataset, areas):
                     if (c > 0):
                         cl = yolo.names[c-1]
                     file.write(str(x) + "," + str(y) + "," + str(dens) + "," + cl + "," + dataset + "\n")
+
+
 
     areas = np.array(areas)
 
@@ -250,48 +298,21 @@ if __name__ == '__main__':
     with open("white_space.csv", "w+") as file:
         file.write("img,area,widget_count,widget_area,dataset\n")
 
-    valid_file = cfg.data_dir + "/train-5.txt"
+    valid_file = cfg.data_dir + "/train.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
             file_num = int(pattern.findall(l)[-1])
             valid_images.append(l.strip())
 
+    valid_images = valid_images[:1000]
+
     valid_images = [f.replace("/home/thomas/work/GuiImages/public", "/data/acp15tdw/data") for f in valid_images]
 
 
-    v_imgs, v_labels, v_obj_detection, v_areas = load_files(
-        valid_images)
-
-    v_imgs = np.array(v_imgs)
-
-    v_labels = np.array(v_labels)
-
-    v_obj_detection = np.array(v_obj_detection)
-
-    print("Validation set ---")
-
-    print_info(v_imgs, v_labels, v_obj_detection, "synthetic", v_areas)
+    run_dataset(valid_images, "synthetic")
 
 
-    del(v_imgs, v_labels, v_obj_detection)
-
-    v_imgs, v_labels, v_obj_detection, v_areas = load_files(
-        real_images)
-
-    v_imgs = np.array(v_imgs)
-
-    v_labels = np.array(v_labels)
-
-    v_obj_detection = np.array(v_obj_detection)
-
-    print("Real set ---")
-
-    print_info(v_imgs, v_labels, v_obj_detection, "real", v_areas)
-
-
-    del(v_imgs, v_labels, v_obj_detection)
+    run_dataset(real_images, "real")
 
     gc.collect()
-
-sys.exit()

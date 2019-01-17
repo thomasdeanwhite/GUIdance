@@ -162,12 +162,19 @@ if __name__ == '__main__':
         runtime = round(time.time())
 
         output_dir = cfg.output_dir + "/" + str(runtime)
+        try:
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+        except:
+            pass
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        try:
+            if not os.path.exists(output_dir + "/images"):
+                os.makedirs(output_dir + "/images")
+        except:
+            pass
 
-        if not os.path.exists(output_dir + "/images"):
-            os.makedirs(output_dir + "/images")
+
 
         test_file = output_dir + "/test.txt"
 

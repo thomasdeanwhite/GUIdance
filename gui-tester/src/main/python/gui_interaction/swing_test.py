@@ -140,11 +140,17 @@ if __name__ == '__main__':
 
         output_dir = cfg.output_dir + "/" + str(runtime)
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        try:
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+        except:
+            pass
 
-        if not os.path.exists(output_dir + "/images"):
-            os.makedirs(output_dir + "/images")
+        try:
+            if not os.path.exists(output_dir + "/images"):
+                os.makedirs(output_dir + "/images")
+        except:
+            pass
 
         test_file = output_dir + "/test.txt"
 
@@ -302,7 +308,7 @@ if __name__ == '__main__':
 
             # write test info
             with open(csv_file, "a") as p_f:
-                p_f.write(str(exec_time) + "," + str(actions) + ",detection," + str(iteration_time) + "," + cfg.window_name + "\n")
+                p_f.write(str(exec_time) + "," + str(actions) + ",swing," + str(iteration_time) + "," + cfg.window_name + "\n")
 
         kill_old_process()
 
