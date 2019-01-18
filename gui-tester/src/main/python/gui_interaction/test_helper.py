@@ -10,9 +10,11 @@ import time
 import pyautogui
 
 def screenshot():
-    img_file = os.environ.get("OUT_DIR", "./"+str(time.time()))
+    img_file = os.environ.get("OUT_DIR", "./")
     if not img_file.endswith("/"):
         img_file += "/"
+
+    img_file += str(time.time()) + "/"
 
     if not os.path.isdir(img_file):
         os.makedirs(img_file)
@@ -201,7 +203,7 @@ def get_window_size(window_name):
 
                 if isinstance(name, str) or isinstance(tag, str):
                     for w_n in win_names:
-                        if w_n.lower() in name.lower() or w_n.lower() in tag:
+                        if w_n.lower() in name.lower() or w_n.lower() in tag.lower():
                             # if wid != 0:
                             #     sub_window = True
                             #     if random.random() < 0.05:
@@ -229,7 +231,7 @@ def get_window_size(window_name):
 
         if len(windows) > 1 and cfg.multiple_windows:
             win_sel = None
-            while (win_sel is None or not win_sel.get_wm_icon_size() is None) and len(windows) > 0:
+            while win_sel is None and len(windows) > 0:
                 c_win = windows.pop(random.randint(0, len(windows)-1))
 
                 win_sel = c_win
@@ -241,6 +243,8 @@ def get_window_size(window_name):
             win = windows[0]
 
         name = win.get_wm_name() # Title
+
+        print(name)
 
         try:
             win_activate = subprocess.Popen("xdotool search \"" + name + "\" windowactivate --sync", shell=True)

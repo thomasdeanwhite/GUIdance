@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
     # valid_images = random.sample(valid_images, cfg.batch_size)
     #
-    # valid_images = valid_images[:100]
+    valid_images = valid_images[:10000]
 
     with tf.device(cfg.gpu):
 

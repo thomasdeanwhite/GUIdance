@@ -89,26 +89,19 @@ def load_files(raw_files):
     return images, labels, object_detection, areas
 
 def proc_subset(imgs, labels, classes, dataset, areas):
-    density = np.array([[[0 for i in
+    density_f = np.array([[[0 for i in
                           range(len(yolo.names)+1)]for i in
                          range(cfg.grid_shape[1])] for i in
                         range(cfg.grid_shape[0])])
 
-    pixels = np.array([0 for i in
+    pixels_f = np.array([0 for i in
                        range(30)])
-    quantities = []
+    quantities_f = []
 
     lim = imgs.shape[0]
 
-    last_prog = 0
-
 
     for i in range(lim):
-
-        c_prog = i/float(lim)
-        if c_prog >= last_prog:
-            print(last_prog * 100, "%")
-            last_prog += 0.1
 
         widget_q = 0
 
@@ -127,15 +120,15 @@ def proc_subset(imgs, labels, classes, dataset, areas):
             lb = j*displacement
             quantity = np.sum((img < ub).astype(np.int32) *
                               (img > lb).astype(np.int32)).astype(np.float32)
-            pixels[j] += quantity
+            pixels_f[j] += quantity
 
 
         for x in range(cfg.grid_shape[0]):
             for y in range(cfg.grid_shape[1]):
                 if (labels[i,x,y,4] == 1):
                     c = classes[i,x,y]
-                    density[y,x,0] = density[x,y,0] + 1
-                    density[y,x,c+1] = density[x,y,c+1] + 1
+                    density_f[y,x,0] = density_f[x,y,0] + 1
+                    density_f[y,x,c+1] = density_f[x,y,c+1] + 1
                     class_count[c] += 1
 
                     widget_q += 1
@@ -147,7 +140,7 @@ def proc_subset(imgs, labels, classes, dataset, areas):
                         file.write(str(i) + "," + yolo.names[c] + ",area," + area + "," + dataset + "\n")
                         widget_area += image_area*labels[i,x,y,2]/cfg.grid_shape[0]*labels[i,x,y,3]/cfg.grid_shape[0]
 
-        quantities.append(widget_q)
+        quantities_f.append(widget_q)
 
         with open("white_space.csv", "a") as file:
             file.write(str(i) + "," + str(image_area) + "," + str(np.sum(class_count)) + "," + str(widget_area) + "," + dataset + "\n")
@@ -156,13 +149,11 @@ def proc_subset(imgs, labels, classes, dataset, areas):
             with open("class_count.csv", "a") as file:
                 file.write(str(i) + "," + yolo.names[c] + "," + str(class_count[c]/np.sum(class_count)) + "," + dataset + "\n")
 
-        return density, pixels, quantities
+    return density_f, pixels_f, quantities_f
 
 def print_info(imgs, labels, classes, dataset, areas):
 
-    density, pixels, quantities = proc_subset(imgs, labels, classes, dataset, areas)
-
-    return density, pixels, quantities
+    return proc_subset(imgs, labels, classes, dataset, areas)
 
 def run_dataset(files, dataset):
 
@@ -177,12 +168,19 @@ def run_dataset(files, dataset):
 
     max_run = 500
 
-    iterations = 1 + int(len(files) / max_run)
+    iterations = int(math.ceil(len(files) / max_run))
+    last_prog = 0
 
     print(dataset, "set ---")
 
     for i in range(iterations):
-        f_s = files[i*max_run:max((i+1)*max_run, len(files))]
+
+        if i / iterations > last_prog:
+            print(last_prog*100, "%")
+            last_prog += 0.1
+
+
+        f_s = files[i*max_run:min((i+1)*max_run, len(files))]
 
         v_imgs, v_labels, v_obj_detection, areas = load_files(
             f_s)
@@ -282,6 +280,11 @@ if __name__ == '__main__':
 
     real_images = [f.replace("/data/acp15tdw", "/data/acp15tdw/backup") for f in real_images]
 
+    real_images_manual = [os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(cfg.data_dir + "/../real/data/images")) for f in fn]
+
+    for ri in real_images_manual:
+        real_images.append(ri)
+
 
     with open("img_hist.csv", "w") as file:
         file.write("pixel_value,quantity,dataset" + "\n")
@@ -298,14 +301,12 @@ if __name__ == '__main__':
     with open("white_space.csv", "w+") as file:
         file.write("img,area,widget_count,widget_area,dataset\n")
 
-    valid_file = cfg.data_dir + "/train.txt"
+    valid_file = cfg.data_dir + "/train-10000.txt"
 
     with open(valid_file, "r") as tfile:
         for l in tfile:
             file_num = int(pattern.findall(l)[-1])
             valid_images.append(l.strip())
-
-    valid_images = valid_images[:1000]
 
     valid_images = [f.replace("/home/thomas/work/GuiImages/public", "/data/acp15tdw/data") for f in valid_images]
 
