@@ -45,7 +45,7 @@ data <- load_data('/home/thomas/work/GUIdance', "label_heat.csv")
 
 p = data %>% ggplot(aes(x,y)) +
   geom_raster(aes(fill=density)) +
-  facet_wrap(class~dataset) +
+  facet_wrap(class~dataset, ncol=6) +
   scale_fill_gradient(low = "#0000FF", high = "#FF0000", na.value = "#00FF00") +
   scale_y_reverse()
 
