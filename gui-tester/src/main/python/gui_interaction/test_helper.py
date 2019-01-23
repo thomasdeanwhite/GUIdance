@@ -14,7 +14,8 @@ def screenshot():
     if not img_file.endswith("/"):
         img_file += "/"
 
-    img_file += str(time.time()) + "/"
+    #convert seconds since epoch to minutes
+    img_file += str(int(time.time()/60)) + "/"
 
     if not os.path.isdir(img_file):
         os.makedirs(img_file)

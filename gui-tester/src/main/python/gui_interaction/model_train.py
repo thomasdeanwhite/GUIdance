@@ -42,7 +42,7 @@ def modify_learning_rate(epoch):
 
 if __name__ == '__main__':
 
-    training_file = cfg.data_dir + "/train-10000.txt"
+    training_file = cfg.data_dir + "/train.txt"
 
     pattern = re.compile(".*\/([0-9]+).*")
 
@@ -145,7 +145,7 @@ if __name__ == '__main__':
         with tf.control_dependencies(update_ops):
             yolo.set_update_ops(update_ops)
 
-            train_step = tf.train.AdamOptimizer(2e-5). \
+            train_step = tf.train.AdamOptimizer(5e-6). \
                 minimize(yolo.loss)
 
         saver = tf.train.Saver()
