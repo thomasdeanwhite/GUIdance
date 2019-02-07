@@ -9,13 +9,21 @@ debug = False
 import time
 import pyautogui
 
+def generate_input_string():
+    if random.random() < 0.5:
+        return "Hello World!"
+    else:
+        return str(random.randint(-10000, 10000))
+
 def screenshot():
     img_file = os.environ.get("OUT_DIR", "./")
     if not img_file.endswith("/"):
         img_file += "/"
 
+    img_file += "screenshots/"
+
     #convert seconds since epoch to minutes
-    img_file += str(int(time.time()/60)) + "/"
+    img_file += str(int(time.time())) + "/"
 
     if not os.path.isdir(img_file):
         os.makedirs(img_file)
@@ -30,7 +38,7 @@ def is_running(start_time, runtime, actions, running):
     return ((time.time() - start_time < runtime and not cfg.use_iterations) or
             (actions < cfg.test_iterations and cfg.use_iterations)) and running
 
-def perform_interaction(best_box, app_x, app_y, app_w, app_h, input_string):
+def perform_interaction(best_box, app_x, app_y, app_w, app_h, input_string=generate_input_string()):
     x_mod = (0.5-random.random())*best_box[3]
     y_mod = (0.5-random.random())*best_box[4]
     x = int(max(app_x, min(app_x + app_w, app_x + ((best_box[1]+x_mod)*app_w))))

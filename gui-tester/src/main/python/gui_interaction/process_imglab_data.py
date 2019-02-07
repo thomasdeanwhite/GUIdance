@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     yolo = Yolo()
 
-    real_folder = cfg.data_dir + "/../real"
+    real_folder = cfg.data_dir + "/../mac"
     unproc_folder = real_folder + "/unproc"
     files = [os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(unproc_folder + "/images")) for f in fn]
 

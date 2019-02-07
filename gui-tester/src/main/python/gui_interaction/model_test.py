@@ -74,13 +74,6 @@ def start_aut():
         print("[Detection] Could not find AUT to start!")
 
 
-def generate_input_string():
-    if random.random() < 0.5:
-        return "Hello World!"
-    else:
-        return str(random.randint(-10000, 10000))
-
-
 def convert_coords(x, y, w, h, aspect):
     if aspect > 1:  # width is bigger than height
         h = h * aspect
@@ -323,8 +316,6 @@ if __name__ == '__main__':
                         cfg.object_detection_threshold *= 0.9
                         continue
 
-                    input_string = generate_input_string()
-
                     # highest_conf = proc_boxes[0][5]
                     # best_box = proc_boxes[0]
 
@@ -350,7 +341,7 @@ if __name__ == '__main__':
 
                     best_box[1:5] = convert_coords(best_box[1], best_box[2], best_box[3], best_box[4], aspect)
 
-                    perform_interaction(best_box, app_x, app_y, app_w, app_h, input_string)
+                    perform_interaction(best_box, app_x, app_y, app_w, app_h)
 
                     actions += 1
 

@@ -9,9 +9,11 @@ import math
 import random
 import os
 from tensorflow.python.tools import inspect_checkpoint as chkp
-from data_loader import load_files, disable_transformation
+from data_loader import load_files, disable_transformation, load_raw_image, convert_coords
 
 disable_transformation()
+
+
 
 if __name__ == '__main__':
 
@@ -53,10 +55,10 @@ if __name__ == '__main__':
 
         #normalise data  between 0 and 1
         imgs = np.array(images)/127.5-1
-        labels = np.array(labels)
+        labels = np.array(labels)/ cfg.grid_shape[0]
         obj_detect = np.array(obj_detect)
 
-        conf_thresh = cfg.object_detection_threshold
+        conf_thresh = 0.1
 
         boxes, correct, iou = sess.run([yolo.output, yolo.matches, yolo.best_iou], feed_dict={
             yolo.x: imgs,
@@ -70,24 +72,26 @@ if __name__ == '__main__':
         proc_correct = yolo.convert_correct_to_list(correct)[0]
         # proc_iou = yolo.convert_correct_to_list(np.reshape(iou, [-1, cfg.grid_shape[0], cfg.grid_shape[1]]))[0]
         proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True)
-        proc_boxes = yolo.calculate_max_iou(proc_boxes, np.reshape(labels, [labels.shape[0], -1, 5]))
+
+        labels_classes = np.append(np.expand_dims(obj_detect, axis=-1), labels, axis=-1)
+
+        proc_boxes, iou_max = yolo.calculate_max_iou(proc_boxes, np.reshape(labels_classes, [labels.shape[0], -1, 6]))
 
         proc_boxes = proc_boxes.tolist()[0]
 
 
+        img = load_raw_image(sys.argv[1])
 
-
-
-    #proc_boxes.sort(key=lambda box: -box[5])
-
-        #proc_boxes
-
+        height, width = img.shape[:2]
 
         trim_overlap = True
 
         i=0
         while i < len(proc_boxes):
             box = proc_boxes[i]
+
+            box[1:5] = convert_coords(box[1], box[2], box[3], box[4], width/height)
+
             x, y, w, h = (box[1],box[2],box[3],box[4])
             box[1] = x - w/2
             box[2] = y - h/2
@@ -98,37 +102,6 @@ if __name__ == '__main__':
 
         correct_q = 0
         predicted_boxes = 0
-
-        #
-        # while i < len(proc_boxes)-1 and trim_overlap:
-        #     box = proc_boxes[i]
-        #     j = i+1
-        #     while j < len(proc_boxes):
-        #         box2 = proc_boxes[j]
-        #
-        #         xA = max(box[1], box2[1])
-        #         yA = max(box[2], box2[2])
-        #         xB = min(box[3], box2[3])
-        #         yB = min(box[4], box2[4])
-        #
-        #         interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
-        #
-        #
-        #         boxAArea = (box[2] - box[0] + 1) * (box[3] - box[1] + 1)
-        #         boxBArea = (box2[2] - box2[0] + 1) * (box2[3] - box2[1] + 1)
-        #
-        #         iou = interArea / float(boxAArea + boxBArea - interArea)
-        #
-        #         if iou > 0.8:
-        #             if (box[5] >= box2[5]):
-        #                 del proc_boxes[j]
-        #                 j = j-1
-        #             else:
-        #                 del proc_boxes[i]
-        #                 i = i-1
-        #                 break
-        #         j = j + 1
-        #     i = i+1
 
         for bc in range(len(proc_boxes)):
             box = proc_boxes[bc]
@@ -141,13 +114,13 @@ if __name__ == '__main__':
 
             hex = cls.encode('utf-8').hex()[0:6]
 
-            color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
+            color = tuple(int(int(hex[k:k+2], 16)*0.75) for k in (0, 2 ,4))
 
-            if box[6] > 0.5:
-                correct_q += 1
-                color = [255, 255, 255]
-            else:
-                color = [0, 0, 0]
+            # if box[6] > 0.3:
+            #     correct_q += 1
+            #     color = [255, 255, 255]
+            if box[6] < 0.3:
+                continue
 
             if (box[5]>cfg.object_detection_threshold):
                 print(box)
@@ -161,7 +134,7 @@ if __name__ == '__main__':
 
                 cv2.rectangle(img, (x1, y1),
                               (x2, y2),
-                              (color[0], color[1], color[2]), 1+int(5*box[4]), 8)
+                              (color[0], color[1], color[2]), 1+int(5*box[5]), 8)
 
         for bc in range(len(proc_boxes)):
             box = proc_boxes[bc]
@@ -172,16 +145,16 @@ if __name__ == '__main__':
             cls = yolo.names[int(box[0])]
 
             hex = cls.encode('utf-8').hex()[0:6]
-
-            if box[6] > 0.5:
-                color = [255, 255, 255]
-            else:
-                color = [0, 0, 0]
+            color = tuple(int(int(hex[k:k+2], 16)*0.75) for k in (0, 2 ,4))
+            # if box[6] > 0.3:
+            #     color = [255, 255, 255]
+            if box[6] < 0.3:
+                continue
 
             if (box[5]>cfg.object_detection_threshold):
                 height, width = img.shape[:2]
 
-                avg_col = color[0] + color[1] + color[2]
+                avg_col = (color[0] + color[1] + color[2])/3
 
                 text_col = (255, 255, 255)
 
@@ -194,16 +167,16 @@ if __name__ == '__main__':
                 y2 = int(height*box[4])
 
                 cv2.rectangle(img,
-                              (x1, y1-int(10+box[4])),
-                              (x1 + (5 + len(cls)+10)*7, y1),
+                              (x1-3, y1-23),
+                              (x1 + (5 + len(cls)+10)*10, y1),
                               (color[0], color[1], color[2]), -1, 8)
 
                 cv2.putText(img, cls + " conf:" + str(round(box[5]*100)) + " iou:" + str(round(box[6]*100)),
-                            (x1, y1-3),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.4, text_col, 1)
+                            (x1-3, y1-3),
+                            cv2.FONT_HERSHEY_PLAIN,
+                            1, text_col, 1, lineType=cv2.LINE_AA)
 
-        actual_labels = np.sum(labels[..., 4])
+        actual_labels = np.sum((labels[..., 4]>0).astype(int))
 
         print(predicted_boxes, ":", actual_labels)
 
@@ -213,8 +186,8 @@ if __name__ == '__main__':
         print(correct_q, "correct predictions. Precision:", correct_q / (predicted_boxes), "Recall:",
               correct_q / actual_labels)
 
+        print(iou_max)
+
         cv2.imshow('image',img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-
-        print(proc_iou)

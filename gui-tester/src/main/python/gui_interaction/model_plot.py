@@ -9,19 +9,11 @@ import math
 import random
 import os
 from tensorflow.python.tools import inspect_checkpoint as chkp
-from data_loader import load_image, load_raw_image, disable_transformation
+from data_loader import load_image, load_raw_image, disable_transformation, convert_coords
 
 disable_transformation()
 
-def convert_coords(x, y, w, h, aspect):
-    if aspect > 1: # width is bigger than height
-        h = h * aspect
-        y = 0.5 + ((y - 0.5)*aspect)
-    elif aspect < 1:
-        w = w / aspect
-        x = 0.5 + ((x - 0.5)/aspect)
 
-    return x, y, w, h
 
 if __name__ == '__main__':
 
@@ -144,8 +136,6 @@ if __name__ == '__main__':
 
             color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
 
-            color = [0, 0, 0]
-
             if (box[5]>cfg.object_detection_threshold):
                 print(box)
 
@@ -158,7 +148,7 @@ if __name__ == '__main__':
 
                 cv2.rectangle(img, (x1, y1),
                               (x2, y2),
-                              (color[0], color[1], color[2]), int(5*box[4] * box[5]), 8)
+                              (color[0], color[1], color[2], 0.2), int(5* box[5]), 8)
         print("------------")
 
         for box in proc_boxes:
@@ -174,9 +164,7 @@ if __name__ == '__main__':
             if (box[5]>cfg.object_detection_threshold):
                 height, width = img.shape[:2]
 
-                color = [0, 0, 0]
-
-                avg_col = color[0] + color[1] + color[2]
+                avg_col = (color[0] + color[1] + color[2])/3
 
                 text_col = (255, 255, 255)
 
@@ -188,15 +176,18 @@ if __name__ == '__main__':
                 x2 = int(width*box[3])
                 y2 = int(height*box[4])
 
-                cv2.rectangle(img,
-                              (x1, y1-int(10*box[4])-15),
-                              (x1 + (5 + len(cls))*7, y1),
-                              (color[0], color[1], color[2]), -1, 8)
 
-                cv2.putText(img, cls + str(round(box[5]*100)),
+                cv2.rectangle(img,
+                              (x1-2, y1-int(10*box[4])-23),
+                              (x1 + (len(cls)+4)*10, y1),
+                              (color[0], color[1], color[2], 0.2), -1, 8)
+
+
+
+                cv2.putText(img, cls.upper() + " " + str(round(box[5]*100)),
                             (x1, y1-int(10*box[4])-2),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.4, text_col, 1)
+                            cv2.FONT_HERSHEY_PLAIN,
+                            1, text_col, 1, lineType=cv2.LINE_AA)
 
         cv2.imshow('image',img)
         cv2.waitKey(0)

@@ -16,7 +16,7 @@ import Xlib
 from pynput import keyboard
 import signal
 import timeit
-from test_helper import get_window_size, is_running
+from test_helper import get_window_size, is_running, screenshot, perform_interaction
 
 sub_window = False
 
@@ -107,6 +107,8 @@ if __name__ == '__main__':
 
             os.system('killall "firefox"')
 
+            box = [0, 0.5, 0.5, 0.5, 0.5]
+
             app_x, app_y, app_w, app_h = get_window_size(cfg.window_name)
 
             counter = 0
@@ -123,22 +125,9 @@ if __name__ == '__main__':
             if not is_running(start_time, runtime, actions, running):
                 break
 
+            image = screenshot()
 
-            x = int(max(app_x+5, min(app_x + app_w - 5, app_x + (random.random()*app_w))))
-
-            #app_y+25 for the title screen
-            y = int(max(app_y+25, min(app_y + app_h - 5, app_y + (random.random()*app_h))))
-
-            random_interaction = random.random()
-
-            if random_interaction < 0.888888888888: # just a normal click
-                if random.random() < 0.8:
-                    pyautogui.click(x, y)
-                else:
-                    pyautogui.rightClick(x, y)
-            else: # click and type 'Hello world!'
-                pyautogui.click(x, y)
-                pyautogui.typewrite(generate_input_string(), interval=0.01)
+            perform_interaction(box, app_x, app_y, app_w, app_h)
 
             end_iteration_time = time.time()
             if debug:

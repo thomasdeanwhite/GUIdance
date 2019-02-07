@@ -15,7 +15,7 @@ from data_loader import load_files
 
 debug = False
 
-last_epochs = 0
+last_epochs = 12
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -145,7 +145,7 @@ if __name__ == '__main__':
         with tf.control_dependencies(update_ops):
             yolo.set_update_ops(update_ops)
 
-            train_step = tf.train.AdamOptimizer(5e-6). \
+            train_step = tf.train.AdamOptimizer(1e-5). \
                 minimize(yolo.loss)
 
         saver = tf.train.Saver()

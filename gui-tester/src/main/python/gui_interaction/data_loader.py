@@ -8,6 +8,32 @@ import random
 import cv2
 
 debug = False
+use_pickle = False
+
+def trim(frame):
+    #crop top
+    if not np.sum(frame[0]):
+        return trim(frame[1:])
+    #crop bottom
+    elif not np.sum(frame[-1]):
+        return trim(frame[:-2])
+    #crop left
+    elif not np.sum(frame[:,0]):
+        return trim(frame[:,1:])
+        #crop right
+    elif not np.sum(frame[:,-1]):
+        return trim(frame[:,:-2])
+    return frame
+
+def convert_coords(x, y, w, h, aspect):
+    if aspect > 1: # width is bigger than height
+        h = h * aspect
+        y = 0.5 + ((y - 0.5)*aspect)
+    elif aspect < 1:
+        w = w / aspect
+        x = 0.5 + ((x - 0.5)/aspect)
+
+    return x, y, w, h
 
 def edge_detection(img):
     return cv2.Canny(img.astype(np.uint8), 0, 255)
@@ -71,7 +97,7 @@ def pad_image(img):
     return image
 
 def load_raw_image(file):
-    img = imread(file, 0)
+    img = imread(file)
     return img
 
 def load_image(file):
@@ -108,7 +134,7 @@ def load_files(raw_files):
 
         pickled_data = []
 
-        if os.path.isfile(pickle_f):
+        if os.path.isfile(pickle_f) and use_pickle:
             pickled_data = pickle.load(open(pickle_f, "rb"))
             images.append(pickled_data[0])
             labels.append(pickled_data[1])
@@ -194,9 +220,15 @@ def load_files(raw_files):
 
                     x = max(0, min(int(normalised_label[0]), cfg.grid_shape[0]-1))
                     y = max(0, min(int(normalised_label[1]), cfg.grid_shape[1]-1))
-                    imglabs[y][x] = normalised_label
-                    obj_detect[y][x] = int(elements[0])
-                    #obj_detect[y][x][int(elements[0])] = 1
+                    add = True
+                    if imglabs[y][x][4] == 1:
+                        add = False
+                        if normalised_label[2] * normalised_label[3] > imglabs[y][x][2] * imglabs[y][x][3]:
+                            add = True
+                    if add:
+                        imglabs[y][x] = normalised_label
+                        obj_detect[y][x] = int(elements[0])
+                        #obj_detect[y][x][int(elements[0])] = 1
 
                 object_detection.append(obj_detect)
                 labels.append(imglabs)
@@ -212,28 +244,6 @@ def load_files(raw_files):
 
         height, width, channels = image.shape
 
-        median_col = np.median(image)
-
-        # for lnx in range(len(labs)):
-        #     for lny in range(len(labs[lnx])):
-        #         if random.random() < cfg.removal_probability:
-        #             # label removed
-        #             lbl = labs[lnx][lny]
-        #             lbl[0] = lbl[0] / cfg.grid_shape[0]
-        #             lbl[1] = lbl[1] / cfg.grid_shape[1]
-        #             lbl[2] = lbl[2] / cfg.grid_shape[0]
-        #             lbl[3] = lbl[3] / cfg.grid_shape[1]
-        #             x1, y1 = (int(width * (lbl[0] - lbl[2]/2)),
-        #                     int(height * (lbl[1] - lbl[3]/2)))
-        #             x2, y2 = (int(width * (lbl[0] + lbl[2]/2)),
-        #                           int(height * (lbl[1] + lbl[3]/2)))
-        #             cv2.rectangle(image,
-        #                         (x1, y1),
-        #                         (x2, y2),
-        #                           median_col, -1, 4)
-        #
-        #             labels[im][lnx][lny] = [0, 0, 0, 0, 0]
-        #             object_detection[im][lnx][lny] = 0
         image = image.astype(np.int16)
         if random.random() < cfg.brightness_probability:
 
@@ -452,6 +462,106 @@ def load_files(raw_files):
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
+
+    return images, labels, object_detection
+
+
+
+def load_raw_labels(raw_files):
+    raw_files = [f.replace("/data/acp15tdw", "/home/thomas/experiments") for f in raw_files]
+    label_files = [f.replace("/images/", "/labels/") for f in raw_files]
+    label_files = [f.replace(".png", ".txt") for f in label_files]
+
+    labels = []
+
+    for i in range(len(raw_files)):
+
+        f = raw_files[i]
+        f_l = label_files[i]
+        if not os.path.isfile(f_l) or not os.path.isfile(f) or f is None:
+            continue
+
+
+        # read in format [c, x, y, width, height]
+        # store in format [c], [x, y, width, height]
+
+        with open(f_l, "r") as l:
+            for line in l:
+                elements = line.split(" ")
+                #print(elements[1:3])
+
+                if float(elements[3]) <= 0 or float(elements[4]) <= 0:
+                    continue
+
+                normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
+                                                            float(elements[3]), float(elements[4]), 1])
+                labels.append(normalised_label)
+
+
+    return labels
+
+
+
+def load_file_raw(raw_file):
+    raw_file = raw_file.replace("/data/acp15tdw", "/home/thomas/experiments")
+    label_file = raw_file.replace("/images/", "/labels/")
+    label_file = label_file.replace(".png", ".txt")
+    labels = []
+    object_detection = []
+
+    f = raw_file
+    f_l = label_file
+    if not os.path.isfile(f_l) or not os.path.isfile(f) or f is None:
+        return [], [], []
+
+    img = imread(f, 1)
+    if img is None:
+        return [], [], []
+    image = np.int16(img)
+
+    height, width = image.shape[:2]
+
+    if height < 15 or width < 15:
+        return [], [], []
+
+    images = image.astype(np.uint8)
+
+
+
+    # read in format [c, x, y, width, height]
+    # store in format [c], [x, y, width, height]
+
+    with open(f_l, "r") as l:
+        obj_detect = [[0 for i in
+                       range(cfg.grid_shape[0])]for i in
+                      range(cfg.grid_shape[1])]
+        imglabs = [[[0 for i in
+                     range(5)]for i in
+                    range(cfg.grid_shape[1])] for i in
+                   range(cfg.grid_shape[0])]
+
+        for x in range(cfg.grid_shape[0]):
+            for y in range(cfg.grid_shape[1]):
+                imglabs[x][y][0] = y
+                imglabs[x][y][1] = x
+
+        for line in l:
+            elements = line.split(" ")
+            #print(elements[1:3])
+
+            if float(elements[3]) <= 0 or float(elements[4]) <= 0:
+                continue
+
+            normalised_label, centre = normalise_label([float(elements[1]), float(elements[2]),
+                                                        float(elements[3]), float(elements[4]), 1])
+
+            x = max(0, min(int(normalised_label[0]), cfg.grid_shape[0]-1))
+            y = max(0, min(int(normalised_label[1]), cfg.grid_shape[1]-1))
+            imglabs[y][x] = normalised_label
+            obj_detect[y][x] = int(elements[0])
+
+        object_detection = obj_detect
+        labels = imglabs
 
     return images, labels, object_detection
 

@@ -4,7 +4,7 @@ import config as cfg
 import numpy as np
 
 class Yolo:
-
+    metrics_use_iou = True
     x = None
     network = None
     filter = None
@@ -40,6 +40,7 @@ class Yolo:
     mAP = None
     object_detection_threshold = cfg.object_detection_threshold
     average_iou = None
+    single_class = True
 
     def __init__(self):
         with open(cfg.data_dir + "/" + cfg.names_file, "r") as f:
@@ -235,7 +236,7 @@ class Yolo:
     def create_training(self):
 
         classes = len(self.names)
-        print("classes:", classes)
+        print("classes:",  classes)
         anchors = int(len(cfg.anchors)/2)
         print("anchors:", anchors)
 
@@ -475,7 +476,7 @@ class Yolo:
         # truth_l = truth[..., 0:2] - truth[..., 2:4]/2
         # truth_u = truth[..., 0:2] + truth[..., 2:4]/2
         #
-        # identified_objects_tpos = tf.reshape(tf.cast(tf.abs(matching_boxes[..., 0] - truth[..., 0]) < truth[..., 2]/2 , tf.float32) *
+        # identified_objec ts_tpos = tf.reshape(tf.cast(tf.abs(matching_boxes[..., 0] - truth[..., 0]) < truth[..., 2]/2 , tf.float32) *
         #                                      tf.cast(tf.abs(matching_boxes[..., 1] - truth[..., 1]) < truth[..., 3]/2 , tf.float32),
         #                                      [-1, cfg.grid_shape[0], cfg.grid_shape[1]]) * tf.reshape(
         #         tf.cast(matching_boxes[..., 4] >= self.object_detection_threshold, tf.float32),
@@ -592,28 +593,42 @@ class Yolo:
 
     def calc_iou(self, r_box, p_boxes):
         truth_boxes = np.stack([r_box[..., 1]-r_box[...,3]/2,
-                            r_box[..., 2]-r_box[...,4]/2,
-                            r_box[..., 1]+r_box[...,3]/2,
-                            r_box[..., 2]+r_box[...,4]/2], axis=-1)/cfg.grid_shape[0]
+                                r_box[..., 2]-r_box[...,4]/2,
+                                r_box[..., 1]+r_box[...,3]/2,
+                                r_box[..., 2]+r_box[...,4]/2], axis=-1)
+
+
 
         pred_boxes = np.stack([p_boxes[..., 1]-p_boxes[...,3]/2,
-               p_boxes[..., 2]-p_boxes[...,4]/2,
-               p_boxes[..., 1]+p_boxes[...,3]/2,
-               p_boxes[..., 2]+p_boxes[...,4]/2], axis=-1)
+                               p_boxes[..., 2]-p_boxes[...,4]/2,
+                               p_boxes[..., 1]+p_boxes[...,3]/2,
+                               p_boxes[..., 2]+p_boxes[...,4]/2], axis=-1)
 
-        pred_boxes_xy = pred_boxes[..., 0:2]
-        pred_boxes_wh = pred_boxes[..., 2:4]
 
-        pred_wh_half = pred_boxes_wh/2
-        pred_min = pred_boxes_xy - pred_wh_half
-        pred_max = pred_boxes_xy + pred_wh_half
+        # pred_boxes_xy = pred_boxes[..., 0:2]
+        # pred_boxes_wh = pred_boxes[..., 2:4]
+        #
+        # pred_wh_half = pred_boxes_wh/2
+        # pred_min = pred_boxes_xy - pred_wh_half
+        # pred_max = pred_boxes_xy + pred_wh_half
+        #
+        # truth_boxes_xy = truth_boxes[..., 0:2]
+        # truth_boxes_wh = truth_boxes[..., 2:4]
+        #
+        # true_wh_half = truth_boxes_wh / 2
+        # true_min = truth_boxes_xy - true_wh_half
+        # true_max = truth_boxes_xy + true_wh_half
+        #
+        #
+        # pred_boxes_xy = pred_boxes[..., 0:2]
 
-        truth_boxes_xy = truth_boxes[..., 0:2]
-        truth_boxes_wh = truth_boxes[..., 2:4]
+        pred_min = pred_boxes[...,0:2]
+        pred_max = pred_boxes[...,2:4]
+        pred_boxes_wh = pred_max-pred_min
 
-        true_wh_half = truth_boxes_wh / 2
-        true_min = truth_boxes_xy - true_wh_half
-        true_max = truth_boxes_xy + true_wh_half
+        true_min =  truth_boxes[..., 0:2]
+        true_max =  truth_boxes[..., 2:4]
+        truth_boxes_wh = true_max-true_min
 
         intersect_mins = np.maximum(pred_min,  true_min)
         intersect_maxes = np.minimum(pred_max, true_max)
@@ -632,44 +647,66 @@ class Yolo:
 
         iou = np.true_divide(intersect_areas, union_areas)
 
-        iou = np.where(r_box[...,0] == p_boxes[...,0], iou, 0)
+        if self.metrics_use_iou:
+            if not self.single_class:
+                iou = np.where(r_box[...,0] == p_boxes[...,0], iou, 0)
 
-        #iou = np.where(np.logical_and(p_boxes[1] < truth_boxes[2],
-        #               p_boxes[2] < truth_boxes[3],
-        #               p_boxes[1] > truth_boxes[0],
-        #               p_boxes[2] > truth_boxes[1]), 1.0, 0.0)
+            return iou
+        else:
 
-        return iou
+            points = np.where(np.logical_and(
+                np.logical_and(
+                    np.logical_and(
+                        p_boxes[...,1] > truth_boxes[...,0],
+                        p_boxes[...,2] > truth_boxes[..., 1]
+                    ),
+                    p_boxes[...,1] < truth_boxes[...,2]
+                ),
+                p_boxes[...,2] < truth_boxes[...,3]
+            ), 1.0, 0.0)
+
+            # mask = iou == np.max(iou, axis=0)
+            #
+            # points = np.where(mask, points, 0)
+
+            return points
 
 
     def calculate_max_iou(self, boxes, real_boxes):
         ious = []
+        real_ious = []
         for i in range(boxes.shape[0]):
             calc_iou_func = np.vectorize(self.calc_iou)
 
             real_b = real_boxes[i]
 
-            real_b = real_b[real_b[..., 4]>0]
+            real_b = real_b[real_b[..., 5]>0]
 
             if real_b.shape[0] == 0:
                 ious.append(np.zeros([boxes.shape[1]]))
+                real_ious.append([0])
                 continue
 
             iou = self.calc_iou(np.tile(np.expand_dims(real_b, 1), [1, boxes.shape[1], 1]),
                                 np.tile(np.expand_dims(boxes[i], 0), [real_b.shape[0], 1, 1]))
             # iou = [self.calc_iou(x, boxes[i]) for x in real_b]
 
-            iou_tiledmax = np.tile(np.expand_dims(np.amax(iou, axis=1), -1), [1, boxes.shape[1]])
+            #iou_tiledmax = np.tile(np.expand_dims(np.amax(iou, axis=1), -1), [1, boxes.shape[1]])
 
-            iou = np.where(np.equal(iou, iou_tiledmax), iou, np.zeros_like(iou))
+            #iou = np.where(np.equal(iou, iou_tiledmax), iou, np.zeros_like(iou))
 
             max_iou = iou.max(0)
+
+
+            truth_ious = iou.max(1)
+
+            real_ious.append(truth_ious)
 
             ious.append(max_iou)
 
         ious = np.array(np.expand_dims(ious, -1))
 
-        return np.concatenate((boxes, ious), axis=-1)
+        return np.concatenate((boxes, ious), axis=-1), real_ious
 
         # new_boxes = np.append(boxes, np.array(ious), axis=-1)
         #
