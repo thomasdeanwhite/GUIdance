@@ -17,12 +17,12 @@ setwd('/home/thomas/work/GUIdance')
 
 data <- load_data('/home/thomas/work/GUIdance')
 
-data = data %>% gather("loss", "value", loss, loss_position, loss_dimension, loss_obj, loss_class, precision, recall, mAP)
+data = data %>% gather("variable", "value", loss, loss_position, loss_dimension, loss_obj, loss_class, precision, recall, mAP)
 
-data = data[data$epoch > 0,]
-data = data[data$loss != "mAP",]
-data = data[data$loss != "precision",]
-data = data[data$loss != "recall",]
+# data = data[data$epoch > 0,]
+# data = data[data$loss != "mAP",]
+# data = data[data$loss != "precision",]
+# data = data[data$loss != "recall",]
 #data = data[data$dataset != "Real",]
 
 
@@ -36,7 +36,7 @@ p = data %>%
   #scale_x_discrete() +
   #scale_y_log10() +
   theme_minimal() +
-  facet_wrap(~loss, scales = "free") +
+  facet_wrap(~variable, scales = "free") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   scale_fill_brewer(palette="Set1") + 
   scale_color_brewer(palette="Dark2")

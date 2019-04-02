@@ -119,8 +119,8 @@ if __name__ == '__main__':
             # if box[6] > 0.3:
             #     correct_q += 1
             #     color = [255, 255, 255]
-            if box[6] < 0.3:
-                continue
+            # if box[6] < 0.3:
+            #     continue
 
             if (box[5]>cfg.object_detection_threshold):
                 print(box)
@@ -148,8 +148,8 @@ if __name__ == '__main__':
             color = tuple(int(int(hex[k:k+2], 16)*0.75) for k in (0, 2 ,4))
             # if box[6] > 0.3:
             #     color = [255, 255, 255]
-            if box[6] < 0.3:
-                continue
+            # if box[6] < 0.3:
+            #     continue
 
             if (box[5]>cfg.object_detection_threshold):
                 height, width = img.shape[:2]
@@ -157,6 +157,7 @@ if __name__ == '__main__':
                 avg_col = (color[0] + color[1] + color[2])/3
 
                 text_col = (255, 255, 255)
+
 
                 if avg_col > 127:
                     text_col = (0, 0, 0)

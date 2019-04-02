@@ -8,6 +8,7 @@ import cv2
 debug = False
 import time
 import pyautogui
+from event import MouseEvent, KeyEvent, ScrollEvent
 
 def generate_input_string():
     if random.random() < 0.5:
@@ -29,7 +30,7 @@ def screenshot():
         os.makedirs(img_file)
     img_file += "screenshot.png"
 
-    os.system("import -window root " + img_file)
+    os.system("import -silent -window root " + img_file)
     img = cv2.imread(img_file, 0)
 
     return img
@@ -154,18 +155,27 @@ def perform_interaction(best_box, app_x, app_y, app_w, app_h, input_string=gener
 
     # pyautogui.mouseUp(x, y)
 
+    events = []
+
     random_interaction = random.random()
 
     if random_interaction < 0.888888888888: # just a normal click
         if random.random() < 0.8:
+            events.append(MouseEvent(time.time(), 0, x, y))
             pyautogui.click(x, y)
         else:
-            pyautogui.rightClick(x, y)
+            events.append(MouseEvent(time.time(), 1, x, y))
     else: # click and type 'Hello world!'
-        pyautogui.click(x, y)
-        pyautogui.typewrite(input_string, interval=0.01)
+        events.append(MouseEvent(time.time(), 0, x, y))
+        events.append(KeyEvent(time.time(), input_string))
+
+    for event in events:
+        event.perform()
 
 def get_window_size(window_name):
+    return get_window_size_focus(window_name, focus=True)
+
+def get_window_size_focus(window_name, focus=True):
     global true_window
     sub_window = False
 
@@ -193,8 +203,14 @@ def get_window_size(window_name):
 
                 matched = False
 
+                win_name = window.get_wm_name()
+                add_child = True
 
-                win_name = window.get_wm_name() # Title
+                while not win_name is None and "focusproxy" in win_name.lower(): # workaround for java apps
+                    window = window.query_tree().parent
+                    win_name = window.get_wm_name()
+                    add_child = False
+
                 name = win_name
                 tag = ""
                 tags = window.get_wm_class()
@@ -205,7 +221,8 @@ def get_window_size(window_name):
 
                 if (not children is None) and len(children) > 0:
                     for w_c in children:
-                        all_windows.append(w_c)
+                        if add_child:
+                            all_windows.append(w_c)
 
                 if name is None or window.get_wm_normal_hints() is None or window.get_attributes().map_state != Xlib.X.IsViewable:
                     continue
@@ -230,8 +247,8 @@ def get_window_size(window_name):
 
                 if debug:
                     print("[Window]", window.get_wm_name(), window.get_wm_class())
-            except:
-                pass
+            except Exception as s:
+                print(str(s))
 
         if debug:
             print("--------------------")
@@ -241,7 +258,7 @@ def get_window_size(window_name):
         if len(windows) > 1 and cfg.multiple_windows:
             win_sel = None
             while win_sel is None and len(windows) > 0:
-                c_win = windows.pop(random.randint(0, len(windows)-1))
+                c_win = windows.pop(-1)#random.randint(0, len(windows)-1))
 
                 win_sel = c_win
 
@@ -253,14 +270,14 @@ def get_window_size(window_name):
 
         name = win.get_wm_name() # Title
 
-        print(name)
-
         try:
             win_activate = subprocess.Popen("xdotool search \"" + name + "\" windowactivate --sync", shell=True)
         except Exception as e:
             pass
-        win.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
-        win.configure(stack_mode=Xlib.X.Above)
+
+        if focus:
+            win.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
+            win.configure(stack_mode=Xlib.X.Above)
 
         geom = win.get_geometry()
 
@@ -286,3 +303,49 @@ def get_window_size(window_name):
         print('[Window Error] Screen cap failed: '+ str(e))
         traceback.print_stack()
     return 0, 0, 0, 0
+
+def get_focused_window(window_name):
+    wmname = ""
+    wmclass = ""
+    try:
+        display = Xlib.display.Display()
+
+        win = display.get_input_focus().focus
+
+        wmname = win.get_wm_name()
+        wmclass = win.get_wm_class()
+
+        while not wmname is None and "focusproxy" in wmname.lower(): # workaround for java apps
+            win = win.query_tree().parent
+            wmname = win.get_wm_name()
+            wmclass = win.get_wm_class()
+
+        if wmname is None:
+            return wmname, wmclass, 0, 0, 0, 0
+
+        geom = win.get_geometry()
+
+        app_x, app_y, app_w, app_h = (geom.x, geom.y, geom.width, geom.height)
+
+
+
+        try:
+            parent_win = win.query_tree().parent
+
+            while parent_win != 0:
+                #print(parent_win)
+                p_geom = parent_win.get_geometry()
+                app_x += p_geom.x
+                app_y += p_geom.y
+                parent_win = parent_win.query_tree().parent
+        except Exception as e:
+            print('[Window Parent Error] Screen cap failed: '+ str(e))
+            traceback.print_stack()
+        if cfg.fullscreen:
+            return wmname, wmclass, 0, 0, cfg.resolution[0], cfg.resolution[1]
+        else:
+            return wmname, wmclass, app_x, app_y, app_w, app_h
+    except Exception as e:
+        print('[Window Error] Screen cap failed: '+ str(e))
+        traceback.print_stack()
+    return wmname, wmclass, 0, 0, 0, 0
