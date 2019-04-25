@@ -24,6 +24,7 @@ quit_counter = 3
 working_dir = ""
 aut_command = ""
 process_id = -1
+pyautogui.PAUSE = 0
 
 pyautogui.FAILSAFE = False # disables the fail-safe
 
@@ -92,6 +93,19 @@ if __name__ == '__main__':
         with open(file, "rb") as f:
             user_model = pickle.load(f)
 
+        output_dir = input_dir + "/tests/" + str(int(time.time()))
+
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+            try:
+                os.mkdir(output_dir)
+            except OSError as e:
+                #folder exists
+                pass
+
+        with open(output_dir + "/test.log", "w+") as f:
+            f.write("")
+
         cfg.window_name = sys.argv[1]
 
         working_dir = sys.argv[2]
@@ -115,9 +129,11 @@ if __name__ == '__main__':
         with open(csv_file, "w+") as p_f:
             p_f.write("time,actions,technique,iteration_time,window_name\n")
 
+
+
         while is_running(start_time, runtime, actions, running):
 
-            time.sleep(2)
+            time.sleep(0)
 
             iteration_time = time.time()
 
@@ -129,18 +145,25 @@ if __name__ == '__main__':
 
             while app_w == 0:
 
-                #kill_old_process()
+                kill_old_process()
 
-                #start_aut()
+                start_aut()
 
                 w_name, w_class, app_x, app_y, app_w, app_h = get_focused_window(cfg.window_name)
                 if time.time() - start_time > runtime:
                     print("[User Model Replay] Couldn't find application window!")
                     break
 
-            if w_name != window_event.wm_name or w_class != window_event.wm_class:
+            wm_class = "(" + w_class[0] + "," + w_class[1] + ")"
+
+            if w_name != window_event.wm_name or wm_class != window_event.wm_class:
                 window_event = WindowChangeEvent(time.time(), w_name, w_class, (app_x, app_y),
                                                  (app_w, app_h))
+                os.chdir(wd)
+                with open(output_dir + "/test.log", "a+") as f:
+                    f.write(window_event.hashcode() + "\n")
+
+                print(window_event.hashcode())
 
             window_model = user_model.get_window_model(window_event.wm_name)
 
@@ -152,22 +175,26 @@ if __name__ == '__main__':
 
                 event.change_window(window_event)
 
-                print(event_desc)
-
                 event.perform()
 
+                with open(output_dir + "/test.log", "a+") as f:
+                    f.write(event.hashcode() + "\n")
+
+                actions += 1
 
 
+            os.chdir(wd)
             with open(csv_file, "a+") as p_f:
                 # TODO: Write python functions for click, type, etc
                 p_f.write(str(exec_time) + "," + str(actions) + ",UserModelGenerator," + str(iteration_time) + "," + cfg.window_name + "\n")
-        kill_old_process()
 
         for k in KeyEvent.keys_down:
             pyautogui.keyUp(k)
 
+        kill_old_process()
+
         time.sleep(5)
-        print("[User Model Replay] Finished testing!")
+        print("[User Model Replay] Finished testing! (" + str(actions) + " actions)")
 
         os.chdir(wd)
 

@@ -59,7 +59,7 @@ def on_release(key):
     add_event(KeyEvent(time.time(), name, pressed=False, shift=shift_modifier, ctrl=ctrl_modifier, alt=alt_modifier,
                            altgr=altgr_modifier, fn=fn_modifier, cmd=cmd_modifier))
 
-    if key == keyboard.Key.f1:
+    if key == keyboard.Key.esc:
         quit_counter -= 1
         if quit_counter == 0:
             running = False
@@ -137,30 +137,36 @@ w_name, w_class, app_x, app_y, app_w, app_h = "", "", 0, 0, 0, 0
 
 def capture_screen():
     global app_x, app_y, app_w, app_h, exec_time
-    image = screenshot()
 
-    if not image is None:
+    time.sleep(1)
 
-        if not cfg.fullscreen:
-            image = image[app_y:app_y+app_h, app_x:app_x+app_w]
+    img_folder = out_folder + "/images"
 
-        image = np.array(image)
-        img_folder = out_folder + "/images"
+    img_out = img_folder + "/"+ window_event.filename_string()
 
-        if not os.path.isdir(img_folder):
-            os.makedirs(img_folder, exist_ok=True)
-            try:
-                os.mkdir(img_folder)
-            except OSError as e:
-                #folder exists
-                pass
+    counter = int(exec_time/5)
 
-        img_out = img_folder + "/"+ window_event.filename_string()
+    if not (os.path.isfile(img_out + str(counter) + ".png")):
+        image = screenshot()
 
-        counter = int(exec_time/30000)
+        if not image is None:
 
-        if not (os.path.isfile(img_out + str(counter) + ".png")):
-            cv2.imwrite(img_out + str(counter) + ".png", image)
+            if not cfg.fullscreen:
+                image = image[app_y:app_y+app_h, app_x:app_x+app_w]
+
+            image = np.array(image)
+
+
+            if not os.path.isdir(img_folder):
+                os.makedirs(img_folder, exist_ok=True)
+                try:
+                    os.mkdir(img_folder)
+                except OSError as e:
+                    #folder exists
+                    pass
+
+            if not (os.path.isfile(img_out + str(counter) + ".png")):
+                cv2.imwrite(img_out + str(counter) + ".png", image)
 
 def add_event(event):
     global events
@@ -211,6 +217,11 @@ if __name__ == '__main__':
 
                 start_aut()
 
+            if len(sys.argv) > 5:
+                cfg.test_time = int(sys.argv[5])
+                cfg.use_iterations = False
+                print("[Manual] Using time limit: " + str(cfg.test_time))
+
             out_folder = sys.argv[4]
 
             output_file = out_folder + "/events.evnt"
@@ -238,18 +249,25 @@ if __name__ == '__main__':
 
                 w_name, w_class, app_x, app_y, app_w, app_h = get_focused_window(cfg.window_name)
 
+                no_focus = 0
+
                 while app_w == 0:
 
-                    #kill_old_process()
+                    time.sleep(1)
 
-                    #start_aut()
+                    if no_focus >= 3:
+                        kill_old_process()
+
+                        start_aut()
 
                     w_name, w_class, app_x, app_y, app_w, app_h = get_focused_window(cfg.window_name)
-                    if time.time() - start_time > runtime:
+                    if not is_running(start_time, runtime, actions, running):
                         print("[Manual] Couldn't find application window!")
                         break
 
-                if w_name != window_event.wm_name or w_class != window_event.wm_class:
+                    no_focus += 1
+
+                if w_name != window_event.wm_name or "(" + w_class[0] + "," + w_class[1] + ")" != window_event.wm_class:
                     window_event = WindowChangeEvent(time.time(), w_name, w_class, (app_x, app_y),
                                                      (app_w, app_h))
                     add_event(window_event)

@@ -73,9 +73,9 @@ class MouseEvent(Event):
     def get_metadata(self):
         x, y = self.point
 
-        if not self.window == None:
-            x, y = ((self.point[0]-self.window.position[0])/self.window.dimension[0],
-                    (self.point[1]-self.window.position[1])/self.window.dimension[1])
+        # if not self.window == None:
+        #     x, y = ((self.point[0]-self.window.position[0])/self.window.dimension[0],
+        #             (self.point[1]-self.window.position[1])/self.window.dimension[1])
         return "<<{},{},\"{}\">>".format(x, y, "pressed" if self.pressed else "released")
 
     def perform(self):
@@ -181,8 +181,8 @@ class ScrollEvent(Event):
     def get_metadata(self):
         x, y = self.position[0], self.position[1]
         if not self.window == None:
-            x, y = ((self.point[0]-self.window.position[0])/self.window.dimension[0],
-                    (self.point[1]-self.window.position[1])/self.window.dimension[1])
+            x, y = ((self.position[0]-self.window.position[0])/self.window.dimension[0],
+                    (self.position[1]-self.window.position[1])/self.window.dimension[1])
         return "<<{},{},{},{}>>".format(self.velocity_x, self.velocity_y, x, y)
 
     def displace(self, x, y, xpos, ypos):
@@ -193,8 +193,8 @@ class ScrollEvent(Event):
     def perform(self):
         x, y = self.position[0], self.position[1]
         if not self.window == None:
-            x, y = ((self.point[0]*self.window.dimension[0])+self.window.position[0],
-                    (self.point[1]*self.window.dimension[1])+self.window.position[1])
+            x, y = ((self.position[0]*self.window.dimension[0])+self.window.position[0],
+                    (self.position[1]*self.window.dimension[1])+self.window.position[1])
 
         pyautogui.hscroll(self.velocity_x, x=x, y=y)
         pyautogui.scroll(self.velocity_y, x=x, y=y)

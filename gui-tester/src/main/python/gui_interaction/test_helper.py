@@ -10,6 +10,9 @@ import time
 import pyautogui
 from event import MouseEvent, KeyEvent, ScrollEvent
 
+
+display = Xlib.display.Display()
+
 def generate_input_string():
     if random.random() < 0.5:
         return "Hello World!"
@@ -176,11 +179,10 @@ def get_window_size(window_name):
     return get_window_size_focus(window_name, focus=True)
 
 def get_window_size_focus(window_name, focus=True):
-    global true_window
+    global true_window, display
     sub_window = False
 
     try:
-        display = Xlib.display.Display()
         root = display.screen().root
 
         win_names = window_name.split(":")
@@ -305,15 +307,20 @@ def get_window_size_focus(window_name, focus=True):
     return 0, 0, 0, 0
 
 def get_focused_window(window_name):
+    global display
     wmname = ""
     wmclass = ""
     try:
-        display = Xlib.display.Display()
 
         win = display.get_input_focus().focus
 
+
+
         wmname = win.get_wm_name()
         wmclass = win.get_wm_class()
+
+        if "Desktop" == wmname or "Terminal" == wmname or wmclass[0] == "nautilus":
+            return wmname, wmclass, 0, 0, 0, 0
 
         while not wmname is None and "focusproxy" in wmname.lower(): # workaround for java apps
             win = win.query_tree().parent
@@ -321,7 +328,17 @@ def get_focused_window(window_name):
             wmclass = win.get_wm_class()
 
         if wmname is None:
-            return wmname, wmclass, 0, 0, 0, 0
+            if not win is None:
+                p = win.query_tree().parent
+                if not p is None and not p.get_wm_name() is None:
+                    win = p
+                    wmname = win.get_wm_name()
+                    wmclass = win.get_wm_class()
+                else:
+                    return wmname, wmclass, 0, 0, 0, 0
+
+            else:
+                return wmname, wmclass, 0, 0, 0, 0
 
         geom = win.get_geometry()
 
@@ -346,6 +363,6 @@ def get_focused_window(window_name):
         else:
             return wmname, wmclass, app_x, app_y, app_w, app_h
     except Exception as e:
-        print('[Window Error] Screen cap failed: '+ str(e))
+        #print('[Window Error] Screen cap failed: '+ str(e))
         traceback.print_stack()
     return wmname, wmclass, 0, 0, 0, 0

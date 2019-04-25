@@ -4,6 +4,9 @@ import re
 import time
 
 class UserModel():
+
+    default_chance = 0.1
+
     def __init__(self):
         self.window_models = {}
         self.default_model = None
@@ -15,8 +18,9 @@ class UserModel():
         self.window_models[window_name] = window_model
 
     def get_window_model(self, window_name):
+
         model = self.default_model
-        if window_name in self.window_models:
+        if window_name in self.window_models and random.random() > self.default_chance:
             model = self.window_models[window_name]
 
         if model is None:
@@ -28,8 +32,8 @@ class WindowModel():
 
     exp = "{(\d+)}"
 
-    def __init__(self, ngram, clusters):
-        self.chain = MarkovChain(ngram, 5)
+    def __init__(self, ngram, clusters, length=2):
+        self.chain = MarkovChain(ngram, length)
         self.clusters = clusters
 
     def label_to_event_description(self, label):
