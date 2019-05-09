@@ -255,7 +255,7 @@ if __name__ == '__main__':
 
                     time.sleep(1)
 
-                    if no_focus >= 3:
+                    if no_focus >= 20:
                         kill_old_process()
 
                         start_aut()

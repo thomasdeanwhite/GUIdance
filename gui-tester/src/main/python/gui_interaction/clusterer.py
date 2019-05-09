@@ -21,7 +21,7 @@ class Clusterer():
         self.data = []
 
     def recommend_clusters(self):
-        return int(math.ceil(self.shape[0]/2))
+        return int(min(self.shape[0], max(5, 3*math.sqrt(self.shape[0]))))
 
     def cluster(self, k, iterations):
         centroids = random.sample(self.data, k)

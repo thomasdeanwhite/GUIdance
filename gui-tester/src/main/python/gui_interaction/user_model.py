@@ -5,7 +5,7 @@ import time
 
 class UserModel():
 
-    default_chance = 0.1
+    default_chance = 0.05
 
     def __init__(self):
         self.window_models = {}
@@ -57,6 +57,9 @@ class WindowModel():
     def next(self):
         label = self.chain.next()
 
+        if label is None:
+            return None
+
         label = self.label_to_event_description(label)
 
         label = label.replace("EventType.", "")
@@ -72,6 +75,7 @@ class MarkovChain():
         if length > self.ngram.length:
             length = self.ngram.length
         self.length = length
+        self.sparsity = 0
 
     def next(self):
         seqs = self.sequence.split()
@@ -84,6 +88,17 @@ class MarkovChain():
         node = self.ngram.find_parent(self.sequence)
 
         p = random.random()
+
+        if len(node.children) == 0:
+            # sparse data
+            if self.sparsity > 3:
+                return None
+            self.sparsity += 1
+            self.sequence = ""
+            return self.next()
+
+        self.sparsity = 0
+
         next_node = node.children[0]
         for c in node.children:
             next_node = c

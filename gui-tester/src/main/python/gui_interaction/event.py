@@ -1,6 +1,9 @@
 from enum import Enum
 import pyautogui
 import re as regex
+import random
+
+variance = 0.1
 
 class EventType(Enum):
     NONE=-1
@@ -56,6 +59,9 @@ class Event():
     def get_identifier(self):
         return None
 
+    def get_delay(self):
+        return 0
+
 
 
 
@@ -82,8 +88,11 @@ class MouseEvent(Event):
         x, y = self.point
 
         if not self.window == None:
-            x, y = ((self.point[0]*self.window.dimension[0])+self.window.position[0],
-                    (self.point[1]*self.window.dimension[1])+self.window.position[1])
+            x, y = ((((1.0-variance)+random.random()*(2*variance))*self.point[0]*self.window.dimension[0])+self.window.position[0],
+                    (((1.0-variance)+random.random()*(2*variance))*self.point[1]*self.window.dimension[1])+self.window.position[1])
+
+            x = max(self.window.position[0], min(x, self.window.position[0]+self.window.dimension[0]))
+            y = max(self.window.position[1], min(y, self.window.position[1]+self.window.dimension[1]))
 
         if self.get_event_type() == EventType.LEFT_DOWN:
             pyautogui.mouseDown(x, y)
@@ -110,9 +119,17 @@ class MouseEvent(Event):
 
     def change_window(self, window_change):
         self.window = window_change
+        if self.window.dimension[0] == 0:
+            self.window.dimension = (1, self.window.dimension[1])
+
+        if self.window.dimension[1] == 0:
+            self.window.dimension = (self.window.dimension[0], 1)
 
     def get_identifier(self):
         return "{cluster},\"" + ("pressed" if self.pressed else "released") + "\""
+
+    def get_delay(self):
+        return 1
 
 class KeyEvent(Event):
     keys = ""
@@ -156,8 +173,10 @@ class KeyEvent(Event):
             pyautogui.keyUp(self.keys)
 
     def get_features(self):
-        return [self.shift_modifier, self.ctrl_modifier, self.alt_modifier,
-                self.altgr_modifier, self.fn_modifier, self.cmd_modifier]
+        # return [self.shift_modifier, self.ctrl_modifier, self.alt_modifier,
+        #         self.altgr_modifier, self.fn_modifier, self.cmd_modifier]
+        return [float(self.shift_modifier), float(self.ctrl_modifier), float(self.alt_modifier),
+            float(self.altgr_modifier), float(self.fn_modifier), float(self.cmd_modifier)]
 
     def set_features(self, features):
         pass
@@ -193,9 +212,11 @@ class ScrollEvent(Event):
     def perform(self):
         x, y = self.position[0], self.position[1]
         if not self.window == None:
-            x, y = ((self.position[0]*self.window.dimension[0])+self.window.position[0],
-                    (self.position[1]*self.window.dimension[1])+self.window.position[1])
+            x, y = ((((1.0-variance)+random.random()*(2*variance))*self.position[0]*self.window.dimension[0])+self.window.position[0],
+                    (((1.0-variance)+random.random()*(2*variance))*self.position[1]*self.window.dimension[1])+self.window.position[1])
 
+            x = max(self.window.position[0], min(x, self.window.position[0]+self.window.dimension[0]))
+            y = max(self.window.position[1], min(y, self.window.position[1]+self.window.dimension[1]))
         pyautogui.hscroll(self.velocity_x, x=x, y=y)
         pyautogui.scroll(self.velocity_y, x=x, y=y)
 
@@ -225,6 +246,9 @@ class ScrollEvent(Event):
 
     def get_identifier(self):
         return "{cluster}"
+
+    def get_delay(self):
+        return 0
 
 
 class WindowChangeEvent(Event):
@@ -277,7 +301,7 @@ class WindowChangeEvent(Event):
 class EventConstructor():
 
     meta_regex = regex.compile("[,]*[<|>]+")
-    quote_regex = regex.compile("(\"[^\",]+)[,]+([^\"]+\")")
+    quote_regex = regex.compile(",(?!(?:[^\"]*\"[^\"]*\")*[^\"]*$)")
 
     # NONE=-1
     # LEFT_CLICK=0
@@ -346,7 +370,7 @@ class EventConstructor():
     def metadata_to_list(self, metadata):
         metadata = self.meta_regex.sub("", metadata)
         while not self.quote_regex.search(metadata) is None:
-            metadata = self.quote_regex.sub("\g<1>%44\g<2>", metadata)
+            metadata = self.quote_regex.sub("%44", metadata)
 
         data = metadata.split(",")
         for i in range(len(data)):

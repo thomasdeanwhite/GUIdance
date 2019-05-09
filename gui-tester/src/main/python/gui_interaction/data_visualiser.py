@@ -273,6 +273,9 @@ if __name__ == '__main__':
 
         user_model.add_window_model(window_event, window_model)
 
+        for i in range(100):
+            print("Gen:", window_model.next())
+
     default_model = gen_window_model(None, proc_events)
 
     user_model.set_default_model(default_model)

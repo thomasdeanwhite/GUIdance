@@ -27,11 +27,12 @@ process_id = -1
 pyautogui.PAUSE = 0
 
 pyautogui.FAILSAFE = False # disables the fail-safe
+seeding_key = False
 
 def on_release(key):
-    global running, quit_counter
+    global running, quit_counter, seeding_key
 
-    if key == keyboard.Key.f1:
+    if key == keyboard.Key.esc and not seeding_key:
         quit_counter -= 1
         if quit_counter == 0:
             running = False
@@ -133,7 +134,7 @@ if __name__ == '__main__':
 
         while is_running(start_time, runtime, actions, running):
 
-            time.sleep(0)
+
 
             iteration_time = time.time()
 
@@ -143,16 +144,23 @@ if __name__ == '__main__':
 
             w_name, w_class, app_x, app_y, app_w, app_h = get_focused_window(cfg.window_name)
 
+            no_focus = 0
+
             while app_w == 0:
 
-                kill_old_process()
+                time.sleep(1)
 
-                start_aut()
+                if no_focus >= 20:
+                    kill_old_process()
+
+                    start_aut()
 
                 w_name, w_class, app_x, app_y, app_w, app_h = get_focused_window(cfg.window_name)
-                if time.time() - start_time > runtime:
+                if not is_running(start_time, runtime, actions, running):
                     print("[User Model Replay] Couldn't find application window!")
                     break
+
+                no_focus += 1
 
             wm_class = "(" + w_class[0] + "," + w_class[1] + ")"
 
@@ -174,8 +182,10 @@ if __name__ == '__main__':
                 event = event_constructor.construct(event_desc)
 
                 event.change_window(window_event)
-
+                seeding_key = True
                 event.perform()
+                seeding_key = False
+                time.sleep(event.get_delay())
 
                 with open(output_dir + "/test.log", "a+") as f:
                     f.write(event.hashcode() + "\n")
