@@ -12,6 +12,8 @@ from event import MouseEvent, KeyEvent, ScrollEvent, EventType, WindowChangeEven
 from user_model import UserModel
 import pickle
 import pyautogui
+import numpy as np
+from threading import Thread
 
 sub_window = False
 
@@ -28,6 +30,39 @@ pyautogui.PAUSE = 0
 
 pyautogui.FAILSAFE = False # disables the fail-safe
 seeding_key = False
+
+def capture_screen():
+    global app_x, app_y, app_w, app_h, exec_time
+
+    time.sleep(1)
+
+    img_folder = out_folder + "/images"
+
+    img_out = img_folder + "/"+ window_event.filename_string()
+
+    counter = int(exec_time/5)
+
+    if not (os.path.isfile(img_out + str(counter) + ".png")):
+        image = screenshot()
+
+        if not image is None:
+
+            if not cfg.fullscreen:
+                image = image[app_y:app_y+app_h, app_x:app_x+app_w]
+
+            image = np.array(image)
+
+
+            if not os.path.isdir(img_folder):
+                os.makedirs(img_folder, exist_ok=True)
+                try:
+                    os.mkdir(img_folder)
+                except OSError as e:
+                    #folder exists
+                    pass
+
+            if not (os.path.isfile(img_out + str(counter) + ".png")):
+                cv2.imwrite(img_out + str(counter) + ".png", image)
 
 def on_release(key):
     global running, quit_counter, seeding_key
@@ -186,6 +221,9 @@ if __name__ == '__main__':
                 event.perform()
                 seeding_key = False
                 time.sleep(event.get_delay())
+
+                t = Thread(target=capture_screen)
+                t.start()
 
                 with open(output_dir + "/test.log", "a+") as f:
                     f.write(event.hashcode() + "\n")
