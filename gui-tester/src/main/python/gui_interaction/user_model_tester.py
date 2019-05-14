@@ -14,6 +14,7 @@ import pickle
 import pyautogui
 import numpy as np
 from threading import Thread
+import cv2
 
 sub_window = False
 
@@ -31,8 +32,10 @@ pyautogui.PAUSE = 0
 pyautogui.FAILSAFE = False # disables the fail-safe
 seeding_key = False
 
+out_folder = ""
+
 def capture_screen():
-    global app_x, app_y, app_w, app_h, exec_time
+    global app_x, app_y, app_w, app_h, exec_time, out_folder
 
     time.sleep(1)
 
@@ -130,6 +133,8 @@ if __name__ == '__main__':
             user_model = pickle.load(f)
 
         output_dir = input_dir + "/tests/" + str(int(time.time()))
+
+        out_folder = output_dir
 
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir, exist_ok=True)
