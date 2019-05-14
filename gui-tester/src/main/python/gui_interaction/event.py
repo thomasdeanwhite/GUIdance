@@ -95,6 +95,7 @@ class MouseEvent(Event):
             y = max(self.window.position[1], min(y, self.window.position[1]+self.window.dimension[1]))
 
         if self.get_event_type() == EventType.LEFT_DOWN:
+            pyautogui.click(x, y)
             pyautogui.mouseDown(x, y)
         elif self.get_event_type() == EventType.LEFT_UP:
             pyautogui.mouseUp(x, y)
