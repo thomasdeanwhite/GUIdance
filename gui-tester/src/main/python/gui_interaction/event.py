@@ -97,7 +97,7 @@ class MouseEvent(Event):
         if self.get_event_type() == EventType.LEFT_DOWN:
             pyautogui.click(x, y) if random.random() < 0.5 else pyautogui.mouseDown(x, y)
         elif self.get_event_type() == EventType.LEFT_UP:
-            pyautogui.mouseUp(x, y)
+            pyautogui.click(x, y) if random.random() < 0.5 else pyautogui.mouseUp(x, y)
         elif self.get_event_type() == EventType.RIGHT_DOWN:
             pyautogui.mouseDown(x, y, "right")
         elif self.get_event_type() == EventType.RIGHT_UP:
