@@ -22,4 +22,5 @@ weights
 .RData
 .Rhistory
 **/*.pyc
-
+output
+tom*
