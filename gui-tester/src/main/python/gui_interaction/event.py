@@ -62,6 +62,10 @@ class Event():
     def get_delay(self):
         return 0
 
+    @staticmethod
+    def random():
+        raise NotImplementedError("Abstract event cannot return randomly")
+
 
 
 
@@ -99,13 +103,13 @@ class MouseEvent(Event):
         elif self.get_event_type() == EventType.LEFT_UP:
             pyautogui.click(x, y) if random.random() < 0.5 else pyautogui.mouseUp(x, y)
         elif self.get_event_type() == EventType.RIGHT_DOWN:
-            pyautogui.mouseDown(x, y, "right")
+            pyautogui.rightClick(x, y) if random.random() < 0.5 else pyautogui.mouseDown(x, y, "right")
         elif self.get_event_type() == EventType.RIGHT_UP:
-            pyautogui.mouseUp(x, y, "right")
+            pyautogui.rightClick(x, y) if random.random() < 0.5 else pyautogui.mouseUp(x, y, "right")
         elif self.get_event_type() == EventType.MIDDLE_DOWN:
-            pyautogui.mouseUp(x, y, "middle")
+            pyautogui.middleClick(x, y) if random.random() < 0.5 else pyautogui.mouseDown(x, y, "middle")
         elif self.get_event_type() == EventType.MIDDLE_UP:
-            pyautogui.mouseUp(x, y, "middle")
+            pyautogui.middleClick(x, y) if random.random() < 0.5 else pyautogui.mouseUp(x, y, "middle")
 
     def get_features(self):
         if self.window == None:
@@ -130,6 +134,10 @@ class MouseEvent(Event):
 
     def get_delay(self):
         return 1
+
+    @staticmethod
+    def random():
+        return MouseEvent(0, random.randint(0, 2), random.random(), random.random(), random.random()<0.5)
 
 class KeyEvent(Event):
     keys = ""
@@ -186,6 +194,12 @@ class KeyEvent(Event):
 
     def get_identifier(self):
         return "\"" + self.keys + "\",\"" + ("pressed" if self.pressed else "released") + "\"" + ",{cluster}"
+
+    @staticmethod
+    def random():
+        return KeyEvent(0, "0", random.random() < 0.5,
+                 random.random() < 0.5, random.random() < 0.5, random.random() < 0.5,
+                 random.random() < 0.5, random.random() < 0.5, random.random() < 0.5)
 
 class ScrollEvent(Event):
     velocity_y = 0
@@ -250,6 +264,10 @@ class ScrollEvent(Event):
     def get_delay(self):
         return 0
 
+    @staticmethod
+    def random():
+        return ScrollEvent(0, random.random(), random.random(), random.random(), random.random())
+
 
 class WindowChangeEvent(Event):
     wm_name = ""
@@ -297,6 +315,10 @@ class WindowChangeEvent(Event):
 
     def change_window(self, window_change):
         pass
+
+    @staticmethod
+    def random():
+        raise NotImplementedError("Window Change Event cannot return randomly")
 
 class EventConstructor():
 
@@ -385,5 +407,14 @@ class EventConstructor():
                 data[i] = data[i][1:-1]
 
         return data
+
+    def random_event(self):
+        if random.random() < 0.3333:
+            return MouseEvent.random()
+        elif random.random() < 0.5:
+            return KeyEvent.random()
+
+        return ScrollEvent.random()
+
 
 

@@ -104,3 +104,6 @@ run_all_batches = True
 
 fullscreen = False
 resolution = [1920, 1080]
+
+# fallback approach is no GUI window exists (either "random" or "application")
+fallback = "application"

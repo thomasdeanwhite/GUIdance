@@ -213,10 +213,6 @@ if __name__ == '__main__':
 
                 print(window_event.hashcode())
 
-            window_model = user_model.get_window_model(window_event.wm_name)
-
-            if window_model == None or (cfg.fallback == "random" and window_model == user_model.default_model):
-
                 event = event_constructor.random_event()
 
                 event.change_window(window_event)
@@ -232,27 +228,6 @@ if __name__ == '__main__':
                     f.write(event.hashcode() + "\n")
 
                 actions += 1
-            else:
-                event_desc = window_model.next()
-
-                if event_desc != "WINDOW_CHANGE":
-
-                    event = event_constructor.construct(event_desc)
-
-                    event.change_window(window_event)
-                    seeding_key = True
-                    event.perform()
-                    seeding_key = False
-                    time.sleep(event.get_delay())
-
-                    t = Thread(target=capture_screen)
-                    t.start()
-
-                    with open(output_dir + "/test.log", "a+") as f:
-                        f.write(event.hashcode() + "\n")
-
-                    actions += 1
-
 
             os.chdir(wd)
             with open(csv_file, "a+") as p_f:

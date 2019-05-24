@@ -18,7 +18,7 @@ class UserModel():
         self.window_models[window_name] = window_model
 
     def get_window_model(self, window_name):
-
+        
         model = self.default_model
         if window_name in self.window_models and random.random() > self.default_chance:
             model = self.window_models[window_name]
