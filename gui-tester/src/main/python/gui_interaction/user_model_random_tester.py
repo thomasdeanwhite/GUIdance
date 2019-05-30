@@ -213,21 +213,21 @@ if __name__ == '__main__':
 
                 print(window_event.hashcode())
 
-                event = event_constructor.random_event()
+            event = event_constructor.random_event()
 
-                event.change_window(window_event)
-                seeding_key = True
-                event.perform()
-                seeding_key = False
-                time.sleep(event.get_delay())
+            event.change_window(window_event)
+            seeding_key = True
+            event.perform()
+            seeding_key = False
+            time.sleep(event.get_delay())
 
-                t = Thread(target=capture_screen)
-                t.start()
+            t = Thread(target=capture_screen)
+            t.start()
 
-                with open(output_dir + "/test.log", "a+") as f:
-                    f.write(event.hashcode() + "\n")
+            with open(output_dir + "/test.log", "a+") as f:
+                f.write(event.hashcode() + "\n")
 
-                actions += 1
+            actions += 1
 
             os.chdir(wd)
             with open(csv_file, "a+") as p_f:
