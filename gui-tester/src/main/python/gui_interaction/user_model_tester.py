@@ -231,7 +231,7 @@ if __name__ == '__main__':
                 with open(output_dir + "/test.log", "a+") as f:
                     f.write(event.hashcode() + "\n")
 
-                actions += 1
+                actions += event.action_count(last_event)
             else:
                 event_desc = window_model.next()
 
