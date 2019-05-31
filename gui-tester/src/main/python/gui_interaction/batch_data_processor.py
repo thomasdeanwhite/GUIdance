@@ -141,7 +141,7 @@ def run_events(x, y, time):
     return True
 
 
-def gen_window_model(window_event, proc_events, clusterer=Clusterer()):
+def gen_window_model(window_event, proc_events, windowed_events, clusterer=Clusterer()):
     global default_window_event
     if window_event == default_window_event.wm_name:
         return None
@@ -210,112 +210,89 @@ def find(name, path):
             if name in f:
                 return os.path.join(root, f)
 
-if __name__ == '__main__':
-    # Collect events until released
 
-    wd = os.getcwd()
+def process_inputs(input_dirs, output_dir):
+    event_constructor = EventConstructor()
+    events = []
+    window_event = default_window_event
 
-    for application in apps:
-        window_event = default_window_event
+    for f in input_dirs:
+        file = f + "/" + "events.evnt"
 
-        if len(sys.argv) < 2:
-            print("Must have filename argument!", file=sys.stderr)
-            sys.exit(1)
-        input_dir = sys.argv[1]
-
-        input_dirs = ""
-
-        for i in range(1, 11):
-            p_dir = "/participant-" + str(i)
-            input_dirs += input_dir + p_dir + "/tasks/" + application[1] + ";"
-            input_dirs += input_dir + p_dir + "/warmup/" + application[1] + ";"
-
-        input_dirs = input_dirs[:-1]
-        input_dirs = input_dirs.split(";")
-
-        output_dir = input_dirs[0]
-
-        if len(sys.argv) > 2:
-            output_dir = sys.argv[2] + "/" + application[1]
-
-        event_constructor = EventConstructor()
-
-        for f in input_dirs:
-            file = f + "/" + "events.evnt"
-
-            if not os.path.isfile(file):
-                print("Cannot find file: " + file)
-                continue
+        if not os.path.isfile(file):
+            print("Cannot find file: " + file)
+            continue
 
 
 
-            with open(file, "r") as f:
-                for line in f:
-                    events.append(event_constructor.construct(line))
-            events.append(Event(events[-1].timestamp+1, EventType.NONE))
+        with open(file, "r") as f:
+            for line in f:
+                events.append(event_constructor.construct(line))
+        events.append(Event(events[-1].timestamp+1, EventType.NONE))
 
-        events = sorted(events, key=lambda x : x.timestamp)
+    events = sorted(events, key=lambda x : x.timestamp)
 
-        proc_events = {}
+    proc_events = {}
 
-        windowed_events = {}
+    windowed_events = {}
 
-        for e in events:
+    for e in events:
 
-            key = window_event.filename_string()
+        key = window_event.filename_string()
 
-            if isinstance(e, WindowChangeEvent):
-                window_event = e
-                windows.append(e)
+        if isinstance(e, WindowChangeEvent):
+            window_event = e
+            windows.append(e)
 
-            if not key in proc_events:
-                proc_events[key] = {}
+        if not key in proc_events:
+            proc_events[key] = {}
 
-            if not e.event_type in proc_events[key]:
-                proc_events[key][e.event_type] = []
+        if not e.event_type in proc_events[key]:
+            proc_events[key][e.event_type] = []
 
-            if not None in proc_events:
-                proc_events[None] = {}
+        if not None in proc_events:
+            proc_events[None] = {}
 
-            if not e.event_type in proc_events[None]:
-                proc_events[None][e.event_type] = []
+        if not e.event_type in proc_events[None]:
+            proc_events[None][e.event_type] = []
 
 
-            if normalise and not window_event == default_window_event:
-                    e.change_window(window_event)
+        if normalise and not window_event == default_window_event:
+            e.change_window(window_event)
 
-            proc_events[key][e.event_type].append(e)
-            proc_events[None][e.event_type].append(e)
+        proc_events[key][e.event_type].append(e)
+        proc_events[None][e.event_type].append(e)
 
-            if not isinstance(e, WindowChangeEvent) or window_event.filename_string() != key:
+        if not isinstance(e, WindowChangeEvent) or window_event.filename_string() != key:
 
-                if not None in windowed_events:
-                    windowed_events[None] = []
+            if not None in windowed_events:
+                windowed_events[None] = []
 
-                windowed_events[None].append(e)
+            windowed_events[None].append(e)
 
-                if not key in windowed_events:
-                    windowed_events[key] = []
+            if not key in windowed_events:
+                windowed_events[key] = []
 
-                windowed_events[key].append(e)
+            windowed_events[key].append(e)
 
-        user_model = UserModel()
+    user_model = UserModel()
 
-        for window_event in proc_events:
+    for window_event in proc_events:
 
-            window_model = gen_window_model(window_event, proc_events)
+        window_model = gen_window_model(window_event, proc_events, windowed_events)
 
-            if window_model is None:
-                continue
+        if window_model is None:
+            continue
 
-            user_model.add_window_model(window_event, window_model)
+        user_model.add_window_model(window_event, window_model)
 
-            if not window_event is None:
+        if not window_event is None:
 
-                screenshot = find(window_event, input_dirs[0] + "/images/")
+            for input_file_num in range(len(input_dirs)):
+
+                screenshot = find(window_event, input_dirs[input_file_num] + "/images/")
 
                 cols = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255), (0, 0, 0)]
-                print(screenshot)
 
                 if not screenshot is None and os.path.isfile(screenshot):
                     img = cv2.imread(screenshot)
@@ -344,23 +321,86 @@ if __name__ == '__main__':
 
                         cv2.imwrite(imgout + window_event + ".png", img)
 
-        default_model = gen_window_model(None, proc_events)
+                        continue
 
-        user_model.set_default_model(default_model)
+    default_model = gen_window_model(None, proc_events, windowed_events)
 
-        for i in range(100):
-            print("Gen:", default_model.next())
+    user_model.set_default_model(default_model)
 
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir, exist_ok=True)
-            try:
-                os.mkdir(output_dir)
-            except OSError as e:
-                #folder exists
-                pass
+    for i in range(100):
+        print("Gen:", default_model.next())
 
-        with open(output_dir + "/user_model.mdl", "bw+") as f:
-            pickle.dump(user_model, f)
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        try:
+            os.mkdir(output_dir)
+        except OSError as e:
+            #folder exists
+            pass
+
+    with open(output_dir + "/user_model.mdl", "bw+") as f:
+        pickle.dump(user_model, f)
+
+
+
+if __name__ == '__main__':
+    # Collect events until released
+
+    wd = os.getcwd()
+
+    for application in apps:
+        window_event = default_window_event
+
+        if len(sys.argv) < 2:
+            print("Must have filename argument!", file=sys.stderr)
+            sys.exit(1)
+        input_dir = sys.argv[1]
+
+        input_dirs = ""
+
+        for i in range(1, 11):
+            p_dir = "/participant-" + str(i)
+            input_dirs += input_dir + p_dir + "/tasks/" + application[1] + ";"
+            input_dirs += input_dir + p_dir + "/warmup/" + application[1] + ";"
+
+        input_dirs = input_dirs[:-1]
+        input_dirs = input_dirs.split(";")
+
+        output_dir = input_dirs[0]
+
+        if len(sys.argv) > 2:
+            output_dir = sys.argv[2] + "/" + application[1]
+
+        process_inputs(input_dirs, output_dir)
+
+
+    # One out training
+    for application in apps:
+        window_event = default_window_event
+
+        if len(sys.argv) < 2:
+            print("Must have filename argument!", file=sys.stderr)
+            sys.exit(1)
+        input_dir = sys.argv[1]
+
+        input_dirs = ""
+
+        for ap in apps:
+            if ap != application:
+                for i in range(1, 11):
+                    p_dir = "/participant-" + str(i)
+                    input_dirs += input_dir + p_dir + "/tasks/" + ap[1] + ";"
+                    input_dirs += input_dir + p_dir + "/warmup/" + ap[1] + ";"
+
+        input_dirs = input_dirs[:-1]
+        input_dirs = input_dirs.split(";")
+
+        output_dir = input_dirs[0]
+
+        if len(sys.argv) > 2:
+            output_dir = sys.argv[2] + "/" + application[1] + "-one-out"
+
+        process_inputs(input_dirs, output_dir)
 
 
 

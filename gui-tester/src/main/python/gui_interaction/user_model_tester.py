@@ -8,7 +8,7 @@ import subprocess
 from pynput import keyboard
 import signal
 from test_helper import get_window_size_focus, screenshot, perform_interaction, is_running, get_focused_window
-from event import MouseEvent, KeyEvent, ScrollEvent, EventType, WindowChangeEvent, EventConstructor
+from event import MouseEvent, KeyEvent, ScrollEvent, EventType, WindowChangeEvent, EventConstructor, Event
 from user_model import UserModel
 import pickle
 import pyautogui
@@ -170,7 +170,7 @@ if __name__ == '__main__':
         with open(csv_file, "w+") as p_f:
             p_f.write("time,actions,technique,iteration_time,window_name\n")
 
-
+        last_event = Event(0, EventType.NONE)
 
         while is_running(start_time, runtime, actions, running):
 
@@ -251,7 +251,9 @@ if __name__ == '__main__':
                     with open(output_dir + "/test.log", "a+") as f:
                         f.write(event.hashcode() + "\n")
 
-                    actions += 1
+                    actions += event.action_count(last_event)
+
+                    last_event = event
 
 
             os.chdir(wd)

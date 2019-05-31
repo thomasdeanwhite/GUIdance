@@ -66,6 +66,9 @@ class Event():
     def random():
         raise NotImplementedError("Abstract event cannot return randomly")
 
+    def action_count(self, last_event):
+        return 0
+
 
 
 
@@ -79,6 +82,7 @@ class MouseEvent(Event):
                                     EventType.MIDDLE_CLICK)
         self.point = (x, y)
         self.pressed = pressed
+        self.click = random.random() < 0.5
 
     def get_metadata(self):
         x, y = self.point
@@ -90,6 +94,7 @@ class MouseEvent(Event):
 
     def perform(self):
         x, y = self.point
+        self.click = random.random() < 0.5
 
         if not self.window == None:
             x, y = ((((1.0-variance)+random.random()*(2*variance))*self.point[0]*self.window.dimension[0])+self.window.position[0],
@@ -99,17 +104,17 @@ class MouseEvent(Event):
             y = max(self.window.position[1], min(y, self.window.position[1]+self.window.dimension[1]))
 
         if self.get_event_type() == EventType.LEFT_DOWN:
-            pyautogui.click(x, y) if random.random() < 0.5 else pyautogui.mouseDown(x, y)
+            pyautogui.click(x, y) if self.click else pyautogui.mouseDown(x, y)
         elif self.get_event_type() == EventType.LEFT_UP:
-            pyautogui.click(x, y) if random.random() < 0.5 else pyautogui.mouseUp(x, y)
+            pyautogui.click(x, y) if self.click else pyautogui.mouseUp(x, y)
         elif self.get_event_type() == EventType.RIGHT_DOWN:
-            pyautogui.rightClick(x, y) if random.random() < 0.5 else pyautogui.mouseDown(x, y, "right")
+            pyautogui.rightClick(x, y) if self.click < 0.5 else pyautogui.mouseDown(x, y, "right")
         elif self.get_event_type() == EventType.RIGHT_UP:
-            pyautogui.rightClick(x, y) if random.random() < 0.5 else pyautogui.mouseUp(x, y, "right")
+            pyautogui.rightClick(x, y) if self.click < 0.5 else pyautogui.mouseUp(x, y, "right")
         elif self.get_event_type() == EventType.MIDDLE_DOWN:
-            pyautogui.middleClick(x, y) if random.random() < 0.5 else pyautogui.mouseDown(x, y, "middle")
+            pyautogui.middleClick(x, y) if self.click < 0.5 else pyautogui.mouseDown(x, y, "middle")
         elif self.get_event_type() == EventType.MIDDLE_UP:
-            pyautogui.middleClick(x, y) if random.random() < 0.5 else pyautogui.mouseUp(x, y, "middle")
+            pyautogui.middleClick(x, y) if self.click < 0.5 else pyautogui.mouseUp(x, y, "middle")
 
     def get_features(self):
         if self.window == None:
@@ -133,7 +138,10 @@ class MouseEvent(Event):
         return "{cluster},\"" + ("pressed" if self.pressed else "released") + "\""
 
     def get_delay(self):
-        return 1
+        return 1 if self.click else 0.5
+
+    def action_count(self, last_event):
+        return 1 if self.click else 0.5
 
     @staticmethod
     def random():
@@ -201,6 +209,9 @@ class KeyEvent(Event):
                  random.random() < 0.5, random.random() < 0.5, random.random() < 0.5,
                  random.random() < 0.5, random.random() < 0.5, random.random() < 0.5)
 
+    def action_count(self, last_event):
+        return 0.5
+
 class ScrollEvent(Event):
     velocity_y = 0
     velocity_x = 0
@@ -264,6 +275,9 @@ class ScrollEvent(Event):
     def get_delay(self):
         return 0
 
+    def action_count(self, last_event):
+        return 0 if last_event.event_type == EventType.MOUSE_WHEEL else 1
+
     @staticmethod
     def random():
         return ScrollEvent(0, random.random(), random.random(), random.random(), random.random())
@@ -315,6 +329,9 @@ class WindowChangeEvent(Event):
 
     def change_window(self, window_change):
         pass
+
+    def action_count(self, last_event):
+        return 0
 
     @staticmethod
     def random():
