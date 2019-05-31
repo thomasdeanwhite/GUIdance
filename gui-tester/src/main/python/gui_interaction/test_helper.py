@@ -27,11 +27,11 @@ def screenshot():
     img_file += "screenshots/"
 
     #convert seconds since epoch to minutes
-    img_file += str(int(time.time())) + "/"
+
 
     if not os.path.isdir(img_file):
         os.makedirs(img_file)
-    img_file += "screenshot.png"
+    img_file += str(int(time.time())) + "-screenshot.png"
 
     os.system("import -silent -window root " + img_file)
     img = cv2.imread(img_file, 0)

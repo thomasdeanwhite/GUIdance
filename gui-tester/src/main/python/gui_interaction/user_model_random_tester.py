@@ -43,7 +43,7 @@ def capture_screen():
 
     img_out = img_folder + "/"+ window_event.filename_string()
 
-    counter = int(exec_time/5)
+    counter = int(exec_time/30)
 
     if not (os.path.isfile(img_out + str(counter) + ".png")):
         image = screenshot()
