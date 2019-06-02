@@ -186,7 +186,7 @@ if __name__ == '__main__':
 
             no_focus = 0
 
-            while app_w == 0:
+            while app_w == 0 or w_class is None:
 
                 time.sleep(1)
 
