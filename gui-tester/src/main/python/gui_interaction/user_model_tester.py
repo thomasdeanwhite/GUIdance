@@ -32,6 +32,8 @@ pyautogui.PAUSE = 0
 pyautogui.FAILSAFE = False # disables the fail-safe
 seeding_key = False
 
+ignore_windows = True
+
 out_folder = ""
 
 def capture_screen():
@@ -233,6 +235,10 @@ if __name__ == '__main__':
 
                 actions += event.action_count(last_event)
             else:
+
+                if ignore_windows:
+                    window_model = user_model.default_model
+
                 event_desc = window_model.next()
 
                 if event_desc != "WINDOW_CHANGE":

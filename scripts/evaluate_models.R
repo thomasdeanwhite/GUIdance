@@ -47,6 +47,8 @@ dataset_s = dataset_a %>% filter(dataset == "synthetic") %>% mutate(Dataset="Syn
 dataset_m = dataset_a %>% filter(dataset == "mac") %>% mutate(Dataset="Mac")
 t_data = rbind(dataset_r, dataset_s, dataset_m)
 
+t_data = t_data[t_data$Metric == "IoU",]
+
 t_data$Dataset = factor(t_data$Dataset, c("Ubuntu", "Mac", "Synthetic"))
 
 p = t_data  %>% filter(dataset == "real" | dataset == "synthetic") %>%
@@ -55,7 +57,7 @@ p = t_data  %>% filter(dataset == "real" | dataset == "synthetic") %>%
   labs(x="",
        y="",
        title="") +
-  facet_wrap(~Metric) +
+  #facet_wrap(~Metric) +
   theme_bw() +
   #theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   scale_fill_viridis(discrete=TRUE, option="viridis", begin=0.5) + 
@@ -69,8 +71,8 @@ print(median((t_data %>% filter(dataset == "real", sensitivity == "recall", Metr
 print(median((t_data %>% filter(dataset == "real", sensitivity == "precision", Metric == "IoU"))$value))
 print(median((t_data %>% filter(dataset == "real", sensitivity == "recall", Metric == "IoU"))$value))
 
-ggsave("rq1.pdf", p, width = 3, height=3)
-ggsave("rq1.png", p, width = 3, height=3)
+ggsave("rq1.pdf", p, width = 3, height=2.5)
+ggsave("rq1.png", p, width = 3, height=2.5)
 
 
 p = t_data  %>% filter(dataset == "mac" | dataset == "synthetic") %>%
@@ -87,7 +89,7 @@ p = t_data  %>% filter(dataset == "mac" | dataset == "synthetic") %>%
        title="") +
   #scale_x_discrete() +
   #scale_y_log10
-  facet_wrap(~Metric) +
+  #facet_wrap(~Metric) +
   theme_bw() +
   #facet_wrap(busy_cat~size_cat) +
   #theme(axis.text.x = element_text(angle = 45, hjust = 1))+
@@ -105,7 +107,7 @@ print(median((t_data %>% filter(dataset == "mac", sensitivity == "recall", Metri
 print(median((t_data %>% filter(dataset == "mac", sensitivity == "precision", Metric == "IoU"))$value))
 print(median((t_data %>% filter(dataset == "mac", sensitivity == "recall", Metric == "IoU"))$value))
 
-ggsave("rq2.pdf", p, width = 3, height=3)
+ggsave("rq2.pdf", p, width = 3, height=2.5)
 
 print(p)
 
@@ -128,7 +130,7 @@ print(p)
 #        title="") +
 #   theme_bw() +
 #   theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none") +
-#   scale_fill_gradient(low = "#0000FF", high = "#FF0000", na.value = "#00FF00") +
+#   scale_fill_gradient(low = "#000077", high = "#FF9900", na.value = "#00FF00") +
 #   facet_wrap(~dataset)
 # 
 # ggsave("confusion.pdf", p, height=3, width=8)
