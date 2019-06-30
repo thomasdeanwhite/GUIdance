@@ -176,8 +176,6 @@ if __name__ == '__main__':
 
         while is_running(start_time, runtime, actions, running):
 
-
-
             iteration_time = time.time()
 
             exec_time = time.time() - start_time

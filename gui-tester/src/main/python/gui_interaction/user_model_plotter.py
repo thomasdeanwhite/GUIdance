@@ -58,7 +58,11 @@ if __name__ == '__main__':
 
     if w_m == user_model.default_model:
         print("Window model not found for title: '" + window_title + "'.")
+        screen_app_model = create_img(user_model.default_model, screenshot)
+
+        cv2.imwrite(output + "-one-out.png", screen_app_model)
     else:
+
         screen_app_model = create_img(user_model.default_model, screenshot)
         screen_window_model = create_img(w_m, screenshot)
 

@@ -16,15 +16,15 @@ import cv2
 
 
 apps = [
-        ("00", "bellmanzadeh"),
-        ("02", "JabRef"),
-        ("03", "Java_FireLands"),
-        ("05", "ordrumbox"),
-        ("11", "Dietetics"),
-        ("12", "Minesweeper"),
-        ("13", "SQuiz"),
-        ("14", "BlackJack"),
-        ("15", "UPM"),
+        # ("00", "bellmanzadeh"),
+        # ("02", "JabRef"),
+        # ("03", "Java_FireLands"),
+        # ("05", "ordrumbox"),
+        # ("11", "Dietetics"),
+        # ("12", "Minesweeper"),
+        # ("13", "SQuiz"),
+        # ("14", "BlackJack"),
+        # ("15", "UPM"),
         ("16", "Simple_Calculator")]
 
 sub_window = False
