@@ -63,7 +63,7 @@ batch_size = 32
 # standard deviation of variables when initialised
 var_sd = 0.001
 
-brightness_probability = 1.1
+brightness_probability = 0.1
 contrast_probability = 0.1
 invert_probability = 0.1
 
