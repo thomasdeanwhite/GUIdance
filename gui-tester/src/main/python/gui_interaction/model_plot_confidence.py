@@ -98,7 +98,7 @@ if __name__ == '__main__':
             i = i + 1
 
         print("Plotting Figures")
-        for c in range(5,11):
+        for c in range(1,11):
 
             img = np.copy(raw_img)
 

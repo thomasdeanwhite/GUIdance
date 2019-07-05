@@ -11,11 +11,9 @@ import os
 from tensorflow.python.tools import inspect_checkpoint as chkp
 from data_loader import load_image, load_raw_image, disable_transformation, convert_coords
 
-disable_transformation()
-
-
-
 if __name__ == '__main__':
+
+    disable_transformation()
 
     tf.reset_default_graph()
     yolo = Yolo()
