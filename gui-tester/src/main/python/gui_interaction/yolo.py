@@ -706,11 +706,11 @@ class Yolo:
         xB = min(box[3], box2[3])
         yB = min(box[4], box2[4])
 
-        interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+        interArea = max(0, xB - xA) * max(0, yB - yA)
 
 
-        boxAArea = (box[2] - box[0] + 1) * (box[3] - box[1] + 1)
-        boxBArea = (box2[2] - box2[0] + 1) * (box2[3] - box2[1] + 1)
+        boxAArea = (box[2] - box[0]) * (box[3] - box[1])
+        boxBArea = (box2[2] - box2[0]) * (box2[3] - box2[1])
 
         return interArea / float(boxAArea + boxBArea - interArea)
 

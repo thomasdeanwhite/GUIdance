@@ -1,20 +1,21 @@
 # GuiWidgets #
-Training models to identify GUI Widgets.
+A technique to identify widgets in screenshots of GUIs. 
 
 # Installation #
 
 - clone repo
-- Rename gui-tester/src/main/python/gui_interaction/config.py.BACK to config.py
-- Change gui-tester/src/main/python/gui_interaction/config.py
-  -  data_dir and output_dir to directory of training input data and desired output directory
+- Copy `gui-tester/src/main/python/gui_interaction/config.py.BACK` to `config.py`
+- Install dependencies
+  - `pip3 install -r requirements.txt`
+- Change `gui-tester/src/main/python/gui_interaction/config.py`
+  -  `data_dir` and `output_dir` to directory of training input data and desired output directory
 
 # Running #
 
-After downloading or training the model's  weights, run
+After downloading/training the model weights, to test an application, run
 ```
 gui-tester/src/main/python/gui_interaction/model_run.py [path to image]
 ```
-to print out the identified bounding boxes.
 
 To visualise bounding boxes, model_plot.py can be used:
 ```

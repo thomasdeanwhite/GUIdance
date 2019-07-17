@@ -51,7 +51,7 @@ if __name__ == '__main__':
             yolo.anchors: anchors,
         })
 
-        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=False).tolist()[0]
+        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()[0]
 
         raw_img = load_raw_image(sys.argv[1])
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
         proc_boxes = yolo.normalise_boxes(proc_boxes, width, height)
 
         print("Plotting Figures")
-        for c in range(1,11):
+        for c in range(0,11):
 
             img = np.copy(raw_img)
 
@@ -70,6 +70,6 @@ if __name__ == '__main__':
 
             p_boxes = yolo.prune_boxes(p_boxes)
 
-            p_boxes = yolo.trim_overlapping_boxes(p_boxes)
+            #p_boxes = yolo.trim_overlapping_boxes(p_boxes)
 
             plot_boxes(p_boxes, img, c/10, yolo)

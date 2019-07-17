@@ -19,7 +19,7 @@ def plot_boxes(proc_boxes, raw_img, threshold, yolo):
     proc_boxes = yolo.prune_boxes(proc_boxes[:])
 
 
-    proc_boxes = yolo.trim_overlapping_boxes(proc_boxes)
+    #proc_boxes = yolo.trim_overlapping_boxes(proc_boxes)
 
     yolo.plot_boxes(proc_boxes, img)
 
