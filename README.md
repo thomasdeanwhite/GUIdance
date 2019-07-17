@@ -26,4 +26,6 @@ e.g.
 python gui-tester/src/main/python/gui_interaction/model_plot.py /home/user/img.png
 ```
 
+[Annotated App](public/app-annotated.png)
+
 Ensure that the model weights are in the folder _weights_ in the directory you are running the python script from.
