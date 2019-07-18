@@ -769,9 +769,17 @@ class Yolo:
 
         return color
 
-    def plot_boxes(self, proc_boxes, img):
+    def restore_aspect_ratio(self, proc_boxes, aspect):
+
+        for box in proc_boxes:
+            box[1:5] = convert_coords(box[1], box[2], box[3], box[4], aspect)
+        return proc_boxes
+
+    def plot_boxes(self, raw_boxes, img):
 
         height, width = img.shape[:2]
+
+        proc_boxes = np.copy(raw_boxes)
 
         # plot boxes
         for box in proc_boxes:

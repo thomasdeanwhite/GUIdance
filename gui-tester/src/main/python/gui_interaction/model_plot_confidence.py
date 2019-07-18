@@ -13,10 +13,6 @@ from data_loader import load_image, load_raw_image, disable_transformation, conv
 
 from model_plot import plot_boxes
 
-disable_transformation()
-
-
-
 if __name__ == '__main__':
 
     disable_transformation()
@@ -51,9 +47,9 @@ if __name__ == '__main__':
             yolo.anchors: anchors,
         })
 
-        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()[0]
-
         raw_img = load_raw_image(sys.argv[1])
+
+        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()[0]
 
         proc_boxes.sort(key=lambda box: -box[5])
 
