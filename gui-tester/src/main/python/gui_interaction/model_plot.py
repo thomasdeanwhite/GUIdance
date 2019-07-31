@@ -19,9 +19,9 @@ def plot_boxes(proc_boxes, raw_img, threshold, yolo):
     proc_boxes = yolo.prune_boxes(proc_boxes[:])
 
 
-    proc_boxes = yolo.trim_overlapping_boxes(proc_boxes)
+    # proc_boxes = yolo.trim_overlapping_boxes(proc_boxes)
 
-    yolo.plot_boxes(proc_boxes, img)
+    img = yolo.plot_boxes(proc_boxes, img)
 
     cv2.imshow('image',img)
     cv2.waitKey(0)
@@ -58,22 +58,27 @@ if __name__ == '__main__':
         #normalise data  between 0 and 1
         imgs = np.array(images)/127.5-1
 
+
+        raw_img = load_raw_image(sys.argv[1])
+
         boxes = sess.run(yolo.output, feed_dict={
             yolo.x: imgs,
             yolo.anchors: anchors,
         })
 
-        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=False).tolist()[0]
+        height, width = raw_img.shape[:2]
+
+        proc_boxes = yolo.convert_net_to_bb(boxes, filter_top=True).tolist()[0]
+
+        # proc_boxes = yolo.restore_aspect_ratio(proc_boxes, width/height)
 
         raw_img = load_raw_image(sys.argv[1])
 
         proc_boxes.sort(key=lambda box: -box[5])
 
-        height, width = raw_img.shape[:2]
-
         print("Processing Boxes")
 
         proc_boxes = yolo.normalise_boxes(proc_boxes, width, height)
 
-        plot_boxes(proc_boxes, img, cfg.object_detection_threshold, yolo)
+        plot_boxes(proc_boxes, raw_img, cfg.object_detection_threshold, yolo)
 

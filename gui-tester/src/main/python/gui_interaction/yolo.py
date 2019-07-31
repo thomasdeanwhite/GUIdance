@@ -706,12 +706,12 @@ class Yolo:
         xB = min(box[3], box2[3])
         yB = min(box[4], box2[4])
 
-        interArea = max(0, xB * xA) * max(0, yB * yA)
+
+        interArea = max(0, xB - xA) * max(0, yB - yA)
 
 
-        boxAArea = box[2] * box[3]
-
-        boxBArea = box2[2] * box2[3]
+        boxAArea = (box[2] - box[0]) * (box[3] - box[1])
+        boxBArea = (box2[2] - box2[0]) * (box2[3] - box2[1])
 
         return interArea / float(boxAArea + boxBArea - interArea)
 
@@ -770,54 +770,76 @@ class Yolo:
 
         return color
 
-    def plot_boxes(self, proc_boxes, img):
+    def restore_aspect_ratio(self, proc_boxes, aspect):
+
+        for box in proc_boxes:
+            box[1:5] = convert_coords(box[1], box[2], box[3], box[4], aspect)
+        return proc_boxes
+
+    def plot_boxes(self, raw_boxes, img):
 
         height, width = img.shape[:2]
+
+        proc_boxes = np.copy(raw_boxes)
+
+        imgc = np.copy(img)
 
         # plot boxes
         for box in proc_boxes:
 
             color = self.class_to_color(self.names[int(box[0])])
 
+            s_copy = np.copy(img)
+
             x1 = max(int(width*box[1]), 0)
             y1 = max(int(height*box[2]), 0)
             x2 = int(width*box[3])
             y2 = int(height*box[4])
 
-            cv2.rectangle(img, (x1, y1),
-                          (x2, y2),
-                          (color[0], color[1], color[2], 0.2), int(5* box[5]), 8)
+            transp = 0.2
 
-        # plot name plates
-        for box in proc_boxes:
+            cv2.rectangle(s_copy,
+                          (x1, y1), (x2, y2),
+                          (0, 0, 255), -1, 8)
+            img = cv2.addWeighted(img, 1.0-transp, s_copy, transp, 0)
 
-            print(box)
+        return img
 
-            cls = self.names[int(box[0])]
-
-            color = self.class_to_color(cls)
-
-            height, width = img.shape[:2]
-
-            avg_col = (color[0] + color[1] + color[2])/3
-
-            text_col = (255, 255, 255)
-
-            if avg_col > 127:
-                text_col = (0, 0, 0)
-
-            x1 = max(int(width*box[1]), 0)
-            y1 = max(int(height*box[2]), 0)
-
-            cv2.rectangle(img,
-                          (x1-2, y1-int(10*box[4])-23),
-                          (x1 + (len(cls)+4)*10, y1),
-                          (color[0], color[1], color[2], 0.2), -1, 8)
-
-
-
-            cv2.putText(img, cls.upper() + " " + str(round(box[5]*100)),
-                        (x1, y1-int(10*box[4])-2),
-                        cv2.FONT_HERSHEY_PLAIN,
-                        1, text_col, 1, lineType=cv2.LINE_AA)
-
+        #     cv2.rectangle(img, (x1, y1),
+        #                   (x2, y2),
+        #                   (color[0], color[1], color[2], 0.2), int(5* box[5]), 8)
+        #
+        # # plot name plates
+        # for box in proc_boxes:
+        #
+        #     print(box)
+        #
+        #     cls = self.names[int(box[0])]
+        #
+        #     color = self.class_to_color(cls)
+        #
+        #     height, width = img.shape[:2]
+        #
+        #     avg_col = (color[0] + color[1] + color[2])/3
+        #
+        #     text_col = (255, 255, 255)
+        #
+        #     if avg_col > 127:
+        #         text_col = (0, 0, 0)
+        #
+        #     x1 = max(int(width*box[1]), 0)
+        #     y1 = max(int(height*box[2]), 0)
+        #
+        #     cv2.rectangle(img,
+        #                   (x1-2, y1-int(10*box[4])-23),
+        #                   (x1 + (len(cls)+4)*10, y1),
+        #                   (color[0], color[1], color[2], 0.2), -1, 8)
+        #
+        #
+        #
+        #     cv2.putText(img, cls.upper() + " " + str(round(box[5]*100)),
+        #                 (x1, y1-int(10*box[4])-2),
+        #                 cv2.FONT_HERSHEY_PLAIN,
+        #                 1, text_col, 1, lineType=cv2.LINE_AA)
+        #
+        # return img
