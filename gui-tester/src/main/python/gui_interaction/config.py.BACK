@@ -1,7 +1,7 @@
 # ------------------------
 # User Specific          |
 # ------------------------
-data_dir = ""
+data_dir = "./data"
 output_dir = ""
 
 
