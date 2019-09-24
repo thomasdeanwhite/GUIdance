@@ -4,18 +4,13 @@ Training models to identify GUI Widgets.
 # Installation #
 
 - clone repo
+  - `git clone git@github.com:thomasdeanwhite/GUIdance.git`
 - Fetch weights using GitLFS: `git lfs pull` or download them from this repo and unzip
 - Rename gui-tester/src/main/python/gui_interaction/config.py.BACK to config.py
 - Change gui-tester/src/main/python/gui_interaction/config.py
   -  data_dir and output_dir to directory of training input data and desired output directory
 
 # Running #
-
-After downloading or training the model's  weights, run
-```
-gui-tester/src/main/python/gui_interaction/model_run.py [path to image]
-```
-to print out the identified bounding boxes.
 
 To visualise bounding boxes, model_plot.py can be used:
 ```
