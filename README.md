@@ -5,7 +5,8 @@ Training models to identify GUI Widgets.
 
 - clone repo
   - `git clone git@github.com:thomasdeanwhite/GUIdance.git`
-- Fetch weights using GitLFS: `git lfs pull` or download them from this repo and unzip
+- Fetch weights using GitLFS: `git lfs pull` or download them from this repo 
+- unzip weights zip file
 - Rename gui-tester/src/main/python/gui_interaction/config.py.BACK to config.py
 - Change gui-tester/src/main/python/gui_interaction/config.py
   -  data_dir and output_dir to directory of training input data and desired output directory
