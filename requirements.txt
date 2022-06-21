@@ -7,7 +7,7 @@ h5py==2.9.0
 Keras-Applications==1.0.8
 Keras-Preprocessing==1.1.0
 Markdown==3.1.1
-numpy==1.16.4
+numpy==1.22.0
 opencv-python==4.1.0.25
 protobuf==3.8.0
 PyAutoGUI==0.9.45
