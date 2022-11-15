@@ -30,8 +30,9 @@ def convert_coords(x, y, w, h, aspect):
         h = h * aspect
         y = 0.5 + ((y - 0.5)*aspect)
     elif aspect < 1:
-        w = w / aspect
-        x = 0.5 + ((x - 0.5)/aspect)
+        aspect = 1 / aspect
+        w = w * aspect
+        x = 0.5 + ((x - 0.5)*aspect)
 
     return x, y, w, h
 

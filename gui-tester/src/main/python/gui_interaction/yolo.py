@@ -2,6 +2,11 @@ import numpy as np
 import tensorflow as tf
 import config as cfg
 import numpy as np
+import os
+from data_loader import convert_coords
+import cv2
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 class Yolo:
     metrics_use_iou = True
@@ -604,24 +609,6 @@ class Yolo:
                                p_boxes[..., 1]+p_boxes[...,3]/2,
                                p_boxes[..., 2]+p_boxes[...,4]/2], axis=-1)
 
-
-        # pred_boxes_xy = pred_boxes[..., 0:2]
-        # pred_boxes_wh = pred_boxes[..., 2:4]
-        #
-        # pred_wh_half = pred_boxes_wh/2
-        # pred_min = pred_boxes_xy - pred_wh_half
-        # pred_max = pred_boxes_xy + pred_wh_half
-        #
-        # truth_boxes_xy = truth_boxes[..., 0:2]
-        # truth_boxes_wh = truth_boxes[..., 2:4]
-        #
-        # true_wh_half = truth_boxes_wh / 2
-        # true_min = truth_boxes_xy - true_wh_half
-        # true_max = truth_boxes_xy + true_wh_half
-        #
-        #
-        # pred_boxes_xy = pred_boxes[..., 0:2]
-
         pred_min = pred_boxes[...,0:2]
         pred_max = pred_boxes[...,2:4]
         pred_boxes_wh = pred_max-pred_min
@@ -665,10 +652,6 @@ class Yolo:
                 p_boxes[...,2] < truth_boxes[...,3]
             ), 1.0, 0.0)
 
-            # mask = iou == np.max(iou, axis=0)
-            #
-            # points = np.where(mask, points, 0)
-
             return points
 
 
@@ -676,7 +659,6 @@ class Yolo:
         ious = []
         real_ious = []
         for i in range(boxes.shape[0]):
-            calc_iou_func = np.vectorize(self.calc_iou)
 
             real_b = real_boxes[i]
 
@@ -689,11 +671,6 @@ class Yolo:
 
             iou = self.calc_iou(np.tile(np.expand_dims(real_b, 1), [1, boxes.shape[1], 1]),
                                 np.tile(np.expand_dims(boxes[i], 0), [real_b.shape[0], 1, 1]))
-            # iou = [self.calc_iou(x, boxes[i]) for x in real_b]
-
-            #iou_tiledmax = np.tile(np.expand_dims(np.amax(iou, axis=1), -1), [1, boxes.shape[1]])
-
-            #iou = np.where(np.equal(iou, iou_tiledmax), iou, np.zeros_like(iou))
 
             max_iou = iou.max(0)
 
@@ -708,9 +685,161 @@ class Yolo:
 
         return np.concatenate((boxes, ious), axis=-1), real_ious
 
-        # new_boxes = np.append(boxes, np.array(ious), axis=-1)
-        #
-        # print(new_boxes)
-        #
-        # return new_boxes
+    def prepare(self):
+        self.saver = tf.train.Saver()
 
+        self.gpu_options = tf.GPUOptions(allow_growth=True)
+
+    def init_session(self, sess, model_file):
+        init_op = tf.global_variables_initializer()
+        model = sess.run(init_op)
+        if os.path.isfile(os.getcwd() + "/" + cfg.weights_dir + "/checkpoint"):
+            self.saver.restore(sess, model_file)
+            print("Restored model")
+
+            return True
+        return False
+
+    def calc_box_iou(self, box, box2):
+        xA = max(box[1], box2[1])
+        yA = max(box[2], box2[2])
+        xB = min(box[3], box2[3])
+        yB = min(box[4], box2[4])
+
+
+        interArea = max(0, xB - xA) * max(0, yB - yA)
+
+
+        boxAArea = (box[2] - box[0]) * (box[3] - box[1])
+        boxBArea = (box2[2] - box2[0]) * (box2[3] - box2[1])
+
+        return interArea / float(boxAArea + boxBArea - interArea)
+
+    def trim_overlapping_boxes(self, proc_boxes):
+        i = 0
+        while i < len(proc_boxes)-1:
+            box = proc_boxes[i]
+            j = i+1
+            while j < len(proc_boxes):
+                box2 = proc_boxes[j]
+
+                iou = self.calc_box_iou(box, box2)
+
+                if iou > 0.8:
+                    if (box[5] >= box2[5]):
+                        del proc_boxes[j]
+                        j = j-1
+                    else:
+                        del proc_boxes[i]
+                        i = i-1
+                        break
+                j = j + 1
+            i = i+1
+
+        return proc_boxes
+
+    def prune_boxes(self, proc_boxes):
+        i=0
+        while i < len(proc_boxes):
+            box = proc_boxes[i]
+            if box[5] < cfg.object_detection_threshold:
+                del proc_boxes[i]
+            else:
+                i += 1
+        return proc_boxes
+
+    def normalise_boxes(self, proc_boxes, width, height):
+        for i in range(len(proc_boxes)):
+            box = proc_boxes[i]
+
+            box[1:5] = convert_coords(box[1], box[2], box[3], box[4], width/height)
+
+            x, y, w, h = (box[1],box[2],box[3],box[4])
+            box[1] = x - w/2
+            box[2] = y - h/2
+            box[3] = x + w/2
+            box[4] = y + h/2
+
+        return proc_boxes
+
+    def class_to_color(self, class_name):
+
+        hex = class_name.encode('utf-8').hex()[0:6]
+
+        color = tuple(int(hex[k:k+2], 16) for k in (0, 2 ,4))
+
+        return color
+
+    def restore_aspect_ratio(self, proc_boxes, aspect):
+
+        for box in proc_boxes:
+            box[1:5] = convert_coords(box[1], box[2], box[3], box[4], aspect)
+        return proc_boxes
+
+    def plot_boxes(self, raw_boxes, img):
+
+        height, width = img.shape[:2]
+
+        proc_boxes = np.copy(raw_boxes)
+
+        imgc = np.copy(img)
+
+        # plot boxes
+        for box in proc_boxes:
+
+            color = self.class_to_color(self.names[int(box[0])])
+
+            s_copy = np.copy(img)
+
+            x1 = max(int(width*box[1]), 0)
+            y1 = max(int(height*box[2]), 0)
+            x2 = int(width*box[3])
+            y2 = int(height*box[4])
+
+            transp = 0.2
+
+            cv2.rectangle(s_copy,
+                          (x1, y1), (x2, y2),
+                          (0, 0, 255), -1, 8)
+            img = cv2.addWeighted(img, 1.0-transp, s_copy, transp, 0)
+
+        return img
+
+        #     cv2.rectangle(img, (x1, y1),
+        #                   (x2, y2),
+        #                   (color[0], color[1], color[2], 0.2), int(5* box[5]), 8)
+        #
+        # # plot name plates
+        # for box in proc_boxes:
+        #
+        #     print(box)
+        #
+        #     cls = self.names[int(box[0])]
+        #
+        #     color = self.class_to_color(cls)
+        #
+        #     height, width = img.shape[:2]
+        #
+        #     avg_col = (color[0] + color[1] + color[2])/3
+        #
+        #     text_col = (255, 255, 255)
+        #
+        #     if avg_col > 127:
+        #         text_col = (0, 0, 0)
+        #
+        #     x1 = max(int(width*box[1]), 0)
+        #     y1 = max(int(height*box[2]), 0)
+        #
+        #     cv2.rectangle(img,
+        #                   (x1-2, y1-int(10*box[4])-23),
+        #                   (x1 + (len(cls)+4)*10, y1),
+        #                   (color[0], color[1], color[2], 0.2), -1, 8)
+        #
+        #
+        #
+        #     cv2.putText(img, cls.upper() + " " + str(round(box[5]*100)),
+        #                 (x1, y1-int(10*box[4])-2),
+        #                 cv2.FONT_HERSHEY_PLAIN,
+        #                 1, text_col, 1, lineType=cv2.LINE_AA)
+        #
+        # return img

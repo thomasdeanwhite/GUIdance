@@ -11,12 +11,18 @@ output_dir = ""
 
 # Generated anchors from GUI Image dataset using
 # K-Means clustering
-anchors = [5.689762815680707,7.089220613019247,  
-  4.146250839026031,2.8451912727793127,  
-  1.184713044693887,4.635493841471227,  
-  6.401568727399865,0.5919843713657224,  
-  1.0073469991938633,0.6949452764581193
-]
+
+#anchors = [0.9817857382941845, 9.398278193098788,
+#           5.52115919597547, 6.985948423888699,
+#           0.9090057538352261, 1.94398118062752,
+#           2.4060115242354794, 0.7252024765267888,
+#           9.922079927099324, 1.5033104111199442]
+
+anchors = [5.689762815680707,7.089220613019247,
+           4.146250839026031,2.8451912727793127,
+           1.184713044693887,4.635493841471227,
+           6.401568727399865,0.5919843713657224,
+           1.0073469991938633,0.6949452764581193]
 
 # resolution of input image
 width = 416
@@ -53,7 +59,7 @@ learning_rate_start = 0.0001
 learning_rate_min = 0.00001
 learning_rate_decay = 0.95
 momentum = 0.9
-object_detection_threshold = 0.5
+object_detection_threshold = 0.12
 
 # maximum training epochs
 epochs = 100000
@@ -64,7 +70,7 @@ batch_size = 32
 # standard deviation of variables when initialised
 var_sd = 0.001
 
-brightness_probability = 1.1
+brightness_probability = 0.1
 contrast_probability = 0.1
 invert_probability = 0.1
 
