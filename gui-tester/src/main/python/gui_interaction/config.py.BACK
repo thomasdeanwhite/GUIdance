@@ -1,7 +1,7 @@
 # ------------------------
 # User Specific          |
 # ------------------------
-data_dir = ""
+data_dir = "./data"
 output_dir = ""
 
 
@@ -11,6 +11,7 @@ output_dir = ""
 
 # Generated anchors from GUI Image dataset using
 # K-Means clustering
+
 #anchors = [0.9817857382941845, 9.398278193098788,
 #           5.52115919597547, 6.985948423888699,
 #           0.9090057538352261, 1.94398118062752,

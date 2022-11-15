@@ -2,8 +2,9 @@
 A technique to identify widgets in screenshots of GUIs. 
 
 # Installation #
-
-- clone repo
+- `git clone git@github.com:thomasdeanwhite/GUIdance.git`
+- Fetch weights using GitLFS: `git lfs pull` or download them from this repo 
+- unzip weights zip file
 - Copy `gui-tester/src/main/python/gui_interaction/config.py.BACK` to `config.py`
 - Install dependencies
   - `pip3 install -r requirements.txt`
@@ -11,11 +12,6 @@ A technique to identify widgets in screenshots of GUIs.
   -  `data_dir` and `output_dir` to directory of training input data and desired output directory
 
 # Running #
-
-After downloading/training the model weights, to test an application, run
-```
-gui-tester/src/main/python/gui_interaction/model_run.py [path to image]
-```
 
 To visualise bounding boxes, model_plot.py can be used:
 ```
@@ -25,6 +21,7 @@ e.g.
 ```
 python gui-tester/src/main/python/gui_interaction/model_plot.py /home/user/img.png
 ```
+
 
 ![Annotated App](https://raw.githubusercontent.com/thomasdeanwhite/GUIdance/master/public/app-annotated.png)
 
