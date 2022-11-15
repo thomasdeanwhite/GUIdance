@@ -29,3 +29,5 @@ python gui-tester/src/main/python/gui_interaction/model_plot.py /home/user/img.p
 ![Annotated App](https://raw.githubusercontent.com/thomasdeanwhite/GUIdance/master/public/app-annotated.png)
 
 Ensure that the model weights are in the folder _weights_ in the directory you are running the python script from.
+
+The weights file can be found here: https://github.com/thomasdeanwhite/GUIdance/issues/7
